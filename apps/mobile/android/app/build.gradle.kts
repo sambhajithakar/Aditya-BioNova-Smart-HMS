@@ -33,7 +33,7 @@ val keystoreProperties = Properties().apply {
 }
 
 android {
-    namespace = "`in`.adityabionova.aditya_bionova_mobile"
+    namespace = "com.adityabionova.smarthms"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -43,7 +43,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "`in`.adityabionova.aditya_bionova_mobile"
+        applicationId = "com.adityabionova.smarthms"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION

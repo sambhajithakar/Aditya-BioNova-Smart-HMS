@@ -1,4 +1,4 @@
-package `in`.adityabionova.aditya_bionova_mobile
+package com.adityabionova.smarthms
 
 import io.flutter.embedding.android.FlutterActivity
 
