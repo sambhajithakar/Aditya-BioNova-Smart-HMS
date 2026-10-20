@@ -167,7 +167,22 @@ Per-profile checks in `device.spec.ts`:
 `{tablet-800x1280,netbook-1024x600,laptop-1366x768}_{dashboard,patients,billing,consultation,ipd}.png`
 and `print-test-{a4,a5,80mm}.png`.
 
-## 7. What was NOT tested
+## 7. Defects found by these tests (all fixed)
+
+| Found by | Defect | Fix |
+|---|---|---|
+| Throttled phone benchmark (seeded data) | At 360 px a `nowrap` table's min-content width widened the page. Mobile Chrome then grew the layout viewport (to about 440 px) and the fixed bottom bar slid partly off-screen ("More" missing, taps blocked). The existing 390 px overflow check could not see this, because in mobile emulation `clientWidth` grows along with the content. | Grid and row children may shrink (`min-width: 0`), so tables scroll inside their card. The overflow check now compares against the device width, and the phone test seeds real patient rows. |
+| Tablet / netbook sweep | The Billing invoice line table was about 1,440 px wide on **800–1366 px** screens, because inputs kept their ~20-character intrinsic width. | Form controls in table cells fill the cell (selects keep a readable minimum). |
+| Named-controls check | Invoice line-item fields had no accessible names (visual column headers only). | `aria-label` per field, e.g. "Qty 1", from the same translated strings. |
+| Offline test | A page opened while the API was unreachable sent the member to `/login`, since a failed refresh looked like an auth failure. | Unreachable ≠ unauthenticated: the page stays, the banner explains, and `/auth/me` is retried when the connection returns. |
+| PDF print check | `@page { size: 80mm auto }` is invalid CSS and Chromium printed Letter. | Explicit, measured roll length. |
+
+Pre-existing, environment-dependent: with `E2E_BASE_URL=http://127.0.0.1:…`
+the existing smoke test's second tab (`/print/rx/…`) is redirected to `/login`
+(SameSite=Strict cookies plus an IP origin). With `http://localhost:…`, as CI
+uses, it passes. This happens on the baseline commit too and was not changed.
+
+## 8. What was NOT tested
 
 * Real hardware of any kind: entry Android phones, tablets, the 1024 × 600
   netbook, a real 4 GB RAM laptop, thermal or laser printers.
@@ -183,7 +198,7 @@ and `print-test-{a4,a5,80mm}.png`.
 * Real radio conditions: packet loss, captive portals, a link that flaps every
   few seconds.
 
-## 8. Recommendations
+## 9. Recommendations
 
 1. Run `/print/test` on each clinic's printers during onboarding and record the
    driver settings that worked.
