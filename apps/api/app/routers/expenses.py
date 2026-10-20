@@ -41,6 +41,7 @@ from ..schemas import (
     PageOut,
 )
 from ..services.clinical import idempotent_replay, idempotent_store
+from ..timeutil import clinic_today
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
@@ -205,7 +206,7 @@ def expense_summary(
 ) -> PageOut:
     """Per-category totals for the period (recorded expenses only)."""
     if date_to is None:
-        date_to = date.today()
+        date_to = clinic_today()
     if date_from is None:
         date_from = date_to - timedelta(days=30)
     rows = db.execute(

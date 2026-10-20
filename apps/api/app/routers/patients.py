@@ -7,9 +7,10 @@ invisible), never 403 — existence itself must not leak.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -21,7 +22,16 @@ from ..deps import (
     get_correlation_id,
     require_permission,
 )
-from ..models import Patient
+from ..models import (
+    Admission,
+    Appointment,
+    Encounter,
+    Invoice,
+    LabOrder,
+    OpdQueueEntry,
+    Patient,
+    Prescription,
+)
 from ..schemas import (
     DuplicateCandidate,
     PageOut,
@@ -35,6 +45,7 @@ from ..services.clinical import (
     find_duplicates,
     idempotent_replay,
     idempotent_store,
+    union_allergies,
 )
 
 router = APIRouter(prefix="/patients", tags=["patients"])
@@ -256,22 +267,37 @@ def merge_patient(
 
     Nothing is deleted — the source keeps its UHID, points at the survivor
     (``merged_into_id``) and becomes read-only; both sides are audited.
+
+    Clinical safety data travels with the merge (M7.0 / H3):
+    * the source's allergies are unioned into the survivor's list (and the
+      allergy gate additionally reads every record merged into a patient);
+    * OPEN work is re-pointed to the survivor: scheduled/checked-in
+      appointments, active queue entries, the open encounter, draft
+      prescriptions and draft invoices;
+    * FROZEN history stays on the retired record, reachable through
+      ``merged_into_id``: completed encounters, signed prescriptions, issued
+      invoices, lab orders and admissions (their patient_id is frozen by DB
+      trigger — re-writing signed clinical/financial documents is exactly
+      what those triggers forbid). The counts are recorded in the audit event.
     """
     if patient_id == payload.target_patient_id:
         raise HTTPException(status_code=409, detail="Cannot merge a patient into itself")
 
-    source = db.scalar(
-        select(Patient).where(
-            Patient.id == patient_id,
-            Patient.organization_id == principal.organization_id,
-        )
-    )
-    target = db.scalar(
-        select(Patient).where(
-            Patient.id == payload.target_patient_id,
-            Patient.organization_id == principal.organization_id,
-        )
-    )
+    # lock both rows in id order: concurrent A->B and B->A merges serialize
+    locked = {
+        p.id: p
+        for p in db.scalars(
+            select(Patient)
+            .where(
+                Patient.id.in_((patient_id, payload.target_patient_id)),
+                Patient.organization_id == principal.organization_id,
+            )
+            .order_by(Patient.id)
+            .with_for_update()
+        ).all()
+    }
+    source = locked.get(patient_id)
+    target = locked.get(payload.target_patient_id)
     if source is None or target is None:
         raise HTTPException(status_code=404, detail="Patient not found")
     if source.status == "merged":
@@ -282,8 +308,17 @@ def merge_patient(
             detail="Target patient is itself merged; pick the surviving record",
         )
 
+    moved, kept = _repoint_open_records(db, principal, source, target)
+
+    now = datetime.now(timezone.utc)
+    merged_allergies = union_allergies(target.allergies, source.allergies)
+    allergies_added = merged_allergies != union_allergies(target.allergies)
+    target.allergies = merged_allergies
+    target.updated_at = now
     source.status = "merged"
     source.merged_into_id = target.id
+    source.updated_at = now
+    db.flush()
     record_event(
         db,
         action="patient.merged",
@@ -292,8 +327,98 @@ def merge_patient(
         resource_type="patient",
         resource_id=str(source.id),
         metadata={"merged_into": str(target.id), "source_uhid": source.uhid,
-                  "target_uhid": target.uhid},
+                  "target_uhid": target.uhid,
+                  "allergies_added": allergies_added,
+                  "repointed": moved, "kept_on_source": kept},
         correlation_id=get_correlation_id(request),
         ip_address=get_client_ip(request),
     )
     return PatientOut.model_validate(target)
+
+
+def _repoint_open_records(
+    db: Session, principal: Principal, source: Patient, target: Patient
+) -> tuple[dict[str, int], dict[str, int]]:
+    """Move the source's OPEN records to the survivor; count frozen ones."""
+    org = principal.organization_id
+
+    # one-open-per-patient invariants must survive the move: refuse the
+    # merge (409) rather than silently closing someone's open work
+    active_queue = ("waiting", "called", "in_consultation")
+    clash = db.scalar(
+        select(func.count()).select_from(OpdQueueEntry).where(
+            OpdQueueEntry.organization_id == org,
+            OpdQueueEntry.patient_id == source.id,
+            OpdQueueEntry.status.in_(active_queue),
+            OpdQueueEntry.service_date.in_(
+                select(OpdQueueEntry.service_date).where(
+                    OpdQueueEntry.organization_id == org,
+                    OpdQueueEntry.patient_id == target.id,
+                    OpdQueueEntry.status.in_(active_queue),
+                )
+            ),
+        )
+    )
+    if clash:
+        raise HTTPException(
+            status_code=409,
+            detail="Both records are in today's active queue; complete or "
+                   "skip one entry before merging",
+        )
+    open_enc = [
+        db.scalar(
+            select(func.count()).select_from(Encounter).where(
+                Encounter.organization_id == org,
+                Encounter.patient_id == pid,
+                Encounter.status == "open",
+            )
+        )
+        for pid in (source.id, target.id)
+    ]
+    if all(open_enc):
+        raise HTTPException(
+            status_code=409,
+            detail="Both records have an open encounter; complete one before merging",
+        )
+    if db.scalar(
+        select(func.count()).select_from(Admission).where(
+            Admission.organization_id == org,
+            Admission.patient_id == source.id,
+            Admission.status == "admitted",
+        )
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="The record being retired is currently admitted; discharge "
+                   "it before merging",
+        )
+
+    moves = [
+        ("appointments", Appointment,
+         Appointment.status.in_(("scheduled", "checked_in"))),
+        ("queue_entries", OpdQueueEntry, OpdQueueEntry.status.in_(active_queue)),
+        ("encounters", Encounter, Encounter.status == "open"),
+        ("prescriptions", Prescription, Prescription.status == "draft"),
+        ("invoices", Invoice, Invoice.status == "draft"),
+    ]
+    moved: dict[str, int] = {}
+    for label, model, condition in moves:
+        result = db.execute(
+            update(model)
+            .where(model.organization_id == org, model.patient_id == source.id,
+                   condition)
+            .values(patient_id=target.id)
+            .execution_options(synchronize_session=False)
+        )
+        moved[label] = result.rowcount or 0
+
+    kept: dict[str, int] = {}
+    for label, model in [("encounters", Encounter), ("prescriptions", Prescription),
+                         ("invoices", Invoice), ("lab_orders", LabOrder),
+                         ("admissions", Admission)]:
+        kept[label] = db.scalar(
+            select(func.count()).select_from(model).where(
+                model.organization_id == org, model.patient_id == source.id
+            )
+        ) or 0
+    return moved, kept

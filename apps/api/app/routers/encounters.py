@@ -48,6 +48,7 @@ from ..schemas import (
     VitalsIn,
     VitalsOut,
 )
+from ..services.tenancy import load_appointment, require_member
 
 router = APIRouter(prefix="/encounters", tags=["encounters"])
 
@@ -116,6 +117,14 @@ def start_encounter(
             raise HTTPException(
                 status_code=409, detail="Queue entry belongs to another patient"
             )
+
+    # FK checks bypass RLS: client-supplied ids must be visible to us
+    if payload.appointment_id is not None:
+        load_appointment(db, principal, payload.appointment_id,
+                         patient_id=payload.patient_id)
+    if payload.provider_user_id is not None:
+        require_member(db, principal, payload.provider_user_id,
+                       field="provider_user_id")
 
     enc = Encounter(
         organization_id=principal.organization_id,

@@ -644,6 +644,8 @@ class RxItemIn(StrictModel):
     duration_days: int = Field(ge=1, le=365)
     quantity: str = Field(default="", max_length=100)
     instructions: str = Field(default="", max_length=500)
+    # units the pharmacy may dispense in total; omitted -> dispensable once
+    dispense_quantity: int | None = Field(default=None, ge=1, le=10000)
 
     @field_validator("route")
     @classmethod
@@ -667,6 +669,17 @@ class RxItemOut(BaseModel):
     quantity: str
     instructions: str
     seq: int
+    dispense_quantity: int | None = None
+    # copied from the catalog at read time (inactive drugs included)
+    drug_name: str = ""
+    generic_name: str = ""
+    strength: str = ""
+
+
+class PrescriberOut(BaseModel):
+    user_id: uuid.UUID
+    full_name: str
+    registration_number: str | None = None
 
 
 class PrescriptionIn(StrictModel):
@@ -702,6 +715,7 @@ class PrescriptionOut(BaseModel):
 
 class PrescriptionDetailOut(PrescriptionOut):
     items: list[RxItemOut] = []
+    prescriber: PrescriberOut | None = None
 
 
 class SignRxIn(StrictModel):
@@ -1083,6 +1097,7 @@ class LabOrderOut(BaseModel):
     clinical_notes: str
     cancel_reason: str
     created_at: datetime
+    items: list["LabOrderItemOut"] = []
 
     @field_validator("status")
     @classmethod
@@ -1091,6 +1106,14 @@ class LabOrderOut(BaseModel):
                      "released", "cancelled"):
             raise ValueError("illegal lab order status")
         return v
+
+
+class LabOrderItemOut(BaseModel):
+    id: uuid.UUID
+    test_id: uuid.UUID
+    test_code: str
+    test_name: str
+    status: str
 
 
 class LabOrderDetailOut(LabOrderOut):
@@ -1139,6 +1162,16 @@ class LabResultValueIn(StrictModel):
             raise ValueError(f"flag must be one of {_LAB_FLAGS}")
         return v
 
+    @model_validator(mode="after")
+    def _has_value(self) -> "LabResultValueIn":
+        _require_lab_value(self.value_text, self.value_numeric)
+        return self
+
+
+def _require_lab_value(value_text: str, value_numeric: float | None) -> None:
+    if value_numeric is None and not value_text.strip():
+        raise ValueError("a result needs value_text or value_numeric")
+
 
 class ImportResultsIn(StrictModel):
     specimen_id: uuid.UUID | None = None
@@ -1157,6 +1190,11 @@ class AmendResultIn(StrictModel):
         if v not in _LAB_FLAGS:
             raise ValueError(f"flag must be one of {_LAB_FLAGS}")
         return v
+
+    @model_validator(mode="after")
+    def _has_value(self) -> "AmendResultIn":
+        _require_lab_value(self.value_text, self.value_numeric)
+        return self
 
 
 class CancelLabOrderIn(StrictModel):
@@ -1294,6 +1332,10 @@ class DischargeIn(StrictModel):
         return v
 
 
+SPO2_ESCALATION_BELOW = 85
+ESCALATION_NOTE_MIN = 10
+
+
 class NursingRecordIn(StrictModel):
     note_type: str = "note"
     note: str = Field(default="", max_length=4000)
@@ -1318,18 +1360,19 @@ class NursingRecordIn(StrictModel):
             raise ValueError("temperature_c supports one decimal place")
         return v
 
-    @field_validator("spo2")
-    @classmethod
-    def _spo2(cls, v: int | None) -> int | None:
-        if v is not None and v < 85:
-            raise ValueError(
-                "spo2 below 85 needs immediate clinical review — "
-                "record it as a note with escalation"
-            )
-        return v
-
     @model_validator(mode="after")
     def _has_content_and_ordered_bp(self) -> "NursingRecordIn":
+        # SpO2 50..84 is a real (hypoxic) reading: it MUST be recorded, but
+        # only together with a documented escalation note (who was informed,
+        # what was done). Physiologically impossible values (<50, >100) are
+        # still rejected by the field range.
+        if (self.spo2 is not None and self.spo2 < SPO2_ESCALATION_BELOW
+                and len(self.note.strip()) < ESCALATION_NOTE_MIN):
+            raise ValueError(
+                f"spo2 below {SPO2_ESCALATION_BELOW} needs an escalation note "
+                f"(at least {ESCALATION_NOTE_MIN} characters: who was "
+                "informed and what was done)"
+            )
         vital = (self.bp_systolic is not None or self.pulse is not None
                  or self.temperature_c is not None or self.spo2 is not None
                  or self.respiratory_rate is not None)

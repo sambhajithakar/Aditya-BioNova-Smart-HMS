@@ -616,10 +616,15 @@ def test_lab_order_result_state_machine_four_eyes(client, org_a):
     assert spec.json()["barcode"].startswith("SPC-")
     assert client.get(f"/api/v1/lab/orders/{od['id']}",
                       headers=h).json()["status"] == "specimen_collected"
-    # a second collection on the same order is refused
-    assert client.post(f"/api/v1/lab/orders/{od['id']}/specimens",
-                       json={"specimen_type": "blood"},
-                       headers=h).status_code == 409
+    # M7.0: an order may take several specimens (the old assertion that a
+    # second collection is refused encoded defect H7); the order stays
+    # specimen_collected
+    second = client.post(f"/api/v1/lab/orders/{od['id']}/specimens",
+                         json={"specimen_type": "urine"}, headers=h)
+    assert second.status_code == 201, second.text
+    assert second.json()["barcode"] != spec.json()["barcode"]
+    assert client.get(f"/api/v1/lab/orders/{od['id']}",
+                      headers=h).json()["status"] == "specimen_collected"
 
     imported = client.post(f"/api/v1/lab/orders/{od['id']}/results", json={
         "specimen_id": spec.json()["id"],
@@ -901,12 +906,13 @@ def test_m5_cross_tenant_isolation(client, org_a, org_b):
                client.get("/api/v1/lab/orders",
                           params={"limit": 100}, headers=hb).json()["items"])
 
-    # B cannot dispense A's stock by pointing at A's branch (no stock there
-    # for B, so the FEFO allocation finds nothing)
+    # B cannot dispense A's stock by pointing at A's branch: M7.0 validates
+    # the branch inside B's tenant first, so it is simply not found (404)
+    # instead of reaching the FEFO allocation (previously 409)
     p_b = _patient(client, hb, name="Tenant B Patient")
     cross = _dispense(client, hb, [(para, 1)], branch_id=br_a,
                       patient_id=p_b["id"])
-    assert cross.status_code == 409
+    assert cross.status_code == 404
 
     # B cannot order labs for A's patient
     assert _lab_order(client, hb, p_a["id"], br_b,

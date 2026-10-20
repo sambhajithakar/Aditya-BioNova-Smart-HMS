@@ -3,7 +3,12 @@
 Conflict rule: for the same organization and provider, an active (scheduled
 or checked_in) appointment overlapping the requested window is rejected with
 409. Patient and branch references are validated INSIDE the tenant — a
-foreign identifier returns 404, never a foreign key error leak.
+foreign identifier returns 404, never a foreign key error leak; the provider
+must be an active member of the organization (422 otherwise).
+
+Double-booking race (M7.0): the overlap check runs under a per-provider
+advisory transaction lock, so two concurrent bookings for one provider are
+serialized and the second sees the first.
 """
 from __future__ import annotations
 
@@ -11,7 +16,7 @@ import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, select, text
 from sqlalchemy.orm import Session
 
 from ..auditing import record_event
@@ -24,6 +29,7 @@ from ..deps import (
 )
 from ..models import Appointment, Branch, Patient
 from ..schemas import AppointmentIn, AppointmentOut, AppointmentUpdateIn, PageOut
+from ..services.tenancy import require_member
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
 
@@ -57,6 +63,10 @@ def _assert_no_conflict(
 ) -> None:
     if provider_user_id is None:
         return
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+        {"key": f"appt:{org_id}:{provider_user_id}"},
+    )
     stmt = select(func.count()).select_from(Appointment).where(
         Appointment.organization_id == org_id,
         Appointment.provider_user_id == provider_user_id,
@@ -86,6 +96,9 @@ def create_appointment(
     _load_patient_branch(
         db, principal.organization_id, payload.patient_id, payload.branch_id
     )
+    if payload.provider_user_id is not None:
+        require_member(db, principal, payload.provider_user_id,
+                       field="provider_user_id")
     _assert_no_conflict(
         db,
         org_id=principal.organization_id,
@@ -210,6 +223,9 @@ def update_appointment(
     if new_end <= new_start:
         raise HTTPException(status_code=422, detail="ends_at must be after starts_at")
 
+    if changes.get("provider_user_id") is not None:
+        require_member(db, principal, changes["provider_user_id"],
+                       field="provider_user_id")
     if "provider_user_id" in changes or "starts_at" in changes or "ends_at" in changes:
         _assert_no_conflict(
             db,

@@ -45,6 +45,7 @@ from ..schemas import (
     PageOut,
 )
 from ..services.clinical import idempotent_replay, idempotent_store
+from ..services.tenancy import load_branch
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
@@ -85,6 +86,7 @@ def create_item(
     principal: Principal = Depends(require_permission("inventory.manage")),
     db: Session = Depends(get_db, scope="function"),
 ) -> InventoryItemOut:
+    load_branch(db, principal, payload.branch_id)  # FKs bypass RLS
     dup = db.scalar(
         select(InventoryItem.id).where(
             InventoryItem.organization_id == principal.organization_id,

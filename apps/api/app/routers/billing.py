@@ -11,7 +11,16 @@ Financial integrity (all proven by tests):
   the first response; same key + different payload -> 409);
 * refunds can never exceed the amount actually settled on a payment;
 * ``gateway=sandbox`` simulates the M7 provider flow (pending -> webhook
-  style confirm/reject) without touching any real money.
+  style confirm/reject) without touching any real money;
+* concurrency (M7.0 / H9): every money move (payment, confirm, fail,
+  refund, issue, void) first takes ``SELECT .. FOR UPDATE`` on the invoice
+  row, so balance checks and ``amount_paid`` updates are serialized per
+  invoice; PENDING sandbox payments reserve their amount against the balance
+  and confirm re-checks the invoice status and balance; the DB CHECK
+  ``0 <= amount_paid <= total`` is the final backstop;
+* GST is computed on the discounted (taxable) value — see
+  ``services.billing.compute_invoice_totals`` for the allocation rule;
+* POST /invoices honours ``Idempotency-Key``.
 """
 from __future__ import annotations
 
@@ -33,7 +42,6 @@ from ..deps import (
 )
 from ..models import (
     Branch,
-    Encounter,
     Invoice,
     InvoiceItem,
     LedgerEntry,
@@ -59,26 +67,31 @@ from ..services.clinical import idempotent_replay, idempotent_store
 from ..services.billing import (
     assert_ledger_consistent,
     balance_due,
-    compute_line_total,
+    compute_invoice_totals,
     money,
     next_invoice_number,
     post_ledger,
     refund_total_for_payment,
     settle_paid_status,
 )
+from ..services.tenancy import load_encounter
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
 MAX_LIMIT = 100
 
 
-def _get_invoice(db: Session, principal: Principal, invoice_id: uuid.UUID) -> Invoice:
-    row = db.scalar(
-        select(Invoice).where(
-            Invoice.id == invoice_id,
-            Invoice.organization_id == principal.organization_id,
-        )
+def _get_invoice(
+    db: Session, principal: Principal, invoice_id: uuid.UUID, *, lock: bool = False
+) -> Invoice:
+    stmt = select(Invoice).where(
+        Invoice.id == invoice_id,
+        Invoice.organization_id == principal.organization_id,
     )
+    if lock:
+        # row lock + fresh state (never trust a copy loaded before the lock)
+        stmt = stmt.with_for_update().execution_options(populate_existing=True)
+    row = db.scalar(stmt)
     if row is None:
         raise HTTPException(status_code=404, detail="Invoice not found")
     return row
@@ -113,9 +126,21 @@ def _invoice_detail(db: Session, principal: Principal, inv: Invoice) -> InvoiceD
 def create_invoice(
     payload: InvoiceIn,
     request: Request,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: Principal = Depends(require_permission("billing.invoice")),
     db: Session = Depends(get_db, scope="function"),
 ) -> InvoiceDetailOut:
+    body = payload.model_dump(mode="json")
+    replay = idempotent_replay(
+        db,
+        organization_id=principal.organization_id,
+        key=idempotency_key,
+        endpoint="POST /billing/invoices",
+        payload=body,
+    )
+    if replay:
+        return InvoiceDetailOut.model_validate(replay["body"])
+
     patient = db.scalar(
         select(Patient).where(
             Patient.id == payload.patient_id,
@@ -133,31 +158,20 @@ def create_invoice(
     if branch is None or branch.status != "active":
         raise HTTPException(status_code=404, detail="Branch not found or inactive")
     if payload.encounter_id:
-        enc = db.scalar(
-            select(Encounter).where(
-                Encounter.id == payload.encounter_id,
-                Encounter.organization_id == principal.organization_id,
-            )
-        )
-        if enc is None:
-            raise HTTPException(status_code=404, detail="Encounter not found")
+        # same tenant AND same patient (FK checks bypass RLS)
+        load_encounter(db, principal, payload.encounter_id,
+                       patient_id=payload.patient_id)
 
-    # server-side totals — client totals are never accepted
-    subtotal = Decimal("0")
-    tax_total = Decimal("0")
-    computed: list[tuple] = []
-    for seq, item in enumerate(payload.items):
-        line = compute_line_total(item.quantity, item.unit_price, item.tax_rate)
-        base = money(Decimal(str(item.quantity)) * Decimal(str(item.unit_price)))
-        tax = money(line - base)
-        subtotal += base
-        tax_total += tax
-        computed.append((seq, item, line))
-
-    discount = money(payload.discount)
-    if discount > subtotal:
-        raise HTTPException(status_code=422, detail="Discount exceeds subtotal")
-    total = money(subtotal - discount + tax_total)
+    # server-side totals — client totals are never accepted; GST is charged
+    # on the post-discount (taxable) value
+    subtotal, discount, tax_total, total, line_totals = compute_invoice_totals(
+        [(i.quantity, i.unit_price, i.tax_rate) for i in payload.items],
+        payload.discount,
+    )
+    computed = [
+        (seq, item, line)
+        for seq, (item, line) in enumerate(zip(payload.items, line_totals))
+    ]
 
     invoice_number = next_invoice_number(db, principal.organization_id)
     inv = Invoice(
@@ -204,7 +218,17 @@ def create_invoice(
         correlation_id=get_correlation_id(request),
         ip_address=get_client_ip(request),
     )
-    return _invoice_detail(db, principal, inv)
+    out = _invoice_detail(db, principal, inv)
+    idempotent_store(
+        db,
+        organization_id=principal.organization_id,
+        key=idempotency_key,
+        endpoint="POST /billing/invoices",
+        payload=body,
+        status=201,
+        body=out.model_dump(mode="json"),
+    )
+    return out
 
 
 @router.post("/invoices/{invoice_id}/issue", response_model=InvoiceDetailOut)
@@ -214,7 +238,7 @@ def issue_invoice(
     principal: Principal = Depends(require_permission("billing.invoice")),
     db: Session = Depends(get_db, scope="function"),
 ) -> InvoiceDetailOut:
-    inv = _get_invoice(db, principal, invoice_id)
+    inv = _get_invoice(db, principal, invoice_id, lock=True)
     if inv.status != "draft":
         raise HTTPException(status_code=409, detail=f"Invoice is {inv.status}")
     if money(Decimal(str(inv.total))) <= 0:
@@ -254,7 +278,7 @@ def void_invoice(
     principal: Principal = Depends(require_permission("billing.invoice")),
     db: Session = Depends(get_db, scope="function"),
 ) -> InvoiceDetailOut:
-    inv = _get_invoice(db, principal, invoice_id)
+    inv = _get_invoice(db, principal, invoice_id, lock=True)
     if inv.status not in ("draft", "issued"):
         raise HTTPException(
             status_code=409, detail=f"Cannot void an invoice in {inv.status}"
@@ -262,6 +286,11 @@ def void_invoice(
     if money(Decimal(str(inv.amount_paid))) > 0:
         raise HTTPException(
             status_code=409, detail="Refund settled payments before voiding"
+        )
+    if _pending_reserved(db, inv) > 0:
+        raise HTTPException(
+            status_code=409,
+            detail="Pending gateway payments must be confirmed or failed first",
         )
     was_issued = inv.status == "issued"
     inv.status = "void"
@@ -359,18 +388,23 @@ def record_payment(
     if replay:
         return PaymentOut.model_validate(replay["body"])
 
-    inv = _get_invoice(db, principal, invoice_id)
+    inv = _get_invoice(db, principal, invoice_id, lock=True)
     if inv.status not in ("issued", "paid"):
         raise HTTPException(
             status_code=409,
             detail=f"Payments need an issued invoice (status: {inv.status})",
         )
     amount = money(payload.amount)
-    outstanding = balance_due(db, inv)
+    # pending gateway payments RESERVE their amount: two sandbox payments
+    # for the full balance cannot both be opened
+    reserved = _pending_reserved(db, inv)
+    outstanding = money(balance_due(db, inv) - reserved)
     if amount > outstanding:
         raise HTTPException(
             status_code=422,
-            detail=f"Amount {amount} exceeds balance due {outstanding}",
+            detail=(f"Amount {amount} exceeds balance due {outstanding}"
+                    + (f" ({reserved} reserved by pending payments)"
+                       if reserved > 0 else "")),
         )
 
     payment = Payment(
@@ -424,6 +458,35 @@ def record_payment(
     return out
 
 
+def _pending_reserved(db: Session, inv: Invoice) -> Decimal:
+    total = db.scalar(
+        select(func.coalesce(func.sum(Payment.amount), 0)).where(
+            Payment.organization_id == inv.organization_id,
+            Payment.invoice_id == inv.id,
+            Payment.status == "pending",
+        )
+    )
+    return money(Decimal(str(total or 0)))
+
+
+def _lock_payment_and_invoice(
+    db: Session, principal: Principal, payment_id: uuid.UUID
+) -> tuple[Payment, Invoice]:
+    """Lock order: invoice first, then the payment (fresh state after both
+    locks). Every money path uses this order, so no deadlock and no stale
+    status/amount read."""
+    payment = _load_payment(db, principal, payment_id)
+    inv = _get_invoice(db, principal, payment.invoice_id, lock=True)
+    payment = db.scalar(
+        select(Payment)
+        .where(Payment.id == payment_id,
+               Payment.organization_id == principal.organization_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    return payment, inv
+
+
 def _settle_payment(
     db: Session,
     principal: Principal,
@@ -464,12 +527,21 @@ def sandbox_confirm(
     db: Session = Depends(get_db, scope="function"),
 ) -> PaymentOut:
     """Sandbox gateway callback: confirm a pending payment (M7 spike)."""
-    payment = _load_payment(db, principal, payment_id)
+    payment, inv = _lock_payment_and_invoice(db, principal, payment_id)
     if payment.gateway != "sandbox":
         raise HTTPException(status_code=409, detail="Not a sandbox payment")
     if payment.status != "pending":
         raise HTTPException(status_code=409, detail=f"Payment is {payment.status}")
-    inv = _get_invoice(db, principal, payment.invoice_id)
+    # re-check the invoice at settlement time: voided/settled meanwhile?
+    if inv.status != "issued":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Invoice is {inv.status}; the payment cannot settle",
+        )
+    if money(Decimal(str(payment.amount))) > balance_due(db, inv):
+        raise HTTPException(
+            status_code=409, detail="Payment exceeds the invoice balance due"
+        )
     _settle_payment(db, principal, inv, payment, success=True)
     record_event(
         db,
@@ -492,12 +564,11 @@ def sandbox_fail(
     principal: Principal = Depends(require_permission("billing.payment")),
     db: Session = Depends(get_db, scope="function"),
 ) -> PaymentOut:
-    payment = _load_payment(db, principal, payment_id)
+    payment, inv = _lock_payment_and_invoice(db, principal, payment_id)
     if payment.gateway != "sandbox":
         raise HTTPException(status_code=409, detail="Not a sandbox payment")
     if payment.status != "pending":
         raise HTTPException(status_code=409, detail=f"Payment is {payment.status}")
-    inv = _get_invoice(db, principal, payment.invoice_id)
     _settle_payment(
         db, principal, inv, payment, success=False, failure_reason="Sandbox decline"
     )
@@ -537,7 +608,7 @@ def refund_payment(
     principal: Principal = Depends(require_permission("billing.refund")),
     db: Session = Depends(get_db, scope="function"),
 ) -> RefundOut:
-    payment = _load_payment(db, principal, payment_id)
+    payment, inv = _lock_payment_and_invoice(db, principal, payment_id)
     if payment.status not in ("succeeded", "partially_refunded", "refunded"):
         raise HTTPException(
             status_code=409, detail=f"Cannot refund a {payment.status} payment"
@@ -563,7 +634,6 @@ def refund_payment(
     db.add(refund)
     db.flush()
 
-    inv = _get_invoice(db, principal, payment.invoice_id)
     inv.amount_paid = money(Decimal(str(inv.amount_paid)) - amount)
     inv.updated_at = datetime.now(timezone.utc)
     post_ledger(

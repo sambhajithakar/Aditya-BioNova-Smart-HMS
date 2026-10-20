@@ -1,7 +1,9 @@
 """OPD queue: token issue and the doctor's authorized queue view.
 
 Tokens are sequential per organization per service day and allocated under
-a per-day advisory lock (safe under concurrent reception desks). State
+a per-day advisory lock (safe under concurrent reception desks); the same
+lock covers the one-active-entry-per-patient check. The service day is the
+CLINIC calendar day (IST by default, ``app.timeutil``). State
 machine: waiting -> called -> in_consultation -> completed; waiting may be
 skipped or cancelled. Terminal states never move backwards (no silent
 rewrites of clinical flow — every transition is audited).
@@ -27,6 +29,8 @@ from ..deps import (
 from ..models import Branch, OpdQueueEntry, Patient
 from ..schemas import PageOut, QueueEntryOut, QueueJoinIn, QueueStatusIn
 from ..services.clinical import idempotent_replay, idempotent_store
+from ..services.tenancy import load_appointment
+from ..timeutil import clinic_today
 
 router = APIRouter(prefix="/opd/queue", tags=["opd-queue"])
 
@@ -42,7 +46,8 @@ _ALLOWED_TRANSITIONS: dict[str, set[str]] = {
 
 
 def _today() -> date:
-    return datetime.now(timezone.utc).date()
+    """The clinic's service day (IST by default), not the UTC date."""
+    return clinic_today()
 
 
 @router.post("", response_model=QueueEntryOut, status_code=status.HTTP_201_CREATED)
@@ -80,8 +85,20 @@ def join_queue(
     )
     if branch is None or branch.status != "active":
         raise HTTPException(status_code=404, detail="Branch not found or inactive")
+    if payload.appointment_id is not None:
+        # FK checks bypass RLS: the appointment must be ours and this patient's
+        load_appointment(db, principal, payload.appointment_id,
+                         patient_id=payload.patient_id)
 
     service_day = _today()
+
+    # serialize joins per tenant per day BEFORE the duplicate check: two
+    # concurrent joins of one patient cannot both see "not queued yet"
+    # (uq_queue_one_active is the DB backstop)
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+        {"key": f"opdqueue:{principal.organization_id}:{service_day}"},
+    )
 
     # already in today's active queue?
     already = db.scalar(
@@ -99,11 +116,7 @@ def join_queue(
             status_code=409, detail="Patient already in today's active queue"
         )
 
-    # serialize token allocation per tenant per day
-    db.execute(
-        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
-        {"key": f"opdqueue:{principal.organization_id}:{service_day}"},
-    )
+    # token allocation runs under the same per-tenant-per-day lock
     last_token = db.scalar(
         select(func.max(OpdQueueEntry.token_number)).where(
             OpdQueueEntry.organization_id == principal.organization_id,
