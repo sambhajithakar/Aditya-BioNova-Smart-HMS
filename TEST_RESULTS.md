@@ -1,3 +1,77 @@
+# Test Results — M7.0 security & correctness hardening (2026-10-20)
+
+All results below were **executed**, not estimated. Synthetic data only.
+Local: Python 3.13, PostgreSQL 16.15 (app queries as non-owner `hms_app`,
+RLS active), Node 22, Flutter 3.47.7, Chromium (Playwright). CI: GitHub
+Actions on branch `claude/pensive-albattani-n0zcba` (draft PR #1).
+
+| Suite | Command | Result |
+|---|---|---|
+| API lint | `ruff check apps/api --select F,E --line-length 100` | ✅ clean |
+| API tests | `cd apps/api && pytest` | ✅ **167 passed, 0 failed** (102 before M7.0) |
+| API coverage | `pytest --cov=app` | ✅ **94 %** (5,070 statements) |
+| Migrations | `alembic upgrade head → downgrade base → upgrade head` | ✅ clean, single head `0010` |
+| Migration drift | `alembic check` | ✅ "No new upgrade operations detected" (failed before M7.0) |
+| Backup/restore drill | `scripts/backup_restore_drill.sh` | ✅ encrypted backup, tamper + overwrite guards, restore; 348/348 rows, policies, triggers, grants identical |
+| Python vulns | `pip-audit --strict` on both lock files | ✅ none (cryptography 50.0.2) |
+| Web typecheck / lint | `npm run typecheck && npm run lint` | ✅ 0 errors, 0 warnings |
+| Web unit | `npm test` (Vitest) | ✅ **43 passed** |
+| Web build | `npm run build` | ✅ |
+| Web E2E | `npx playwright test` (live web + API + PostgreSQL) | ✅ **6 passed**, 3 consecutive runs |
+| Node vulns | `npm audit --omit=dev` | ✅ 0 vulnerabilities (1 high before M7.0) |
+| Mobile | `flutter analyze && flutter test` | ✅ no issues, **91 passed** (40 before; first time executed) |
+| Secret scan | gitleaks 8.30.1, full history | ✅ no leaks (1 reviewed false positive allow-listed) |
+| Docker | CI: hadolint, build api + web, compose smoke | ✅ images built, migrate → API ready → web proxy (first ever build) |
+| GitHub Actions | run 14 (`bccd8a3`) | ✅ all 8 jobs green; e2e job added afterwards |
+
+### API tests by file
+| File | Tests | Covers |
+|---|---|---|
+| test_auth.py | 10 | register/login/refresh rotation + reuse detection, enumeration-safe errors |
+| test_tenancy.py | 14 | cross-tenant 404s, forged headers, raw RLS proofs |
+| test_rbac_audit.py | 9 | permission matrix, append-only audit |
+| test_m2_clinical.py | 15 | patients, dedupe/merge, appointments, OPD queue |
+| test_m3_clinical_billing.py | 24 | encounters, signed Rx, billing ledger, GST totals |
+| test_m5_pharmacy_lab.py | 17 | FEFO stock, dispensing, lab four-eyes, amendments |
+| test_m6_ipd_operations.py | 13 | beds/admissions, nursing, inventory, expenses, reports |
+| **test_m7_integrity.py** | 24 | H1–H4, C2/H7, H8, H9 (threaded concurrency), H11–H12, immutability, GST, cross-tenant ids, races, IST |
+| **test_m7_security.py** | 38 | MFA (RFC 6238 vector, replay, recovery codes), lockout, rate limits, password reset, sessions, absolute lifetime, org suspension, H14 invitations, PHI-read audit, audit-function guard, commit-before-response, error mapping, comms providers, alembic_version grants |
+| test_ops.py | 3 | `/health/ready` incl. DB-down 503 |
+
+### E2E (Playwright, real API — no mocks)
+1. Clinical + billing chain: register clinic → login (httpOnly refresh
+   cookie, nothing in Web Storage) → patient → consultation → Rx with an
+   explicitly typed dose → sign → print shows the dose → invoice → issue →
+   double-click pay sends ONE payment → logout redirects; zero CSP violations
+2. Web-origin security headers; backend token endpoints not proxied
+3. TOTP enrolment in settings → sign-in requires the second factor
+4. Invitation e-mail (dev outbox) → /accept-invite → dashboard
+5. Forgot password → reset link → sign in with new password
+6. Professional registration number saved from settings
+
+### Defects found and fixed during M7.0 integration
+- Self-deadlock: MFA verify held `FOR UPDATE` on the user row while the
+  failed-attempt audit row (separate connection) needed `KEY SHARE` for its
+  FK → `FOR NO KEY UPDATE`
+- The new audit-function guard exposed a login path writing an MFA-challenge
+  audit event without tenant context → fixed
+- MFA disable: consumed recovery code flushed after the bulk delete → 500
+- Compose migrate job failed in CI: production guard requires
+  `FIELD_ENCRYPTION_KEY` → compose/CI now supply it
+- Rx print registration number had no way to be set → `PATCH /auth/me`
+- Security page race: late profile load overwrote user input → field
+  disabled until loaded
+- Restore drill: partial-index predicates re-rendered after restore →
+  normalised comparison
+
+### Not verified (honest gaps)
+- Android **APK build and device QA** (no Android SDK / devices) — Dart
+  tests only
+- Live e-mail/SMS/WhatsApp and Razorpay — intentionally not connected
+- Load/performance, penetration test, clinical validation — human gates
+
+---
+
 # Test Results — Milestones M1 + M2
 
 Environment: Ubuntu 24.04 VM, Python 3.12, PostgreSQL 16.15 (local instance,

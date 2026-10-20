@@ -1,5 +1,39 @@
 # Changelog
 
+## M7.0 (2026-10-20) — security & correctness hardening (review branch)
+
+Driven by AUDIT_REPORT.md. Highlights (details in TASKS.md / TEST_RESULTS.md):
+
+### Security
+- TOTP MFA with encrypted seeds and recovery codes; MFA challenge at login
+- PostgreSQL-backed rate limiting and enumeration-safe account lockout
+- Password change / forgot / reset; session list, revoke, absolute lifetime
+- Staff invitations (no more attaching other tenants' accounts); member
+  role/status/branch administration; per-request org suspension
+- PHI-read audit trail (fail-closed); validated correlation ids; trusted
+  proxies; production refuses default secrets; audit-function guard fix
+- Web: httpOnly refresh cookie, in-memory access token, nonce CSP, route
+  middleware, permission-aware navigation
+- Provider-agnostic e-mail/SMS/WhatsApp layer (mock by default; Brevo,
+  DLT SMS, Meta WhatsApp adapters suppressed until approved)
+
+### Clinical safety & money integrity
+- Doctor-entered dosing (no defaults); legal Rx print with registration no.
+- Signed-Rx INSERT guard; dispense caps; lab order items + complete-release
+  rule + multi-specimen; SpO₂ < 85 with escalation; merge keeps allergies
+- Ledger-based finance report; invoice locks; overpayment CHECK; idempotency
+  on Rx/invoices and race-free; GST on discounted amount; IST day boundaries
+
+### Android
+- Release network permission; no backup; fail-closed encrypted store;
+  offline start with PIN lock; per-user outbox; MFA; refresh; retry/backoff
+
+### Operations
+- Hash-locked dependencies; hardened containers + migrate job; encrypted
+  backups, guarded restore, automated drill; readiness probe; CI with
+  security scans, drift check, Flutter, Docker smoke, E2E; generated API and
+  database docs; synthetic demo seeder
+
 ## M6 (2026-10-17) — IPD + operations (API + web)
 
 ### Added

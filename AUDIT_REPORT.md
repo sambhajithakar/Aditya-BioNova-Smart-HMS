@@ -218,3 +218,55 @@ Legend: ✅ complete · ⚠️ partial/incomplete · 🔴 broken (defect) · ❌
 * FEFO stock allocation and stock ledger.
 * Mobile outbox / id-map / encrypted store design.
 * Test style: raw-SQL proofs of DB guards, RBAC matrices, cross-tenant 404s.
+
+---
+
+## 8. Remediation status after M7.0 (2026-10-20)
+
+Fixed on the development branch (draft PR #1, not merged). "Test" names the
+evidence; details in TEST_RESULTS.md.
+
+| ID | Status | Evidence |
+|---|---|---|
+| C1 dose hard-coded | ✅ Fixed | web Rx builder requires explicit dose/frequency/duration; E2E prints typed dose |
+| C2 lab tests discarded | ✅ Fixed | `lab_order_items` + release-completeness trigger; test_m7_integrity |
+| C3 release APK no INTERNET | ✅ Fixed (static) | main manifest + static test; **APK not built** (no Android SDK) |
+| H1 signed-Rx INSERT | ✅ Fixed | trigger covers INSERT; raw-SQL proof |
+| H2 SpO₂ < 85 | ✅ Fixed | accepted with ≥10-char escalation note; <50 rejected |
+| H3 merge loses allergies | ✅ Fixed | allergies unioned, open records re-pointed, allergy gate reads merged records |
+| H4 unlimited dispensing | ✅ Fixed | `dispense_quantity` cap across amendment chain; concurrency test |
+| H5 Rx print legal details | ✅ Fixed | prescriber name + registration no. (settable via `PATCH /auth/me`), clinic/branch, names from Rx |
+| H6 `enc_status` | ✅ Fixed | web uses `enc_status=open` |
+| H7 one specimen per order | ✅ Fixed | multiple specimens, re-collection after rejection |
+| H8 refund double-count | ✅ Fixed | ledger-based revenue/refunds; refunded ₹1000 → net 0 |
+| H9 overpayment races | ✅ Fixed | row locks, sandbox reservation, `amount_paid` CHECK; threaded tests |
+| H10 dispenses not billed | ⬜ **Open** | needs MRP + GST sales billing — scheduled in M9 |
+| H11 Rx/invoice idempotency | ✅ Fixed | Idempotency-Key honoured; replay tests |
+| H12 idempotency race | ✅ Fixed | SAVEPOINT reservation; >100-char keys 422 |
+| H13 web idempotency/refund | ✅ Fixed | per-attempt keys, in-flight disable, refund UI; E2E single payment |
+| H14 cross-tenant member grab | ✅ Fixed | 409 + invitations accepted with own password; test + E2E |
+| H15 X-Request-ID crash | ✅ Fixed | validated/replaced; test |
+| H16 no rate limiting | ✅ Fixed | limits + enumeration-safe lockout; tests |
+| H17 default JWT secret | ✅ Fixed | refused outside dev; `FIELD_ENCRYPTION_KEY` required |
+| H18 PHI reads unaudited | ✅ Fixed | `phi.read` audit, fail-closed |
+| H19 web tokens/CSP | ✅ Fixed | httpOnly cookie, memory token, nonce CSP, middleware; E2E asserts |
+| H20 mobile sign-out leak | ✅ Fixed | warn + wipe; ops tagged with creator; Dart tests |
+| H21 containers | ✅ Fixed | non-root, read-only, `.dockerignore`, migrate job; built + smoke-tested in CI |
+| H22 offline after restart | ✅ Fixed (Dart tests) | offline start + PIN lock; device QA pending |
+| H23 silent in-memory store | ✅ Fixed (Dart tests) | fail-closed recovery screen, `allowBackup=false` |
+| H24 offline patients dropped | ✅ Fixed (Dart tests) | merged pickers, `$ref` only |
+| ORM ↔ migration drift | ✅ Fixed | `alembic check` clean, enforced in CI |
+| npm postcss advisory | ✅ Fixed | npm override; `npm audit --omit=dev` 0 |
+
+Medium findings: most closed (cross-tenant foreign ids, booking/queue/
+barcode races, IST day boundaries, GST on discounted amount, invoice/payment
+immutability, DB errors → 409/422, commit-before-response, refresh race,
+absolute sessions, trusted proxies, scrypt parameters, audit guard,
+correlation ids on all errors, `alembic_version` grants). Still open:
+financial-year invoice series (M8), structured lab reference ranges (M10),
+mobile i18n (M12), downgrade of seed-data migrations on populated databases,
+`style-src 'unsafe-inline'` in the web CSP, mandatory-MFA policy (M7.1).
+
+**This remains a development build.** No production-readiness claim is made:
+independent security testing, clinical validation and DPDP/ABDM/CDSCO legal
+review are still required (IMPLEMENTATION_PLAN.md, M14).
