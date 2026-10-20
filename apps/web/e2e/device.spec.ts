@@ -278,6 +278,9 @@ test("desktop keyboard: skip link, search, g-chords, n, ? dialog; ignored while 
   const c = await registerClinic(request, "kbd");
   await page.setViewportSize({ width: 1366, height: 768 });
   await signIn(page, c);
+  // The device chrome (shortcut handler) loads lazily: wait until it is live,
+  // otherwise "/" can be pressed before the listener exists (seen in CI).
+  await expect(page.locator("html")).toHaveAttribute("data-shortcuts", "ready");
   await expect(page.getByTestId("bottom-nav")).toBeHidden();
 
   // Skip link is the first Tab stop and moves focus to the content.
@@ -296,14 +299,17 @@ test("desktop keyboard: skip link, search, g-chords, n, ? dialog; ignored while 
   await page.keyboard.press("Enter"); // submit → Patients with the term
   await expect(page).toHaveURL(/\/patients$/);
   await expect(page.locator("#q")).toHaveValue("g p");
+  await expect(page.locator("html")).toHaveAttribute("data-shortcuts", "ready");
 
   await page.locator("h2").first().click(); // leave the field
   await page.keyboard.press("g");
   await page.keyboard.press("q");
   await expect(page).toHaveURL(/\/queue$/);
+  await expect(page.locator("html")).toHaveAttribute("data-shortcuts", "ready");
   await page.keyboard.press("g");
   await page.keyboard.press("p");
   await expect(page).toHaveURL(/\/patients$/);
+  await expect(page.locator("html")).toHaveAttribute("data-shortcuts", "ready");
   await page.keyboard.press("n");
   await expect(page.locator("#full_name")).toBeFocused();
   await page.locator("h2").first().click();

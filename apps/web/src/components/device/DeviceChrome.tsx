@@ -154,7 +154,13 @@ export default function DeviceChrome({
       }
     }
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // Observable readiness (this chunk loads lazily): lets tests and support
+    // tooling know the shortcuts are live, and whether search is available.
+    document.documentElement.dataset.shortcuts = canSearch ? "ready" : "no-search";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      delete document.documentElement.dataset.shortcuts;
+    };
   }, [nav, router, focusSearch, canSearch, pathname]);
 
   const restActive = rest.some((i) => i.key === active);
