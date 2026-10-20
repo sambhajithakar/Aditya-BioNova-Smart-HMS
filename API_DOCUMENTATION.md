@@ -86,7 +86,7 @@ it does not exist in staging or production builds.
 
 ## Endpoints
 
-Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 149 operations in 23 tags.
+Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 174 operations in 25 tags.
 
 ### Summary
 
@@ -137,6 +137,20 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 149 op
 | branches | POST | `/api/v1/branches` | `branch.manage` |  |
 | branches | GET | `/api/v1/branches/{branch_id}` | `branch.read` |  |
 | branches | PATCH | `/api/v1/branches/{branch_id}` | `branch.manage` |  |
+| communications | GET | `/api/v1/comms/delivery-log` | `comms.read` |  |
+| communications | GET | `/api/v1/comms/overview` | `comms.read` |  |
+| communications | GET | `/api/v1/comms/patients/{patient_id}` | `patient.read` |  |
+| communications | PUT | `/api/v1/comms/patients/{patient_id}/consent` | `comms.consent` |  |
+| communications | POST | `/api/v1/comms/patients/{patient_id}/opt-out` | `comms.consent` |  |
+| communications | PUT | `/api/v1/comms/patients/{patient_id}/preferences` | `comms.consent` |  |
+| communications | GET | `/api/v1/comms/placeholders` | `comms.read` |  |
+| communications | POST | `/api/v1/comms/reminders/run` | `comms.send` |  |
+| communications | GET | `/api/v1/comms/settings` | `comms.read` |  |
+| communications | PUT | `/api/v1/comms/settings` | `comms.manage` |  |
+| communications | GET | `/api/v1/comms/templates` | `comms.read` |  |
+| communications | POST | `/api/v1/comms/templates` | `comms.manage` |  |
+| communications | POST | `/api/v1/comms/templates/preview` | `comms.read` |  |
+| communications | PATCH | `/api/v1/comms/templates/{template_id}` | `comms.manage` |  |
 | dev | GET | `/api/v1/dev/outbox` | public |  |
 | encounters | GET | `/api/v1/encounters` | `encounter.read` |  |
 | encounters | POST | `/api/v1/encounters` | `encounter.write` |  |
@@ -149,6 +163,17 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 149 op
 | expenses | POST | `/api/v1/expenses` | `expense.manage` | yes |
 | expenses | GET | `/api/v1/expenses/summary` | `expense.read` |  |
 | expenses | POST | `/api/v1/expenses/{expense_id}/void` | `expense.manage` |  |
+| follow-ups | GET | `/api/v1/follow-ups` | `followup.read` |  |
+| follow-ups | POST | `/api/v1/follow-ups` | `followup.create` |  |
+| follow-ups | GET | `/api/v1/follow-ups/missed-appointments` | `followup.read` |  |
+| follow-ups | POST | `/api/v1/follow-ups/missed-appointments/{appointment_id}/notify` | `comms.send` |  |
+| follow-ups | GET | `/api/v1/follow-ups/summary` | `followup.read` |  |
+| follow-ups | GET | `/api/v1/follow-ups/{follow_up_id}` | `followup.read` |  |
+| follow-ups | POST | `/api/v1/follow-ups/{follow_up_id}/book` | `followup.write` |  |
+| follow-ups | POST | `/api/v1/follow-ups/{follow_up_id}/cancel` | `followup.write` |  |
+| follow-ups | POST | `/api/v1/follow-ups/{follow_up_id}/complete` | `followup.write` |  |
+| follow-ups | POST | `/api/v1/follow-ups/{follow_up_id}/missed` | `followup.write` |  |
+| follow-ups | POST | `/api/v1/follow-ups/{follow_up_id}/remind` | `comms.send` |  |
 | inventory | GET | `/api/v1/inventory/alerts` | `inventory.read` |  |
 | inventory | GET | `/api/v1/inventory/items` | `inventory.read` |  |
 | inventory | POST | `/api/v1/inventory/items` | `inventory.manage` |  |
@@ -748,6 +773,174 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 149 op
 |---|---|---|---|
 | `branch_id` | path | string(uuid) | yes |
 
+### communications
+
+#### `GET /api/v1/comms/delivery-log`
+
+**Delivery Log**
+
+- Permission: `comms.read`
+- operationId: `delivery_log_api_v1_comms_delivery_log_get`
+- Request body: -
+- Response: `200 DeliveryPage`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `appointment_id` | query | string(uuid) \| null | no |
+| `channel` | query | string \| null | no |
+| `follow_up_id` | query | string(uuid) \| null | no |
+| `from_date` | query | string(date-time) \| null | no |
+| `limit` | query | integer | no |
+| `offset` | query | integer | no |
+| `patient_id` | query | string(uuid) \| null | no |
+| `purpose` | query | string \| null | no |
+| `status` | query | string \| null | no |
+| `to_date` | query | string(date-time) \| null | no |
+
+#### `GET /api/v1/comms/overview`
+
+**Overview**
+
+- Permission: `comms.read`
+- operationId: `overview_api_v1_comms_overview_get`
+- Request body: -
+- Response: `200 CommsOverview`
+
+#### `GET /api/v1/comms/patients/{patient_id}`
+
+**Patient Comms**
+
+- Permission: `patient.read`
+- operationId: `patient_comms_api_v1_comms_patients__patient_id__get`
+- Request body: -
+- Response: `200 PatientCommsOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `patient_id` | path | string(uuid) | yes |
+
+#### `PUT /api/v1/comms/patients/{patient_id}/consent`
+
+**Put Consent**
+
+- Permission: `comms.consent`
+- operationId: `put_consent_api_v1_comms_patients__patient_id__consent_put`
+- Request body: `ConsentIn`
+- Response: `200 PatientCommsOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `patient_id` | path | string(uuid) | yes |
+
+#### `POST /api/v1/comms/patients/{patient_id}/opt-out`
+
+**Opt Out**
+
+- Permission: `comms.consent`
+- operationId: `opt_out_api_v1_comms_patients__patient_id__opt_out_post`
+- Request body: `OptOutIn`
+- Response: `200 PatientCommsOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `patient_id` | path | string(uuid) | yes |
+
+#### `PUT /api/v1/comms/patients/{patient_id}/preferences`
+
+**Put Preferences**
+
+- Permission: `comms.consent`
+- operationId: `put_preferences_api_v1_comms_patients__patient_id__preferences_put`
+- Request body: `PreferencesIn`
+- Response: `200 PatientCommsOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `patient_id` | path | string(uuid) | yes |
+
+#### `GET /api/v1/comms/placeholders`
+
+**Placeholders**
+
+- Permission: `comms.read`
+- operationId: `placeholders_api_v1_comms_placeholders_get`
+- Request body: -
+- Response: `200 PlaceholderCatalog`
+
+#### `POST /api/v1/comms/reminders/run`
+
+**Run Reminders**
+
+- Permission: `comms.send`
+- operationId: `run_reminders_api_v1_comms_reminders_run_post`
+- Request body: `ReminderRunIn`
+- Response: `200 ReminderRunOut`
+
+#### `GET /api/v1/comms/settings`
+
+**Get Comms Settings**
+
+- Permission: `comms.read`
+- operationId: `get_comms_settings_api_v1_comms_settings_get`
+- Request body: -
+- Response: `200 CommsSettingsOut`
+
+#### `PUT /api/v1/comms/settings`
+
+**Put Comms Settings**
+
+- Permission: `comms.manage`
+- operationId: `put_comms_settings_api_v1_comms_settings_put`
+- Request body: `CommsSettingsIn`
+- Response: `200 CommsSettingsOut`
+
+#### `GET /api/v1/comms/templates`
+
+**List Templates**
+
+- Permission: `comms.read`
+- operationId: `list_templates_api_v1_comms_templates_get`
+- Request body: -
+- Response: `200 list[TemplateOut]`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `channel` | query | string \| null | no |
+| `include_inactive` | query | boolean | no |
+| `language` | query | string \| null | no |
+| `purpose` | query | string \| null | no |
+
+#### `POST /api/v1/comms/templates`
+
+**Create Template**
+
+- Permission: `comms.manage`
+- operationId: `create_template_api_v1_comms_templates_post`
+- Request body: `TemplateIn`
+- Response: `201 TemplateOut`
+
+#### `POST /api/v1/comms/templates/preview`
+
+**Preview**
+
+- Permission: `comms.read`
+- operationId: `preview_api_v1_comms_templates_preview_post`
+- Request body: `PreviewIn`
+- Response: `200 PreviewOut`
+
+#### `PATCH /api/v1/comms/templates/{template_id}`
+
+**Update Template**
+
+- Permission: `comms.manage`
+- operationId: `update_template_api_v1_comms_templates__template_id__patch`
+- Request body: `TemplateUpdateIn`
+- Response: `200 TemplateOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `template_id` | path | string(uuid) | yes |
+
 ### dev
 
 #### `GET /api/v1/dev/outbox`
@@ -911,6 +1104,146 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 149 op
 | Parameter | In | Type | Required |
 |---|---|---|---|
 | `expense_id` | path | string(uuid) | yes |
+
+### follow-ups
+
+#### `GET /api/v1/follow-ups`
+
+**List Follow Ups**
+
+- Permission: `followup.read`
+- operationId: `list_follow_ups_api_v1_follow_ups_get`
+- Request body: -
+- Response: `200 list[FollowUpOut]`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `bucket` | query | string \| null | no |
+| `limit` | query | integer | no |
+| `patient_id` | query | string(uuid) \| null | no |
+| `status` | query | string \| null | no |
+
+#### `POST /api/v1/follow-ups`
+
+**Create Follow Up**
+
+- Permission: `followup.create`
+- operationId: `create_follow_up_api_v1_follow_ups_post`
+- Request body: `FollowUpIn`
+- Response: `201 FollowUpOut`
+
+#### `GET /api/v1/follow-ups/missed-appointments`
+
+**Missed**
+
+- Permission: `followup.read`
+- operationId: `missed_api_v1_follow_ups_missed_appointments_get`
+- Request body: -
+- Response: `200 list[MissedAppointmentOut]`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `days` | query | integer | no |
+
+#### `POST /api/v1/follow-ups/missed-appointments/{appointment_id}/notify`
+
+**Notify Missed**
+
+- Permission: `comms.send`
+- operationId: `notify_missed_api_v1_follow_ups_missed_appointments__appointment_id__notify_post`
+- Request body: `NotifyIn`
+- Response: `200 SendResultOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `appointment_id` | path | string(uuid) | yes |
+
+#### `GET /api/v1/follow-ups/summary`
+
+**Summary**
+
+- Permission: `followup.read`
+- operationId: `summary_api_v1_follow_ups_summary_get`
+- Request body: -
+- Response: `200 dict[str, integer]`
+
+#### `GET /api/v1/follow-ups/{follow_up_id}`
+
+**Get Follow Up**
+
+- Permission: `followup.read`
+- operationId: `get_follow_up_api_v1_follow_ups__follow_up_id__get`
+- Request body: -
+- Response: `200 FollowUpOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `follow_up_id` | path | string(uuid) | yes |
+
+#### `POST /api/v1/follow-ups/{follow_up_id}/book`
+
+**Book**
+
+- Permission: `followup.write`
+- operationId: `book_api_v1_follow_ups__follow_up_id__book_post`
+- Request body: `FollowUpBookIn`
+- Response: `200 FollowUpOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `follow_up_id` | path | string(uuid) | yes |
+
+#### `POST /api/v1/follow-ups/{follow_up_id}/cancel`
+
+**Cancel**
+
+- Permission: `followup.write`
+- operationId: `cancel_api_v1_follow_ups__follow_up_id__cancel_post`
+- Request body: `FollowUpActionIn`
+- Response: `200 FollowUpOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `follow_up_id` | path | string(uuid) | yes |
+
+#### `POST /api/v1/follow-ups/{follow_up_id}/complete`
+
+**Complete**
+
+- Permission: `followup.write`
+- operationId: `complete_api_v1_follow_ups__follow_up_id__complete_post`
+- Request body: `FollowUpActionIn`
+- Response: `200 FollowUpOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `follow_up_id` | path | string(uuid) | yes |
+
+#### `POST /api/v1/follow-ups/{follow_up_id}/missed`
+
+**Mark Missed**
+
+- Permission: `followup.write`
+- operationId: `mark_missed_api_v1_follow_ups__follow_up_id__missed_post`
+- Request body: `FollowUpActionIn`
+- Response: `200 FollowUpOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `follow_up_id` | path | string(uuid) | yes |
+
+#### `POST /api/v1/follow-ups/{follow_up_id}/remind`
+
+**Remind**
+
+- Permission: `comms.send`
+- operationId: `remind_api_v1_follow_ups__follow_up_id__remind_post`
+- Request body: `NotifyIn`
+- Response: `200 SendResultOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `follow_up_id` | path | string(uuid) | yes |
 
 ### inventory
 
@@ -2292,11 +2625,98 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `billing_cycle`* | string (monthly, annual) |
 | `note` | string |
 
+### ChannelUsage
+
+| Field | Type |
+|---|---|
+| `channel`* | string |
+| `entitled`* | boolean |
+| `provider`* | string |
+| `mock`* | boolean |
+| `live`* | boolean |
+| `used`* | integer |
+| `limit`* | integer \| null |
+| `cost_paise`* | integer |
+| `cost_per_message_paise`* | integer |
+
 ### CollectSpecimenIn
 
 | Field | Type |
 |---|---|
 | `specimen_type`* | string |
+
+### CommsOverview
+
+| Field | Type |
+|---|---|
+| `period`* | string |
+| `live_enabled`* | boolean |
+| `mock_notice`* | string |
+| `channels`* | list[ChannelUsage] |
+| `spend_paise`* | integer |
+| `spend_cap_paise`* | integer \| null |
+| `consent`* | list[ConsentStats] |
+| `active_patients`* | integer |
+| `settings`* | CommsSettingsOut |
+| `in_quiet_hours`* | boolean |
+
+### CommsSettingsIn
+
+| Field | Type |
+|---|---|
+| `monthly_spend_cap_paise` | integer \| null |
+| `quiet_start_hour` | integer |
+| `quiet_end_hour` | integer |
+| `reminder_hours_ahead` | integer |
+| `reminder_channels` | list[string] |
+
+### CommsSettingsOut
+
+| Field | Type |
+|---|---|
+| `monthly_spend_cap_paise`* | integer \| null |
+| `quiet_start_hour`* | integer |
+| `quiet_end_hour`* | integer |
+| `reminder_hours_ahead`* | integer |
+| `reminder_channels`* | list[string] |
+| `updated_at`* | string(date-time) |
+
+### ConsentEventOut
+
+| Field | Type |
+|---|---|
+| `channel`* | string |
+| `status`* | string |
+| `source`* | string |
+| `recorded_at`* | string(date-time) |
+| `actor_name`* | string \| null |
+
+### ConsentIn
+
+| Field | Type |
+|---|---|
+| `channel`* | string (email, sms, whatsapp) |
+| `status`* | string (opted_in, opted_out) |
+| `source`* | string (registration_form, patient_request, patient_reply, staff_update) |
+
+### ConsentOut
+
+| Field | Type |
+|---|---|
+| `channel`* | string |
+| `status`* | string \| null |
+| `source`* | string \| null |
+| `recorded_at`* | string(date-time) \| null |
+| `actor_name`* | string \| null |
+
+### ConsentStats
+
+| Field | Type |
+|---|---|
+| `channel`* | string |
+| `opted_in`* | integer |
+| `opted_out`* | integer |
+| `unknown`* | integer |
 
 ### CopilotAnswerOut
 
@@ -2337,6 +2757,35 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `function`* | string |
 | `args`* | object |
 | `method`* | string |
+
+### DeliveryOut
+
+| Field | Type |
+|---|---|
+| `id`* | integer |
+| `channel`* | string |
+| `purpose`* | string |
+| `language`* | string \| null |
+| `template_id`* | string(uuid) \| null |
+| `patient_id`* | string(uuid) \| null |
+| `appointment_id`* | string(uuid) \| null |
+| `follow_up_id`* | string(uuid) \| null |
+| `recipient_masked`* | string \| null |
+| `provider`* | string |
+| `status`* | string |
+| `cost_paise`* | integer |
+| `trigger`* | string |
+| `error`* | string \| null |
+| `created_at`* | string(date-time) |
+
+### DeliveryPage
+
+| Field | Type |
+|---|---|
+| `items`* | list[DeliveryOut] |
+| `total`* | integer |
+| `limit`* | integer |
+| `offset`* | integer |
 
 ### DiagnosisIn
 
@@ -2538,6 +2987,52 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `expenses` | number |
 | `net` | number |
 | `by_category` | list[FinanceCategoryRow] |
+
+### FollowUpActionIn
+
+| Field | Type |
+|---|---|
+| `note` | string |
+
+### FollowUpBookIn
+
+| Field | Type |
+|---|---|
+| `appointment_id`* | string(uuid) |
+| `note` | string |
+
+### FollowUpIn
+
+| Field | Type |
+|---|---|
+| `patient_id`* | string(uuid) |
+| `due_date`* | string(date) |
+| `reason`* | string |
+| `branch_id` | string(uuid) \| null |
+| `assigned_user_id` | string(uuid) \| null |
+
+### FollowUpOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `patient_id`* | string(uuid) |
+| `patient_name`* | string |
+| `patient_uhid`* | string |
+| `branch_id`* | string(uuid) \| null |
+| `due_date`* | string(date) |
+| `reason`* | string |
+| `status`* | string |
+| `bucket`* | string |
+| `assigned_user_id`* | string(uuid) \| null |
+| `assigned_name`* | string \| null |
+| `created_by_name`* | string \| null |
+| `appointment_id`* | string(uuid) \| null |
+| `appointment_starts_at`* | string(date-time) \| null |
+| `status_note`* | string |
+| `reminded_at`* | string(date-time) \| null |
+| `closed_at`* | string(date-time) \| null |
+| `created_at`* | string(date-time) |
 
 ### HTTPValidationError
 
@@ -2933,6 +3428,26 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `mfa_token`* | string |
 | `code`* | string |
 
+### MissedAppointmentOut
+
+| Field | Type |
+|---|---|
+| `appointment_id`* | string(uuid) |
+| `patient_id`* | string(uuid) |
+| `patient_name`* | string |
+| `patient_uhid`* | string |
+| `starts_at`* | string(date-time) |
+| `status`* | string |
+| `provider_name`* | string \| null |
+| `notified`* | boolean |
+| `open_follow_up_id`* | string(uuid) \| null |
+
+### NotifyIn
+
+| Field | Type |
+|---|---|
+| `channels` | list[string] \| null |
+
 ### NursingRecordIn
 
 | Field | Type |
@@ -2983,6 +3498,13 @@ Field lists of the request/response schemas referenced above (`*` = required).
 |---|---|
 | `key`* | string |
 | `done`* | boolean |
+
+### OptOutIn
+
+| Field | Type |
+|---|---|
+| `channels` | list[string] \| null |
+| `source` | string (registration_form, patient_request, patient_reply, staff_update) |
 
 ### OrganizationOut
 
@@ -3088,6 +3610,17 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `token`* | string |
 | `new_password`* | string |
 
+### PatientCommsOut
+
+| Field | Type |
+|---|---|
+| `patient_id`* | string(uuid) |
+| `preferred_language`* | string \| null |
+| `email`* | string \| null |
+| `phone_masked`* | string \| null |
+| `consents`* | list[ConsentOut] |
+| `history`* | list[ConsentEventOut] |
+
 ### PatientIn
 
 | Field | Type |
@@ -3162,6 +3695,15 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `gateway_ref`* | string |
 | `failure_reason`* | string |
 | `created_at`* | string(date-time) |
+
+### PlaceholderCatalog
+
+| Field | Type |
+|---|---|
+| `allowed`* | dict[str, string] |
+| `disallowed`* | list[string] |
+| `sample_values`* | dict[str, string] |
+| `rule`* | string |
 
 ### PlanFeaturesIn
 
@@ -3291,6 +3833,13 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `status` | string \| null |
 | `priority` | string \| null |
 
+### PreferencesIn
+
+| Field | Type |
+|---|---|
+| `preferred_language` | string \| null |
+| `email` | string(email) \| null |
+
 ### PrescriberOut
 
 | Field | Type |
@@ -3331,6 +3880,25 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `advice` | string |
 | `follow_up` | string |
 | `items`* | list[RxItemIn] |
+
+### PreviewIn
+
+| Field | Type |
+|---|---|
+| `channel` | string (email, sms, whatsapp) |
+| `body`* | string |
+| `subject` | string |
+
+### PreviewOut
+
+| Field | Type |
+|---|---|
+| `body`* | string |
+| `subject`* | string |
+| `errors`* | list[string] |
+| `characters`* | integer |
+| `sms_segments`* | integer |
+| `sample_values`* | dict[str, string] |
 
 ### ProfileUpdateIn
 
@@ -3447,6 +4015,27 @@ Field lists of the request/response schemas referenced above (`*` = required).
 |---|---|
 | `reason`* | string |
 
+### ReminderRunIn
+
+| Field | Type |
+|---|---|
+| `hours_ahead` | integer \| null |
+| `include_follow_ups` | boolean |
+
+### ReminderRunOut
+
+| Field | Type |
+|---|---|
+| `window_start`* | string(date-time) |
+| `window_end`* | string(date-time) |
+| `channels`* | list[string] |
+| `quiet_hours`* | boolean |
+| `appointments`* | integer |
+| `follow_ups`* | integer |
+| `sent`* | integer |
+| `by_status`* | dict[str, integer] |
+| `mock_notice`* | string |
+
 ### ReportSummaryOut
 
 | Field | Type |
@@ -3503,6 +4092,13 @@ Field lists of the request/response schemas referenced above (`*` = required).
 |---|---|
 | `warnings` | list[RxWarning] |
 | `blocking` | boolean |
+
+### SendResultOut
+
+| Field | Type |
+|---|---|
+| `results`* | list[dict[str, string \| integer \| null]] |
+| `mock_notice`* | string |
 
 ### SessionOut
 
@@ -3642,6 +4238,49 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `updated_at`* | string(date-time) |
 | `created_by_name` | string \| null |
 | `organization_name` | string \| null |
+
+### TemplateIn
+
+| Field | Type |
+|---|---|
+| `channel`* | string (email, sms, whatsapp) |
+| `purpose`* | string (appointment_reminder, follow_up, missed_appointment, generic) |
+| `language`* | string (en, mr, hi) |
+| `name`* | string |
+| `subject` | string |
+| `body`* | string |
+| `dlt_template_id` | string \| null |
+| `whatsapp_template_name` | string \| null |
+| `is_active` | boolean |
+
+### TemplateOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `channel`* | string |
+| `purpose`* | string |
+| `language`* | string |
+| `name`* | string |
+| `subject`* | string |
+| `body`* | string |
+| `dlt_template_id`* | string \| null |
+| `whatsapp_template_name`* | string \| null |
+| `is_active`* | boolean |
+| `is_default`* | boolean |
+| `placeholders` | list[string] |
+| `updated_at`* | string(date-time) |
+
+### TemplateUpdateIn
+
+| Field | Type |
+|---|---|
+| `name` | string \| null |
+| `subject` | string \| null |
+| `body` | string \| null |
+| `dlt_template_id` | string \| null |
+| `whatsapp_template_name` | string \| null |
+| `is_active` | boolean \| null |
 
 ### TokenPair
 
