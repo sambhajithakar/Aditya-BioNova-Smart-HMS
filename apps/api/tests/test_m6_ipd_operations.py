@@ -16,6 +16,7 @@ import itertools
 import uuid
 from datetime import date, timedelta
 
+from app.timeutil import clinic_today
 from tests.conftest import _auth
 from tests.test_m3_clinical_billing import (
     _app_conn,
@@ -445,7 +446,11 @@ def test_nursing_records_range_checks_and_immutability(client, org_a):
 
     # range checks (same posture as OPD vitals) + the SpO2 escalation rule
     assert _nursing(client, h, adm["id"], spo2=120).status_code == 422
+    # SpO2 84 is a real hypoxic reading: refused WITHOUT an escalation note
+    # (the full H2 contract is proven in test_m7_integrity)
     assert _nursing(client, h, adm["id"], spo2=84).status_code == 422
+    assert _nursing(client, h, adm["id"], spo2=49,
+                    note="Escalated to the duty doctor").status_code == 422
     assert _nursing(client, h, adm["id"], bp_systolic=80,
                     bp_diastolic=120).status_code == 422
     assert _nursing(client, h, adm["id"], temperature_c=46).status_code == 422
@@ -723,8 +728,11 @@ def test_reports_summary_math_and_tenancy(client, org_a, org_b):
     exp = _expense(client, h, category="supplies", amount=500)
     assert exp.status_code == 201
 
-    params = {"from": (date.today() - timedelta(days=7)).isoformat(),
-              "to": date.today().isoformat()}
+    # report windows are CLINIC days (IST): "to" must be the clinic's today,
+    # which runs ahead of the UTC date between 18:30 and 24:00 UTC
+    today = clinic_today()
+    params = {"from": (today - timedelta(days=7)).isoformat(),
+              "to": today.isoformat()}
     r = client.get("/api/v1/reports/summary", params=params, headers=h)
     assert r.status_code == 200, r.text
     data = r.json()

@@ -412,10 +412,14 @@ def test_invoice_totals_computed_server_side(client, org_a):
     r = _invoice(client, h, p, org_a["branch"], discount=50)
     assert r.status_code == 201, r.text
     inv = r.json()
-    # subtotal = 200 + 67.50 = 267.50; tax = 8.10 (12% of 67.50)
+    # subtotal = 200 + 67.50 = 267.50. M7.0: GST is charged on the
+    # DISCOUNTED value (the old expectation, 12% of the undiscounted 67.50 =
+    # 8.10, encoded the defect). The 50 discount is allocated pro rata:
+    # 37.38 to the consultation, 12.62 to the pharmacy line -> taxable
+    # 54.88 x 12% = 6.59.
     assert float(inv["subtotal"]) == 267.50
-    assert float(inv["tax_total"]) == 8.10
-    assert float(inv["total"]) == 267.50 - 50 + 8.10
+    assert float(inv["tax_total"]) == 6.59
+    assert float(inv["total"]) == 224.09
     assert inv["status"] == "draft"
     assert inv["invoice_number"] == "INV-000001"
     assert len(inv["items"]) == 2

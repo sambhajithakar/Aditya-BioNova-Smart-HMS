@@ -5,10 +5,20 @@ Reports only aggregate THIS tenant's rows (the queries all carry
 ``report.read`` — support and auditor hold no M6 grants (least privilege).
 Numbers are read-only derivations of frozen records: nothing is written or
 mutated by a report.
+
+Finance (M7.0 / H8): revenue and refunds are read from the append-only
+LEDGER, not from the mutable ``payments.status``: revenue = every settled
+payment (one ``payment`` credit each, posted at settlement time) whether or
+not it was refunded later; refunds = every ``refund`` debit, subtracted
+exactly once in ``net``. A fully refunded ₹1000 payment therefore reports
+revenue 1000, refunds 1000, net 0.
+
+Period boundaries are CLINIC calendar days (``app.timeutil``, IST by
+default), not UTC days.
 """
 from __future__ import annotations
 
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
@@ -21,8 +31,7 @@ from ..models import (
     Bed,
     Expense,
     InventoryItem,
-    Payment,
-    Refund,
+    LedgerEntry,
 )
 from ..schemas import (
     FinanceCategoryRow,
@@ -31,16 +40,9 @@ from ..schemas import (
     InventoryReport,
     ReportSummaryOut,
 )
+from ..timeutil import clinic_day_bounds, clinic_today
 
 router = APIRouter(prefix="/reports", tags=["reports"])
-
-
-def _day_start(d: date) -> datetime:
-    return datetime.combine(d, time.min, tzinfo=timezone.utc)
-
-
-def _day_end(d: date) -> datetime:
-    return datetime.combine(d, time.max, tzinfo=timezone.utc)
 
 
 @router.get("/summary", response_model=ReportSummaryOut)
@@ -50,13 +52,16 @@ def report_summary(
     principal: Principal = Depends(require_permission("report.read")),
     db: Session = Depends(get_db),
 ) -> ReportSummaryOut:
-    today = date.today()
+    today = clinic_today()
     date_to = date_to or today
     date_from = date_from or (date_to - timedelta(days=30))
     if date_from > date_to:
         date_from, date_to = date_to, date_from
 
     org = principal.organization_id
+    # [period_start, period_end) in UTC for the clinic-local days
+    period_start = clinic_day_bounds(date_from)[0]
+    period_end = clinic_day_bounds(date_to)[1]
 
     beds_total = db.scalar(
         select(func.count()).select_from(Bed).where(Bed.organization_id == org)
@@ -75,16 +80,16 @@ def report_summary(
     admissions_in_period = db.scalar(
         select(func.count()).select_from(Admission).where(
             Admission.organization_id == org,
-            Admission.admitted_at >= _day_start(date_from),
-            Admission.admitted_at <= _day_end(date_to),
+            Admission.admitted_at >= period_start,
+            Admission.admitted_at < period_end,
         )
     ) or 0
     discharges_in_period = db.scalar(
         select(func.count()).select_from(Admission).where(
             Admission.organization_id == org,
             Admission.status == "discharged",
-            Admission.discharged_at >= _day_start(date_from),
-            Admission.discharged_at <= _day_end(date_to),
+            Admission.discharged_at >= period_start,
+            Admission.discharged_at < period_end,
         )
     ) or 0
     deaths_in_period = db.scalar(
@@ -92,27 +97,24 @@ def report_summary(
             Admission.organization_id == org,
             Admission.status == "discharged",
             Admission.discharge_outcome == "death",
-            Admission.discharged_at >= _day_start(date_from),
-            Admission.discharged_at <= _day_end(date_to),
+            Admission.discharged_at >= period_start,
+            Admission.discharged_at < period_end,
         )
     ) or 0
 
-    revenue = db.scalar(
-        select(func.coalesce(func.sum(Payment.amount), 0)).where(
-            Payment.organization_id == org,
-            Payment.status == "succeeded",
-            Payment.created_at >= _day_start(date_from),
-            Payment.created_at <= _day_end(date_to),
-        )
-    ) or 0
-    refunds = db.scalar(
-        select(func.coalesce(func.sum(Refund.amount), 0)).where(
-            Refund.organization_id == org,
-            Refund.status == "succeeded",
-            Refund.created_at >= _day_start(date_from),
-            Refund.created_at <= _day_end(date_to),
-        )
-    ) or 0
+    def _ledger_sum(entry_type: str):
+        return db.scalar(
+            select(func.coalesce(func.sum(LedgerEntry.amount), 0)).where(
+                LedgerEntry.organization_id == org,
+                LedgerEntry.entry_type == entry_type,
+                LedgerEntry.created_at >= period_start,
+                LedgerEntry.created_at < period_end,
+            )
+        ) or 0
+
+    # settled payments (refunded later or not) / refunds — each counted once
+    revenue = _ledger_sum("payment")
+    refunds = _ledger_sum("refund")
 
     expense_rows = db.execute(
         select(

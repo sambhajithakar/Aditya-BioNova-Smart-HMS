@@ -60,6 +60,7 @@ from ..schemas import (
     WardOut,
 )
 from ..services.clinical import idempotent_replay, idempotent_store
+from ..services.tenancy import load_branch, require_member
 
 router = APIRouter(prefix="/ipd", tags=["ipd"])
 
@@ -146,6 +147,7 @@ def create_ward(
     principal: Principal = Depends(require_permission("bed.manage")),
     db: Session = Depends(get_db),
 ) -> WardOut:
+    load_branch(db, principal, payload.branch_id)  # FKs bypass RLS
     dup = db.scalar(
         select(Ward.id).where(
             Ward.organization_id == principal.organization_id,
@@ -382,6 +384,10 @@ def admit_patient(
         raise HTTPException(
             status_code=409, detail="Patient already has an active admission"
         )
+
+    if payload.attending_user_id is not None:
+        require_member(db, principal, payload.attending_user_id,
+                       field="attending_user_id")
 
     admission = Admission(
         organization_id=principal.organization_id,
