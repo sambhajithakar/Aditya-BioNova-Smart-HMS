@@ -179,15 +179,16 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: apps/api/requirements.lock
+          cache-dependency-path: apps/api/requirements-dev.lock
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
       - name: Install API (hash-locked) and PostgreSQL client
+        # dev lock: scripts/seed_demo.py drives the API through TestClient (httpx)
         run: |
-          pip install --require-hashes --no-deps -r apps/api/requirements.lock
+          pip install --require-hashes --no-deps -r apps/api/requirements-dev.lock
           sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Provision roles, migrate, start API
         run: |
