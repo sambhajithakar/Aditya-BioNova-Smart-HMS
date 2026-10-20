@@ -8,9 +8,10 @@
 import { CSSProperties, useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { ApiError, Branch, Expense, PageOf, api } from "@/lib/api";
-import { getLang, t } from "@/lib/i18n";
-
-type Lang = "en" | "mr" | "hi";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/lib/lang";
+import { useIdempotencyKey, useInFlight } from "@/lib/idempotency";
+import { defaultBranchId, useMe } from "@/lib/me";
 
 const CATEGORIES = [
   "rent", "salaries", "utilities", "supplies", "equipment",
@@ -30,8 +31,11 @@ const rowBtn: CSSProperties = {
 
 type SummaryRow = { category: string; count: number; total: number };
 
-export default function ExpensesPage() {
-  const [lang, setLang] = useState<Lang>("en");
+function ExpensesBody() {
+  const { lang } = useLang();
+  const me = useMe();
+  const { busy, run } = useInFlight();
+  const expKey = useIdempotencyKey();
   const [rows, setRows] = useState<Expense[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [summary, setSummary] = useState<SummaryRow[]>([]);
@@ -54,7 +58,6 @@ export default function ExpensesPage() {
     .toISOString()
     .slice(0, 10);
 
-  useEffect(() => setLang(getLang()), []);
 
   const load = useCallback(async () => {
     try {
@@ -67,7 +70,7 @@ export default function ExpensesPage() {
       ]);
       setRows(expensePage.items);
       setBranches(branchList.filter((b) => b.status === "active"));
-      setBranchId((prev) => prev || branchList[0]?.id || "");
+      setBranchId((prev) => prev || defaultBranchId(me, branchList));
       setSummary(sumPage.items);
     } catch {
       setError("Could not load expenses.");
@@ -101,8 +104,9 @@ export default function ExpensesPage() {
           reference,
           branch_id: branchId || undefined,
         },
-        `web-exp-${category}-${value}-${expenseDate}`
+        expKey.current()
       );
+      expKey.reset();
       setAmount("");
       setDescription("");
       setReference("");
@@ -133,10 +137,9 @@ export default function ExpensesPage() {
   const money = (n: number) => `₹${Number(n).toLocaleString("en-IN")}`;
 
   return (
-    <AppShell active="expenses">
+    <>
       <main className="page">
         <h1 style={{ marginTop: 0 }}>{t("expenses", lang)}</h1>
-        <p className="notice">{t("m6Notice", lang)}</p>
 
         <section className="card" style={{ marginTop: "1.25rem" }}>
           <h3 style={{ marginTop: 0 }}>{t("addExpense", lang)}</h3>
@@ -206,7 +209,8 @@ export default function ExpensesPage() {
               className="primary"
               type="button"
               style={{ alignSelf: "end" }}
-              onClick={() => void recordExpense()}
+              disabled={busy}
+              onClick={() => void run(recordExpense)}
             >
               {t("addExpense", lang)}
             </button>
@@ -324,6 +328,14 @@ export default function ExpensesPage() {
           </p>
         )}
       </main>
+    </>
+  );
+}
+
+export default function ExpensesPage() {
+  return (
+    <AppShell active="expenses">
+      <ExpensesBody />
     </AppShell>
   );
 }

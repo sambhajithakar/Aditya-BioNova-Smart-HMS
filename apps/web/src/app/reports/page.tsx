@@ -9,12 +9,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { ApiError, ReportSummary, api } from "@/lib/api";
-import { getLang, t } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/lib/lang";
 
-type Lang = "en" | "mr" | "hi";
-
-export default function ReportsPage() {
-  const [lang, setLang] = useState<Lang>("en");
+function ReportsBody() {
+  const { lang } = useLang();
   const [summary, setSummary] = useState<ReportSummary | null>(null);
   const [from, setFrom] = useState(
     new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10)
@@ -22,7 +21,6 @@ export default function ReportsPage() {
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => setLang(getLang()), []);
 
   const load = useCallback(async () => {
     setError(null);
@@ -49,7 +47,7 @@ export default function ReportsPage() {
     total ? `${Math.round((occupied / total) * 100)}%` : "—";
 
   return (
-    <AppShell active="reports">
+    <>
       <main className="page">
         <h1 style={{ marginTop: 0 }}>{t("reports", lang)}</h1>
 
@@ -214,6 +212,14 @@ export default function ReportsPage() {
           </p>
         )}
       </main>
+    </>
+  );
+}
+
+export default function ReportsPage() {
+  return (
+    <AppShell active="reports">
+      <ReportsBody />
     </AppShell>
   );
 }

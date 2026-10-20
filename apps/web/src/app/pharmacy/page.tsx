@@ -10,6 +10,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { PatientPicker } from "@/components/PatientPicker";
 import {
   ApiError,
   Branch,
@@ -24,9 +25,10 @@ import {
   StockMovement,
   api,
 } from "@/lib/api";
-import { getLang, t } from "@/lib/i18n";
-
-type Lang = "en" | "mr" | "hi";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/lib/lang";
+import { useIdempotencyKey, useInFlight } from "@/lib/idempotency";
+import { defaultBranchId, useMe } from "@/lib/me";
 
 type RxCheck = { on: boolean; qty: string };
 
@@ -35,8 +37,12 @@ const parseQty = (raw: string): number => {
   return Number.isFinite(n) && n > 0 ? n : 1;
 };
 
-export default function PharmacyPage() {
-  const [lang, setLang] = useState<Lang>("en");
+function PharmacyBody() {
+  const { lang } = useLang();
+  const me = useMe();
+  const { busy, run } = useInFlight();
+  const recvKey = useIdempotencyKey();
+  const dispKey = useIdempotencyKey();
   const [alerts, setAlerts] = useState<StockAlerts | null>(null);
   const [batches, setBatches] = useState<StockBatch[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
@@ -65,7 +71,6 @@ export default function PharmacyPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  useEffect(() => setLang(getLang()), []);
 
   const load = useCallback(async () => {
     try {
@@ -82,7 +87,7 @@ export default function PharmacyPage() {
       setMovements(movePage.items);
       setDrugs(drugList);
       setBranches(branchList.filter((b) => b.status === "active"));
-      setRBranch((prev) => prev || branchList[0]?.id || "");
+      setRBranch((prev) => prev || defaultBranchId(me, branchList));
       setRDrug((prev) => prev || drugList[0]?.id || "");
       setDDrug((prev) => prev || drugList[0]?.id || "");
     } catch (err) {
@@ -92,16 +97,15 @@ export default function PharmacyPage() {
           : "Could not load the pharmacy."
       );
     }
-  }, []);
+  }, [me]);
 
   // Roles without patient/Rx read still get the rest of the page.
   useEffect(() => {
     void load();
     api
-      .get<PageOf<Patient>>("/patients?limit=200")
+      .get<PageOf<Patient>>("/patients?limit=100") // labels only
       .then((p) => {
         setPatients(p.items);
-        setOtcPatient((prev) => prev || p.items[0]?.id || "");
       })
       .catch(() => setPatients([]));
     api
@@ -121,7 +125,10 @@ export default function PharmacyPage() {
       setRxDetail(detail);
       const checks: Record<string, RxCheck> = {};
       for (const item of detail.items) {
-        checks[item.id] = { on: true, qty: item.quantity };
+        checks[item.id] = {
+          on: true,
+          qty: item.dispense_quantity != null ? String(item.dispense_quantity) : item.quantity,
+        };
       }
       setRxChecks(checks);
     } catch (err) {
@@ -147,8 +154,9 @@ export default function PharmacyPage() {
           unit_cost: Number(rCost) || 0,
           supplier: rSupplier,
         },
-        `web-recv-${rBranch}-${rBatchNo}`
+        recvKey.current()
       );
+      recvKey.reset();
       setNotice(`${t("receiveStock", lang)}: ${batch.batch_number}`);
       setRBatchNo("");
       await load();
@@ -175,7 +183,7 @@ export default function PharmacyPage() {
         out = await api.post<Dispense>(
           "/pharmacy/dispenses",
           { prescription_id: rxDetail.id, items },
-          `web-disp-${rxDetail.id}-${items.length}`
+          dispKey.current()
         );
       } else {
         if (!otcPatient || !dDrug) {
@@ -188,7 +196,7 @@ export default function PharmacyPage() {
             patient_id: otcPatient,
             items: [{ drug_id: dDrug, quantity: parseQty(dQty) }],
           },
-          `web-disp-${otcPatient}-${dDrug}-${Date.now()}`
+          dispKey.current()
         );
       }
       const lines = (out.items ?? [])
@@ -197,6 +205,7 @@ export default function PharmacyPage() {
           return `${drug?.generic_name ?? i.drug_id.slice(0, 8)} × ${i.quantity}`;
         })
         .join(", ");
+      dispKey.reset();
       setNotice(`${t("dispense", lang)} ✓ ${lines}`);
       await load();
     } catch (err) {
@@ -224,10 +233,9 @@ export default function PharmacyPage() {
   );
 
   return (
-    <AppShell active="pharmacy">
+    <>
       <main className="page">
         <h1 style={{ marginTop: 0 }}>{t("pharmacy", lang)}</h1>
-        <p className="muted">{t("m5Notice", lang)}</p>
 
         {error && (
           <p className="error" role="alert">
@@ -356,7 +364,8 @@ export default function PharmacyPage() {
               className="primary"
               type="button"
               style={{ alignSelf: "end" }}
-              onClick={() => void receiveStock()}
+              disabled={busy}
+              onClick={() => void run(receiveStock)}
             >
               {t("receiveStock", lang)}
             </button>
@@ -383,20 +392,7 @@ export default function PharmacyPage() {
             </div>
             {!rxDetail && (
               <>
-                <div className="field">
-                  <label htmlFor="dp_pat">{t("patients", lang)}</label>
-                  <select
-                    id="dp_pat"
-                    value={otcPatient}
-                    onChange={(e) => setOtcPatient(e.target.value)}
-                  >
-                    {patients.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.uhid} — {p.full_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <PatientPicker id="dp_pat" value={otcPatient} onChange={(id) => setOtcPatient(id)} />
                 <div className="field">
                   <label htmlFor="dp_drug">{t("drug", lang)}</label>
                   <select
@@ -484,7 +480,8 @@ export default function PharmacyPage() {
             className="primary"
             type="button"
             style={{ marginTop: "0.75rem" }}
-            onClick={() => void dispense()}
+            disabled={busy}
+              onClick={() => void run(dispense)}
           >
             {t("dispense", lang)}
           </button>
@@ -573,6 +570,14 @@ export default function PharmacyPage() {
           </table>
         </section>
       </main>
+    </>
+  );
+}
+
+export default function PharmacyPage() {
+  return (
+    <AppShell active="pharmacy">
+      <PharmacyBody />
     </AppShell>
   );
 }

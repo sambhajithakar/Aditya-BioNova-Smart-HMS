@@ -1,17 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { getAccessToken } from "@/lib/auth";
-
+/** middleware.ts already sends visitors without a session cookie to /login. */
 export default function Home() {
-  const router = useRouter();
-  useEffect(() => {
-    router.replace(getAccessToken() ? "/dashboard" : "/login");
-  }, [router]);
-  return (
-    <main className="page">
-      <p className="muted">Loading…</p>
-    </main>
-  );
+  redirect("/dashboard");
 }

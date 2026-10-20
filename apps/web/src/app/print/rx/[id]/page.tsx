@@ -9,9 +9,23 @@
  * print pipeline (Save as PDF) — no server-side PDF dependency.
  * `?type=receipt` switches the layout to the billing receipt.
  */
-import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
-import { ApiError, Patient, PrescriptionDetail, Drug, Receipt, api } from "@/lib/api";
+import { Suspense, useEffect, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import {
+  ApiError,
+  Branch,
+  Drug,
+  EncounterDetail,
+  Me,
+  Member,
+  Patient,
+  Prescriber,
+  PrescriptionDetail,
+  Receipt,
+  api,
+} from "@/lib/api";
+import { onAuthFailure } from "@/lib/session";
+import { itemDrugName } from "@/lib/print";
 
 type Label = { en: string; mr: string; hi: string };
 
@@ -39,7 +53,15 @@ const L = {
   payment: { en: "Payment", mr: "पेमेंट", hi: "भुगतान" },
   allergies: { en: "Allergies", mr: "ऍलर्जी", hi: "एलर्जी" },
   version: { en: "Version", mr: "आवृत्ती", hi: "संस्करण" },
+  route: { en: "Route", mr: "मार्ग", hi: "मार्ग" },
+  qtyDispense: { en: "Dispense", mr: "देय नग", hi: "देय मात्रा" },
+  prescriber: { en: "Prescriber", mr: "डॉक्टर", hi: "चिकित्सक" },
+  regNo: { en: "Reg. No.", mr: "नोंदणी क्र.", hi: "पंजीकरण सं." },
+  branch: { en: "Branch", mr: "शाखा", hi: "शाखा" },
+  print: { en: "Print / Save as PDF", mr: "छापा / PDF जतन करा", hi: "प्रिंट / PDF सहेजें" },
+  loading: { en: "Loading…", mr: "लोड होत आहे…", hi: "लोड हो रहा है…" },
   amendments: { en: "Amendments are versioned; this copy is immutable.", mr: "दुरुस्त्या आवृत्तीनुसार; ही प्रत अपरिवर्तनीय आहे.", hi: "संशोधन संस्करण में हैं; यह प्रति अपरिवर्तनीय है।" },
+  acknowledged: { en: "acknowledged by prescriber", mr: "डॉक्टरांनी नोंद घेतली", hi: "चिकित्सक द्वारा स्वीकार" },
 };
 
 function tri(l: Label) {
@@ -51,15 +73,29 @@ function tri(l: Label) {
 }
 
 export default function PrintPage() {
+  return (
+    <Suspense fallback={null}>
+      <PrintView />
+    </Suspense>
+  );
+}
+
+function PrintView() {
   const params = useParams<{ id: string }>();
   const search = useSearchParams();
+  const router = useRouter();
   const type = search.get("type") === "receipt" ? "receipt" : "rx";
 
   const [rx, setRx] = useState<PrescriptionDetail | null>(null);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [drugs, setDrugs] = useState<Record<string, Drug>>({});
+  const [me, setMe] = useState<Me | null>(null);
+  const [branchName, setBranchName] = useState<string>("");
+  const [prescriber, setPrescriber] = useState<Prescriber | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => onAuthFailure(() => router.replace("/login")), [router]);
 
   useEffect(() => {
     async function load() {
@@ -67,13 +103,51 @@ export default function PrintPage() {
         if (type === "receipt") {
           const r = await api.get<Receipt>(`/billing/invoices/${params.id}/receipt`);
           setReceipt(r);
-        } else {
-          const detail = await api.get<PrescriptionDetail>(
-            `/prescriptions/${params.id}`
-          );
-          setRx(detail);
-          const p = await api.get<Patient>(`/patients/${detail.patient_id}`);
-          setPatient(p);
+          return;
+        }
+        const [detail, who] = await Promise.all([
+          api.get<PrescriptionDetail>(`/prescriptions/${params.id}`),
+          api.get<Me>("/auth/me"),
+        ]);
+        setRx(detail);
+        setMe(who);
+        setPatient(await api.get<Patient>(`/patients/${detail.patient_id}`));
+
+        // Clinic branch: the encounter's branch, else the viewer's own branch.
+        let branchId = who.branch_id;
+        if (detail.encounter_id) {
+          try {
+            branchId = (await api.get<EncounterDetail>(`/encounters/${detail.encounter_id}`)).branch_id;
+          } catch {
+            /* keep the member branch */
+          }
+        }
+        if (branchId) {
+          api
+            .get<Branch>(`/branches/${branchId}`)
+            .then((b) => setBranchName(b.name))
+            .catch(() => undefined);
+        }
+
+        // Prescriber identity: Rx detail (M7 contract) first, then fallbacks.
+        if (detail.prescriber) {
+          setPrescriber(detail.prescriber);
+        } else if (detail.prescriber_user_id) {
+          if (detail.prescriber_user_id === who.user.id) {
+            setPrescriber({ user_id: who.user.id, full_name: who.user.full_name, registration_number: null });
+          } else {
+            api
+              .get<Member[]>("/members")
+              .then((ms) => {
+                const m = ms.find((x) => x.user_id === detail.prescriber_user_id);
+                if (m) setPrescriber({ user_id: m.user_id, full_name: m.full_name, registration_number: null });
+              })
+              .catch(() => undefined);
+          }
+        }
+
+        // Catalog fallback only when the Rx detail lacks names (pre-M7 API).
+        if (detail.items.some((it) => !it.drug_name && !it.generic_name)) {
           const catalog = await api.get<Drug[]>("/prescriptions/drugs?limit=200");
           setDrugs(Object.fromEntries(catalog.map((d) => [d.id, d])));
         }
@@ -171,6 +245,14 @@ export default function PrintPage() {
         <footer className="print-foot">
           <span>{tri(L.signature)}</span>
         </footer>
+        <button
+          type="button"
+          className="no-print"
+          onClick={() => window.print()}
+          style={{ margin: "1rem auto", display: "block" }}
+        >
+          {tri(L.print)}
+        </button>
         <style>{PRINT_CSS}</style>
       </main>
     );
@@ -179,7 +261,7 @@ export default function PrintPage() {
   if (!rx || !patient) {
     return (
       <main className="print-sheet">
-        <p className="muted">Loading…</p>
+        <p className="muted">{tri(L.loading)}</p>
         <style>{PRINT_CSS}</style>
       </main>
     );
@@ -189,8 +271,13 @@ export default function PrintPage() {
     <main className="print-sheet">
       <header className="print-head">
         <div>
-          <h1>{tri(L.prescription)}</h1>
-          <p className="tri">Aditya BioNova Smart HMS</p>
+          <h1 data-testid="clinic-name">{me?.organization.name ?? ""}</h1>
+          {branchName && (
+            <p className="tri" data-testid="clinic-branch">
+              {tri(L.branch)}: {branchName}
+            </p>
+          )}
+          <p className="doc-title">{tri(L.prescription)}</p>
         </div>
         <div style={{ textAlign: "right" }}>
           <p>
@@ -215,7 +302,7 @@ export default function PrintPage() {
         {patient.allergies && (
           <p className="error">
             ⚠ {tri(L.allergies)}: <strong>{patient.allergies}</strong>
-            {rx.allergy_acknowledged && " (acknowledged by prescriber)"}
+            {rx.allergy_acknowledged && <> ({tri(L.acknowledged)})</>}
           </p>
         )}
         {rx.diagnosis_text && (
@@ -231,26 +318,31 @@ export default function PrintPage() {
             <th>#</th>
             <th>{tri(L.medicines)}</th>
             <th>{tri(L.dose)}</th>
+            <th>{tri(L.route)}</th>
             <th>{tri(L.frequency)}</th>
             <th>{tri(L.days)}</th>
+            <th>{tri(L.qtyDispense)}</th>
           </tr>
         </thead>
         <tbody>
-          {rx.items.map((it, i) => (
-            <tr key={it.id}>
-              <td>{i + 1}</td>
-              <td>
-                <strong>{drugs[it.drug_id]?.generic_name ?? "—"}</strong>
-                {drugs[it.drug_id]?.brand_hint && (
-                  <span className="tri"> ({drugs[it.drug_id].brand_hint})</span>
-                )}
-                {it.instructions && <div className="tri">{it.instructions}</div>}
-              </td>
-              <td>{it.dose}</td>
-              <td>{it.frequency}</td>
-              <td>{it.duration_days}</td>
-            </tr>
-          ))}
+          {rx.items.map((it, i) => {
+            const n = itemDrugName(it, drugs);
+            return (
+              <tr key={it.id} data-testid="rx-print-item">
+                <td>{i + 1}</td>
+                <td>
+                  <strong>{n.name}</strong>
+                  {n.detail && <span className="tri"> ({n.detail})</span>}
+                  {it.instructions && <div className="tri">{it.instructions}</div>}
+                </td>
+                <td data-testid="rx-print-dose">{it.dose}</td>
+                <td>{it.route}</td>
+                <td>{it.frequency}</td>
+                <td>{it.duration_days}</td>
+                <td>{it.dispense_quantity ?? it.quantity ?? ""}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
 
@@ -265,14 +357,23 @@ export default function PrintPage() {
             {tri(L.followUp)}: {rx.follow_up}
           </p>
         )}
-        <p className="tri">{L.amendments.en}</p>
+        <p className="tri">{tri(L.amendments)}</p>
       </section>
 
       <footer className="print-foot">
-        <span>
-          {tri(L.signature)}
-          {rx.prescriber_user_id ? "" : ""}
-        </span>
+        <div className="prescriber" data-testid="prescriber">
+          {prescriber && (
+            <>
+              <p>
+                <strong>{prescriber.full_name}</strong>
+              </p>
+              <p className="tri">
+                {tri(L.regNo)}: {prescriber.registration_number || "—"}
+              </p>
+            </>
+          )}
+          <p>{tri(L.signature)}</p>
+        </div>
       </footer>
 
       <button
@@ -281,7 +382,7 @@ export default function PrintPage() {
         onClick={() => window.print()}
         style={{ margin: "1rem auto", display: "block" }}
       >
-        Print / Save as PDF
+        {tri(L.print)}
       </button>
 
       <style>{PRINT_CSS}</style>
@@ -313,7 +414,7 @@ const PRINT_CSS = `
     .no-print { display: none !important; }
     .print-sheet { max-width: none; padding: 0; }
   }
-  @media print and (max-width: 210mm) {
-    @page { size: A5; margin: 10mm; }
-  }
+  .doc-title { margin: 0.2rem 0 0; font-weight: bold; color: #1d3557; }
+  .prescriber { text-align: right; }
+  .prescriber p { margin: 0.1rem 0; }
 `;

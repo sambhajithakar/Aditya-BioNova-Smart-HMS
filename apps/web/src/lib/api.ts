@@ -1,39 +1,74 @@
-"use client";
-
-import { clearTokens, getAccessToken, saveTokens } from "./auth";
+/**
+ * Typed API client.
+ *
+ * All calls go to the same origin: `/api/v1/*` is rewritten to the FastAPI
+ * backend by next.config.mjs, and `/api/session/*` are Next route handlers
+ * that own the httpOnly refresh-token cookie (see lib/session.ts).
+ *
+ * Auth: the in-memory access token is attached as a Bearer header. If no
+ * token is held (fresh page load) one is minted from the refresh cookie
+ * first. A 401 triggers exactly ONE refresh + retry; a second 401 (or a
+ * failed refresh) ends the session and notifies listeners (AppShell then
+ * redirects to /login).
+ */
+import {
+  ensureAccessToken,
+  getAccessToken,
+  notifyAuthFailure,
+  refreshSession,
+  setSession,
+  clearSession,
+} from "./session";
 
 export class ApiError extends Error {
   status: number;
   detail: unknown;
-  constructor(status: number, detail: unknown) {
+  retryAfter: number | null;
+  constructor(status: number, detail: unknown, retryAfter: number | null = null) {
     super(typeof detail === "string" ? detail : JSON.stringify(detail));
     this.status = status;
     this.detail = detail;
+    this.retryAfter = retryAfter;
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function toApiError(res: Response): Promise<ApiError> {
+  let detail: unknown = res.statusText;
+  try {
+    const body = await res.json();
+    detail = body?.detail ?? body;
+  } catch {
+    /* keep statusText */
+  }
+  const ra = res.headers.get("Retry-After");
+  return new ApiError(res.status, detail, ra ? Number(ra) || null : null);
+}
+
+type RequestOpts = RequestInit & { auth?: boolean };
+
+async function request<T>(path: string, options: RequestOpts = {}, retried = false): Promise<T> {
+  const { auth = true, ...init } = options;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(options.headers as Record<string, string> | undefined),
+    ...(init.headers as Record<string, string> | undefined),
   };
-  const token = getAccessToken();
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-
-  const res = await fetch(`/api/v1${path}`, { ...options, headers });
-  if (res.status === 401 && token) {
-    clearTokens();
-  }
-  if (!res.ok) {
-    let detail: unknown = res.statusText;
-    try {
-      const body = await res.json();
-      detail = body.detail ?? body;
-    } catch {
-      /* keep statusText */
+  if (auth) {
+    const token = await ensureAccessToken();
+    if (!token) {
+      notifyAuthFailure();
+      throw new ApiError(401, "Not authenticated");
     }
-    throw new ApiError(res.status, detail);
+    headers["Authorization"] = `Bearer ${token}`;
   }
+
+  const res = await fetch(`/api/v1${path}`, { ...init, headers, credentials: "same-origin" });
+  if (res.status === 401 && auth) {
+    if (!retried && (await refreshSession())) {
+      return request<T>(path, options, true);
+    }
+    notifyAuthFailure();
+  }
+  if (!res.ok) throw await toApiError(res);
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
@@ -48,34 +83,156 @@ export const api = {
     }),
   patch: <T>(path: string, body: unknown) =>
     request<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
+  /** Unauthenticated POST (forgot/reset password). */
+  publicPost: <T>(path: string, body: unknown) =>
+    request<T>(path, { method: "POST", body: JSON.stringify(body), auth: false }),
 };
 
+// --- auth / session ----------------------------------------------------------
+export type UserOut = { id: string; email: string; full_name: string; status: string };
+export type OrganizationOut = { id: string; name: string; slug: string; status: string };
+
 export type Me = {
-  user: { id: string; email: string; full_name: string; status: string };
-  organization: { id: string; name: string; slug: string; status: string };
+  user: UserOut;
+  organization: OrganizationOut;
   membership_id: string;
   branch_id: string | null;
   role: string;
   permissions: string[];
 };
 
-export type LoginResponse = {
-  user: Me["user"];
-  organization: Me["organization"];
+/** What /api/session/{login,mfa-verify,accept-invite} return to the browser. */
+export type BrowserSession = {
+  access_token: string;
+  expires_in: number;
+  user: UserOut;
+  organization: OrganizationOut;
   role: string;
   permissions: string[];
-  tokens: { access_token: string; refresh_token: string; expires_in: number };
 };
+
+export type MfaChallenge = {
+  mfa_required: true;
+  mfa_token: string;
+  methods: string[];
+  expires_in: number;
+};
+
+export type LoginResult =
+  | { kind: "session"; session: BrowserSession }
+  | { kind: "mfa"; challenge: MfaChallenge };
+
+async function sessionPost(path: string, body: unknown): Promise<unknown> {
+  const res = await fetch(`/api/session/${path}`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw await toApiError(res);
+  return res.json();
+}
+
+function isMfaChallenge(x: unknown): x is MfaChallenge {
+  return typeof x === "object" && x !== null && (x as { mfa_required?: unknown }).mfa_required === true;
+}
+
+function adopt(data: unknown): BrowserSession {
+  const s = data as BrowserSession;
+  setSession({ access_token: s.access_token, expires_in: s.expires_in });
+  return s;
+}
 
 export async function login(input: {
   email: string;
   password: string;
   organization_slug?: string;
-}): Promise<LoginResponse> {
-  const data = await api.post<LoginResponse>("/auth/login", input);
-  saveTokens(data.tokens);
-  return data;
+}): Promise<LoginResult> {
+  const data = await sessionPost("login", input);
+  if (isMfaChallenge(data)) return { kind: "mfa", challenge: data };
+  return { kind: "session", session: adopt(data) };
 }
+
+export async function verifyMfa(mfa_token: string, code: string): Promise<BrowserSession> {
+  return adopt(await sessionPost("mfa-verify", { mfa_token, code }));
+}
+
+export async function acceptInvite(input: {
+  token: string;
+  password: string;
+  full_name?: string;
+}): Promise<BrowserSession> {
+  return adopt(await sessionPost("accept-invite", input));
+}
+
+export async function logout(): Promise<void> {
+  const token = getAccessToken();
+  try {
+    await fetch("/api/session/logout", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: "{}",
+    });
+  } finally {
+    clearSession();
+  }
+}
+
+// --- M7 security / members (contract: m7_contract.md) -----------------------
+export type MfaStatus = { totp_enabled: boolean; recovery_codes_remaining: number };
+export type TotpSetup = { secret: string; otpauth_uri: string };
+export type SessionInfo = {
+  id: string;
+  created_at: string;
+  expires_at: string;
+  user_agent: string | null;
+  ip_address: string | null;
+  current: boolean;
+};
+export type Member = {
+  membership_id: string;
+  user_id: string;
+  email: string;
+  full_name: string;
+  role_key: string;
+  branch_id: string | null;
+  status: string;
+  created_at: string;
+};
+export type Invitation = {
+  id: string;
+  email: string;
+  role_key: string;
+  branch_id: string | null;
+  status: string;
+  expires_at: string;
+  created_at: string;
+};
+export type OutboxMessage = {
+  id: string;
+  channel: "email" | "sms" | "whatsapp";
+  to: string;
+  subject: string;
+  body: string;
+  created_at: string;
+};
+
+export const ROLE_KEYS = [
+  "admin",
+  "doctor",
+  "nurse",
+  "receptionist",
+  "pharmacist",
+  "lab_technician",
+  "billing",
+  "auditor",
+  "support",
+] as const;
+
 
 // --- M2 clinical types -------------------------------------------------------
 export type Patient = {
@@ -205,6 +362,17 @@ export type RxItem = {
   quantity: string;
   instructions: string;
   seq: number;
+  // M7 contract additions (optional until the backend ships them):
+  drug_name?: string | null;
+  generic_name?: string | null;
+  strength?: string | null;
+  dispense_quantity?: number | null;
+};
+
+export type Prescriber = {
+  user_id: string;
+  full_name: string;
+  registration_number: string | null;
 };
 
 export type Prescription = {
@@ -225,7 +393,11 @@ export type Prescription = {
   created_at: string;
 };
 
-export type PrescriptionDetail = Prescription & { items: RxItem[] };
+export type PrescriptionDetail = Prescription & {
+  items: RxItem[];
+  /** M7 contract addition; absent on older backends. */
+  prescriber?: Prescriber | null;
+};
 
 export type RxWarning = { kind: string; message: string; drug_ids: string[] };
 export type RxWarnings = { warnings: RxWarning[]; blocking: boolean };
