@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from .. import comms
 from ..auditing import record_event
 from ..config import get_settings
+from ..entitlements import check_limit
 from ..db import get_db
 from ..deps import Principal, get_client_ip, get_correlation_id, require_permission
 from ..models import Branch, MemberInvitation, Membership, RefreshSession, Role, User
@@ -126,6 +127,7 @@ def create_member(
     _check_branch(db, payload.branch_id)
 
     email = payload.email.lower()
+    check_limit(db, principal.organization_id, "max_users")
     if db.scalar(select(User.id).where(User.email == email)):
         # Never attach an existing account (or reveal whose it is).
         raise HTTPException(
@@ -200,6 +202,8 @@ def create_invitation(
         .where(MemberInvitation.status == "pending")
         .values(status="revoked", updated_at=datetime.now(timezone.utc))
     )
+    db.flush()
+    check_limit(db, principal.organization_id, "max_users")
     token = secrets.token_urlsafe(32)
     inv = MemberInvitation(
         organization_id=principal.organization_id,
@@ -294,6 +298,8 @@ def update_member(
             user.registration_number = payload.registration_number
     revoked = 0
     if payload.status is not None and payload.status != m.status:
+        if payload.status == "active":
+            check_limit(db, principal.organization_id, "max_users")
         changes["status"] = payload.status
         m.status = payload.status
         if payload.status == "suspended":

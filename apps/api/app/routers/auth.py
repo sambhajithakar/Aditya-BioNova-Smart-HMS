@@ -40,8 +40,11 @@ from ..models import (
     RolePermission,
     User,
 )
+from ..entitlements import load_entitlements
+from ..services.subscriptions import get_plan, start_trial
 from ..schemas import (
     AuthSessionOut,
+    EditionRef,
     InvitationAcceptIn,
     LoginIn,
     MeOut,
@@ -307,6 +310,11 @@ def register(
         )
         db.add(membership)
         db.flush()
+
+        # every clinic starts on an edition (trial); prices are never needed here
+        plan = get_plan(db, payload.plan_code or settings.default_signup_plan,
+                        public_only=payload.plan_code is not None)
+        start_trial(db, org.id, plan, user.id)
 
         session_row, access, refresh_token = _new_session(
             db, user=user, org_id=org.id, request=request
@@ -628,6 +636,7 @@ def me(
     org_row = db.get(Organization, principal.organization_id)
     if org_row is None:
         raise HTTPException(status_code=403, detail="Organization not found")
+    ent = load_entitlements(db, principal.organization_id)
     return MeOut(
         user=UserOut.model_validate(principal.user),
         organization=OrganizationOut.model_validate(org_row),
@@ -635,6 +644,11 @@ def me(
         branch_id=principal.membership.branch_id,
         role=principal.role_key,
         permissions=sorted(principal.permissions),
+        edition=EditionRef(code=ent.plan_code, name=ent.plan_name) if ent.plan_code else None,
+        subscription_status=ent.effective_status,
+        features=sorted(ent.features),
+        mfa_enrollment_required=principal.mfa_enrollment_required,
+        is_platform_admin=principal.is_platform_admin,
     )
 
 

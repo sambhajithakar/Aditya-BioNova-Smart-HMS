@@ -21,6 +21,7 @@ from sqlalchemy import (
     Integer,
     ForeignKey,
     Numeric,
+    Identity,
     Index,
     PrimaryKeyConstraint,
     String,
@@ -28,7 +29,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .db import Base
@@ -66,8 +67,44 @@ class Organization(Base):
         DateTime(timezone=True), nullable=False, server_default=now()
     )
 
+    # M7.1 tenant profile (printed on letterheads, invoices, prescriptions)
+    legal_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    address_line1: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    address_line2: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    state: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    pincode: Mapped[str | None] = mapped_column(String(6), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    gstin: Mapped[str | None] = mapped_column(String(15), nullable=True)
+    registration_number: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    letterhead_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    default_language: Mapped[str] = mapped_column(
+        String(2), nullable=False, default="en", server_default="en"
+    )
+    timezone: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="Asia/Kolkata", server_default="Asia/Kolkata"
+    )
+    # roles whose members must enrol TOTP before using the system
+    mfa_required_roles: Mapped[list[str]] = mapped_column(
+        ARRAY(String(40)), nullable=False, default=list, server_default="{}"
+    )
+    offboarding_requested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    offboarding_requested_by: Mapped[UUID_PK | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    offboarding_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
     __table_args__ = (
         CheckConstraint("status IN ('active','suspended','deleting')", name="ck_org_status"),
+        CheckConstraint("default_language IN ('en','mr','hi')", name="ck_org_language"),
+        CheckConstraint(
+            "gstin IS NULL OR gstin ~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$'",
+            name="ck_org_gstin"),
+        CheckConstraint("pincode IS NULL OR pincode ~ '^[1-9][0-9]{5}$'",
+                        name="ck_org_pincode"),
     )
 
 
@@ -91,7 +128,17 @@ class Branch(Base):
         DateTime(timezone=True), nullable=False, server_default=now()
     )
 
+    address: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    gstin: Mapped[str | None] = mapped_column(String(15), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=now()
+    )
+
     __table_args__ = (
+        CheckConstraint(
+            "gstin IS NULL OR gstin ~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$'",
+            name="ck_branch_gstin"),
         UniqueConstraint("organization_id", "code", name="uq_branch_org_code"),
         Index("ix_branches_org_created", "organization_id", "created_at"),
         CheckConstraint("status IN ('active','inactive')", name="ck_branch_status"),
@@ -2220,4 +2267,209 @@ class Expense(Base):
                         name="ck_expense_status"),
         Index("ix_expense_org_date", "organization_id", "expense_date"),
         Index("ix_expense_org_category", "organization_id", "category"),
+    )
+
+
+# --- M7.1 commercial editions, subscriptions, support -------------------------
+class Plan(Base):
+    """A commercial edition. Prices are configured by the platform owner
+    (NULL = not configured); never hard-coded."""
+
+    __tablename__ = "plans"
+
+    id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+    )
+    code: Mapped[str] = mapped_column(String(40), nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str] = mapped_column(String(1000), nullable=False, server_default="")
+    tier: Mapped[int] = mapped_column(Integer, nullable=False)
+    price_monthly_paise: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    price_annual_paise: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, server_default="INR")
+    trial_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="30")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False,
+                                            server_default=text("true"))
+    is_public: Mapped[bool] = mapped_column(Boolean, nullable=False,
+                                            server_default=text("true"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("price_monthly_paise IS NULL OR price_monthly_paise >= 0",
+                        name="ck_plan_price_monthly"),
+        CheckConstraint("price_annual_paise IS NULL OR price_annual_paise >= 0",
+                        name="ck_plan_price_annual"),
+        CheckConstraint("trial_days BETWEEN 0 AND 365", name="ck_plan_trial_days"),
+    )
+
+
+class PlanFeature(Base):
+    __tablename__ = "plan_features"
+
+    plan_id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("plans.id", ondelete="CASCADE"), nullable=False
+    )
+    feature_key: Mapped[str] = mapped_column(String(40), nullable=False)
+
+    __table_args__ = (PrimaryKeyConstraint("plan_id", "feature_key", name="pk_plan_features"),)
+
+
+class PlanLimit(Base):
+    __tablename__ = "plan_limits"
+
+    plan_id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("plans.id", ondelete="CASCADE"), nullable=False
+    )
+    limit_key: Mapped[str] = mapped_column(String(40), nullable=False)
+    limit_value: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+    __table_args__ = (
+        PrimaryKeyConstraint("plan_id", "limit_key", name="pk_plan_limits"),
+        CheckConstraint("limit_value IS NULL OR limit_value >= 0", name="ck_plan_limit_nonneg"),
+    )
+
+
+class Subscription(Base):
+    """The tenant's edition. Tenants may read it; only the platform changes it (RLS)."""
+
+    __tablename__ = "subscriptions"
+
+    id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+    )
+    organization_id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False, unique=True,
+    )
+    plan_id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("plans.id", ondelete="RESTRICT"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    billing_cycle: Mapped[str] = mapped_column(String(10), nullable=False,
+                                               default="monthly", server_default="monthly")
+    trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    current_period_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    current_period_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    grace_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    feature_overrides: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
+    limit_overrides: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('trialing','active','past_due','read_only','suspended','cancelled')",
+            name="ck_subscription_status"),
+        CheckConstraint("billing_cycle IN ('monthly','annual')", name="ck_subscription_cycle"),
+    )
+
+
+class SubscriptionEvent(Base):
+    """Append-only history of plan/status changes."""
+
+    __tablename__ = "subscription_events"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    organization_id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    from_plan: Mapped[str | None] = mapped_column(String(40))
+    to_plan: Mapped[str | None] = mapped_column(String(40))
+    from_status: Mapped[str | None] = mapped_column(String(20))
+    to_status: Mapped[str | None] = mapped_column(String(20))
+    reason: Mapped[str] = mapped_column(String(500), nullable=False, server_default="")
+    actor_user_id: Mapped[UUID_PK | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=now()
+    )
+
+    __table_args__ = (Index("ix_subevent_org_created", "organization_id", "created_at"),)
+
+
+class SupportTicket(Base):
+    __tablename__ = "support_tickets"
+
+    id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+    )
+    organization_id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    number: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
+    subject: Mapped[str] = mapped_column(String(200), nullable=False)
+    category: Mapped[str] = mapped_column(String(20), nullable=False)
+    priority: Mapped[str] = mapped_column(String(10), nullable=False, default="normal",
+                                          server_default="normal")
+    status: Mapped[str] = mapped_column(String(25), nullable=False, default="open",
+                                        server_default="open")
+    created_by: Mapped[UUID_PK | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "category IN ('technical','billing','account','feature_request',"
+            "'data_request','other')", name="ck_ticket_category"),
+        CheckConstraint("priority IN ('low','normal','high','urgent')",
+                        name="ck_ticket_priority"),
+        CheckConstraint(
+            "status IN ('open','in_progress','waiting_on_customer','resolved','closed')",
+            name="ck_ticket_status"),
+        Index("ix_ticket_org_status", "organization_id", "status"),
+    )
+
+
+class SupportTicketMessage(Base):
+    """Append-only conversation; ``internal`` vendor notes are hidden from tenants by RLS."""
+
+    __tablename__ = "support_ticket_messages"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    ticket_id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("support_tickets.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    organization_id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    author_user_id: Mapped[UUID_PK | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    author_side: Mapped[str] = mapped_column(String(10), nullable=False)
+    body: Mapped[str] = mapped_column(String(5000), nullable=False)
+    internal: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False,
+                                           server_default=text("false"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("author_side IN ('customer','vendor')", name="ck_ticketmsg_side"),
+        CheckConstraint("NOT internal OR author_side = 'vendor'",
+                        name="ck_ticketmsg_internal_vendor"),
+        Index("ix_ticketmsg_ticket", "ticket_id", "id"),
     )

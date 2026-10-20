@@ -5,7 +5,7 @@ import logging
 import re
 import uuid
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.exception_handlers import (
     http_exception_handler,
@@ -19,6 +19,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import __version__
 from .config import get_settings
+from .entitlements import enforce_writable, require_feature
 from .routers import (
     audit,
     appointments,
@@ -34,10 +35,14 @@ from .routers import (
     lab,
     members,
     opd_queue,
+    organization,
     patients,
     pharmacy,
+    platform,
     prescriptions,
     reports,
+    subscription,
+    support,
 )
 
 logger = logging.getLogger("hms.api")
@@ -190,23 +195,26 @@ def create_app() -> FastAPI:
             content={"detail": "Internal server error", "correlation_id": rid},
         )
 
-    app.include_router(health.router, prefix=BASE_PREFIX)
-    app.include_router(auth.router, prefix=BASE_PREFIX)
-    app.include_router(branches.router, prefix=BASE_PREFIX)
-    app.include_router(members.router, prefix=BASE_PREFIX)
-    app.include_router(audit.router, prefix=BASE_PREFIX)
-    app.include_router(patients.router, prefix=BASE_PREFIX)
-    app.include_router(appointments.router, prefix=BASE_PREFIX)
-    app.include_router(opd_queue.router, prefix=BASE_PREFIX)
-    app.include_router(encounters.router, prefix=BASE_PREFIX)
-    app.include_router(prescriptions.router, prefix=BASE_PREFIX)
-    app.include_router(billing.router, prefix=BASE_PREFIX)
-    app.include_router(pharmacy.router, prefix=BASE_PREFIX)
-    app.include_router(lab.router, prefix=BASE_PREFIX)
-    app.include_router(ipd.router, prefix=BASE_PREFIX)
-    app.include_router(inventory.router, prefix=BASE_PREFIX)
-    app.include_router(expenses.router, prefix=BASE_PREFIX)
-    app.include_router(reports.router, prefix=BASE_PREFIX)
+    # Account, administration and vendor surfaces stay reachable whatever the
+    # subscription state (a lapsed clinic can still manage, export and pay).
+    for r in (health.router, auth.router, branches.router, members.router, audit.router,
+              organization.router, subscription.router, support.router, platform.router):
+        app.include_router(r, prefix=BASE_PREFIX)
+
+    # Clinical/operational modules: gated by the edition's features; writes
+    # need a writable subscription (reads always work — records stay accessible).
+    app.include_router(patients.router, prefix=BASE_PREFIX,
+                       dependencies=[Depends(enforce_writable)])
+    gated = [
+        (appointments.router, "appointments"), (opd_queue.router, "opd_queue"),
+        (encounters.router, "consultation"), (prescriptions.router, "consultation"),
+        (billing.router, "billing"), (pharmacy.router, "pharmacy"),
+        (lab.router, "laboratory"), (ipd.router, "ipd"), (inventory.router, "inventory"),
+        (expenses.router, "expenses"), (reports.router, "reports_basic"),
+    ]
+    for r, feature in gated:
+        app.include_router(r, prefix=BASE_PREFIX,
+                           dependencies=[Depends(require_feature(feature))])
     if settings.is_dev:
         app.include_router(dev.router, prefix=BASE_PREFIX)
     return app

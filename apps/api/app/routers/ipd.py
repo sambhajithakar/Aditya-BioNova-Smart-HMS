@@ -30,6 +30,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..auditing import record_event
+from ..entitlements import check_limit
 from ..db import get_db
 from ..deps import (
     Principal,
@@ -206,6 +207,7 @@ def create_bed(
     principal: Principal = Depends(require_permission("bed.manage")),
     db: Session = Depends(get_db, scope="function"),
 ) -> BedOut:
+    check_limit(db, principal.organization_id, "max_beds")
     ward = db.scalar(
         select(Ward).where(
             Ward.id == payload.ward_id,

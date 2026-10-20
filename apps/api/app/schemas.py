@@ -23,6 +23,8 @@ class RegisterIn(StrictModel):
     full_name: str = Field(min_length=2, max_length=200)
     email: EmailStr
     password: str = Field(min_length=10, max_length=200)
+    # edition to trial; defaults to settings.default_signup_plan
+    plan_code: str | None = Field(default=None, min_length=2, max_length=40)
 
     @field_validator("organization_slug")
     @classmethod
@@ -80,6 +82,11 @@ class AuthSessionOut(BaseModel):
     tokens: TokenPair
 
 
+class EditionRef(BaseModel):
+    code: str
+    name: str
+
+
 class MeOut(BaseModel):
     user: UserOut
     organization: OrganizationOut
@@ -87,12 +94,26 @@ class MeOut(BaseModel):
     branch_id: uuid.UUID | None
     role: str
     permissions: list[str]
+    # M7.1 — commercial edition & account policy for the UI
+    edition: EditionRef | None = None
+    subscription_status: str = "active"
+    features: list[str] = []
+    mfa_enrollment_required: bool = False
+    is_platform_admin: bool = False
 
 
 # --- Branches ----------------------------------------------------------------
+GSTIN_RE = r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$"
+PINCODE_RE = r"^[1-9][0-9]{5}$"
+PHONE_RE = r"^\+?[0-9 -]{6,20}$"
+
+
 class BranchIn(StrictModel):
     name: str = Field(min_length=1, max_length=200)
     code: str = Field(min_length=2, max_length=30)
+    address: str | None = Field(default=None, max_length=300)
+    phone: str | None = Field(default=None, pattern=PHONE_RE)
+    gstin: str | None = Field(default=None, pattern=GSTIN_RE)
 
     @field_validator("code")
     @classmethod
@@ -110,7 +131,18 @@ class BranchOut(BaseModel):
     name: str
     code: str
     status: str
+    address: str | None = None
+    phone: str | None = None
+    gstin: str | None = None
     created_at: datetime
+
+
+class BranchUpdateIn(StrictModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    address: str | None = Field(default=None, max_length=300)
+    phone: str | None = Field(default=None, pattern=PHONE_RE)
+    gstin: str | None = Field(default=None, pattern=GSTIN_RE)
+    status: Literal["active", "inactive"] | None = None
 
 
 class MfaChallengeOut(BaseModel):
@@ -1589,3 +1621,255 @@ class ReportSummaryOut(BaseModel):
     ipd: IpdReport
     finance: FinanceReport
     inventory: InventoryReport
+
+
+# --- M7.1 tenant administration ---------------------------------------------------
+ASSIGNABLE_ROLE_KEYS = ("owner", "admin", "doctor", "nurse", "receptionist", "pharmacist",
+                        "lab_technician", "billing", "auditor", "support")
+
+
+class OrganizationProfileOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    slug: str
+    status: str
+    legal_name: str | None
+    address_line1: str | None
+    address_line2: str | None
+    city: str | None
+    state: str | None
+    pincode: str | None
+    phone: str | None
+    email: str | None
+    gstin: str | None
+    registration_number: str | None
+    letterhead_note: str | None
+    default_language: str
+    timezone: str
+    mfa_required_roles: list[str]
+    offboarding_requested_at: datetime | None
+    created_at: datetime
+
+
+class OrganizationProfileIn(StrictModel):
+    name: str | None = Field(default=None, min_length=2, max_length=200)
+    legal_name: str | None = Field(default=None, max_length=200)
+    address_line1: str | None = Field(default=None, max_length=200)
+    address_line2: str | None = Field(default=None, max_length=200)
+    city: str | None = Field(default=None, max_length=100)
+    state: str | None = Field(default=None, max_length=100)
+    pincode: str | None = Field(default=None, pattern=PINCODE_RE)
+    phone: str | None = Field(default=None, pattern=PHONE_RE)
+    email: EmailStr | None = None
+    gstin: str | None = Field(default=None, pattern=GSTIN_RE)
+    registration_number: str | None = Field(default=None, max_length=60)
+    letterhead_note: str | None = Field(default=None, max_length=500)
+    default_language: Literal["en", "mr", "hi"] | None = None
+    timezone: str | None = Field(default=None, max_length=64)
+    mfa_required_roles: list[str] | None = None
+
+    @field_validator("mfa_required_roles")
+    @classmethod
+    def _roles(cls, v: list[str] | None) -> list[str] | None:
+        if v is None:
+            return v
+        bad = sorted(set(v) - set(ASSIGNABLE_ROLE_KEYS))
+        if bad:
+            raise ValueError(f"unknown role keys: {', '.join(bad)}")
+        return sorted(set(v))
+
+
+class OnboardingStepOut(BaseModel):
+    key: str
+    done: bool
+
+
+class OnboardingOut(BaseModel):
+    completed: bool
+    steps: list[OnboardingStepOut]
+
+
+class OffboardingIn(StrictModel):
+    password: str = Field(min_length=1, max_length=200)
+    reason: str = Field(min_length=3, max_length=500)
+
+
+# --- M7.1 editions & subscription -----------------------------------------------------
+class PlanOut(BaseModel):
+    code: str
+    name: str
+    description: str
+    tier: int
+    price_monthly_paise: int | None
+    price_annual_paise: int | None
+    currency: str
+    trial_days: int
+    features: list[str]
+    limits: dict[str, int | None]
+    is_active: bool | None = None
+    is_public: bool | None = None
+
+
+class UsageOut(BaseModel):
+    limit: int | None
+    used: int
+
+
+class SubscriptionOut(BaseModel):
+    plan: PlanOut
+    status: str
+    effective_status: str
+    billing_cycle: str
+    trial_ends_at: datetime | None
+    current_period_end: datetime | None
+    read_only_reason: str | None
+    features: list[str]
+    usage: dict[str, UsageOut]
+
+
+class ChangeRequestIn(StrictModel):
+    plan_code: str = Field(min_length=2, max_length=40)
+    billing_cycle: Literal["monthly", "annual"]
+    note: str = Field(default="", max_length=1000)
+
+
+# --- M7.1 support -------------------------------------------------------------------------
+TicketCategory = Literal["technical", "billing", "account", "feature_request",
+                         "data_request", "other"]
+TicketPriority = Literal["low", "normal", "high", "urgent"]
+TicketStatus = Literal["open", "in_progress", "waiting_on_customer", "resolved", "closed"]
+
+
+class SupportTicketIn(StrictModel):
+    subject: str = Field(min_length=3, max_length=200)
+    category: TicketCategory
+    priority: TicketPriority = "normal"
+    body: str = Field(min_length=3, max_length=5000)
+
+
+class SupportMessageIn(StrictModel):
+    body: str = Field(min_length=1, max_length=5000)
+
+
+class PlatformSupportMessageIn(SupportMessageIn):
+    internal: bool = False
+
+
+class SupportTicketOut(BaseModel):
+    id: uuid.UUID
+    number: str
+    subject: str
+    category: str
+    priority: str
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    created_by_name: str | None = None
+    organization_name: str | None = None
+
+
+class SupportMessageOut(BaseModel):
+    id: int
+    author_name: str | None
+    author_side: str
+    body: str
+    internal: bool = False
+    created_at: datetime
+
+
+class SupportTicketDetailOut(SupportTicketOut):
+    messages: list[SupportMessageOut]
+
+
+class PlatformTicketUpdateIn(StrictModel):
+    status: TicketStatus | None = None
+    priority: TicketPriority | None = None
+
+
+# --- M7.1 platform console ---------------------------------------------------------------
+class PlatformOverviewOut(BaseModel):
+    tenants_by_status: dict[str, int]
+    tenants_by_plan: dict[str, int]
+    trials_expiring_7d: int
+    open_tickets: int
+    mrr_paise: int
+    unpriced_active_subscriptions: int
+
+
+class PlatformTenantOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    slug: str
+    status: str
+    created_at: datetime
+    plan_code: str | None
+    subscription_status: str | None
+    effective_status: str | None
+    trial_ends_at: datetime | None
+    users: int
+    branches: int
+    beds: int
+    patients: int
+    offboarding_requested_at: datetime | None
+
+
+class SubscriptionEventOut(BaseModel):
+    id: int
+    from_plan: str | None
+    to_plan: str | None
+    from_status: str | None
+    to_status: str | None
+    reason: str
+    actor_name: str | None
+    created_at: datetime
+
+
+class PlatformTenantDetailOut(PlatformTenantOut):
+    subscription: SubscriptionOut | None
+    events: list[SubscriptionEventOut]
+
+
+class PlatformTenantUpdateIn(StrictModel):
+    status: Literal["active", "suspended"]
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class PlatformSubscriptionIn(StrictModel):
+    plan_code: str = Field(min_length=2, max_length=40)
+    status: Literal["trialing", "active", "past_due", "read_only", "suspended", "cancelled"]
+    billing_cycle: Literal["monthly", "annual"] = "monthly"
+    trial_ends_at: datetime | None = None
+    current_period_end: datetime | None = None
+    limit_overrides: dict[str, int | None] = {}
+    feature_overrides: dict[str, bool] = {}
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class CatalogEntryOut(BaseModel):
+    key: str
+    label: str
+
+
+class CatalogOut(BaseModel):
+    features: list[CatalogEntryOut]
+    limits: list[CatalogEntryOut]
+
+
+class PlanUpdateIn(StrictModel):
+    name: str | None = Field(default=None, min_length=2, max_length=120)
+    description: str | None = Field(default=None, max_length=1000)
+    price_monthly_paise: int | None = Field(default=None, ge=0, le=10**12)
+    price_annual_paise: int | None = Field(default=None, ge=0, le=10**12)
+    trial_days: int | None = Field(default=None, ge=0, le=365)
+    is_active: bool | None = None
+    is_public: bool | None = None
+
+
+class PlanFeaturesIn(StrictModel):
+    features: list[str]
+
+
+class PlanLimitsIn(StrictModel):
+    limits: dict[str, int | None]

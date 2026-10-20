@@ -86,7 +86,7 @@ it does not exist in staging or production builds.
 
 ## Endpoints
 
-Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 114 operations in 18 tags.
+Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 143 operations in 22 tags.
 
 ### Summary
 
@@ -130,6 +130,7 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 114 op
 | branches | GET | `/api/v1/branches` | `branch.read` |  |
 | branches | POST | `/api/v1/branches` | `branch.manage` |  |
 | branches | GET | `/api/v1/branches/{branch_id}` | `branch.read` |  |
+| branches | PATCH | `/api/v1/branches/{branch_id}` | `branch.manage` |  |
 | dev | GET | `/api/v1/dev/outbox` | public |  |
 | encounters | GET | `/api/v1/encounters` | `encounter.read` |  |
 | encounters | POST | `/api/v1/encounters` | `encounter.write` |  |
@@ -184,6 +185,12 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 114 op
 | opd-queue | POST | `/api/v1/opd/queue/{entry_id}/complete` | `queue.manage` |  |
 | opd-queue | POST | `/api/v1/opd/queue/{entry_id}/skip` | `queue.manage` |  |
 | opd-queue | POST | `/api/v1/opd/queue/{entry_id}/start` | `queue.manage` |  |
+| organization | GET | `/api/v1/organization` | `org.read` |  |
+| organization | PATCH | `/api/v1/organization` | `org.manage` |  |
+| organization | POST | `/api/v1/organization/export` | `org.offboard` |  |
+| organization | POST | `/api/v1/organization/offboarding` | `org.offboard` |  |
+| organization | DELETE | `/api/v1/organization/offboarding` | `org.offboard` |  |
+| organization | GET | `/api/v1/organization/onboarding` | `org.read` |  |
 | patients | GET | `/api/v1/patients` | `patient.read` |  |
 | patients | POST | `/api/v1/patients` | `patient.write` | yes |
 | patients | GET | `/api/v1/patients/{patient_id}` | `patient.read` |  |
@@ -196,6 +203,20 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 114 op
 | pharmacy | POST | `/api/v1/pharmacy/stock/batches` | `pharmacy.manage` | yes |
 | pharmacy | POST | `/api/v1/pharmacy/stock/batches/{batch_id}/adjust` | `pharmacy.manage` |  |
 | pharmacy | GET | `/api/v1/pharmacy/stock/movements` | `pharmacy.read` |  |
+| platform | GET | `/api/v1/platform/catalog` | public |  |
+| platform | GET | `/api/v1/platform/overview` | public |  |
+| platform | GET | `/api/v1/platform/plans` | public |  |
+| platform | PATCH | `/api/v1/platform/plans/{code}` | public |  |
+| platform | PUT | `/api/v1/platform/plans/{code}/features` | public |  |
+| platform | PUT | `/api/v1/platform/plans/{code}/limits` | public |  |
+| platform | GET | `/api/v1/platform/support/tickets` | public |  |
+| platform | GET | `/api/v1/platform/support/tickets/{ticket_id}` | public |  |
+| platform | PATCH | `/api/v1/platform/support/tickets/{ticket_id}` | public |  |
+| platform | POST | `/api/v1/platform/support/tickets/{ticket_id}/messages` | public |  |
+| platform | GET | `/api/v1/platform/tenants` | public |  |
+| platform | GET | `/api/v1/platform/tenants/{org_id}` | public |  |
+| platform | PATCH | `/api/v1/platform/tenants/{org_id}` | public |  |
+| platform | PUT | `/api/v1/platform/tenants/{org_id}/subscription` | public |  |
 | prescriptions | GET | `/api/v1/prescriptions` | `prescription.read` |  |
 | prescriptions | POST | `/api/v1/prescriptions` | `prescription.sign` | yes |
 | prescriptions | GET | `/api/v1/prescriptions/drugs` | `prescription.read` |  |
@@ -204,6 +225,14 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 114 op
 | prescriptions | POST | `/api/v1/prescriptions/{rx_id}/sign` | `prescription.sign` |  |
 | prescriptions | POST | `/api/v1/prescriptions/{rx_id}/warnings` | `prescription.sign` |  |
 | reports | GET | `/api/v1/reports/summary` | `report.read` |  |
+| subscription | GET | `/api/v1/plans` | public |  |
+| subscription | GET | `/api/v1/subscription` | `subscription.read` |  |
+| subscription | POST | `/api/v1/subscription/change-request` | `subscription.manage` |  |
+| support | GET | `/api/v1/support/tickets` | `support.read` |  |
+| support | POST | `/api/v1/support/tickets` | `support.write` |  |
+| support | GET | `/api/v1/support/tickets/{ticket_id}` | `support.read` |  |
+| support | POST | `/api/v1/support/tickets/{ticket_id}/close` | `support.write` |  |
+| support | POST | `/api/v1/support/tickets/{ticket_id}/messages` | `support.write` |  |
 | system | GET | `/api/v1/health` | public |  |
 | system | GET | `/api/v1/health/ready` | public |  |
 
@@ -634,6 +663,19 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 114 op
 - Permission: `branch.read`
 - operationId: `get_branch_api_v1_branches__branch_id__get`
 - Request body: -
+- Response: `200 BranchOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `branch_id` | path | string(uuid) | yes |
+
+#### `PATCH /api/v1/branches/{branch_id}`
+
+**Update Branch**
+
+- Permission: `branch.manage`
+- operationId: `update_branch_api_v1_branches__branch_id__patch`
+- Request body: `BranchUpdateIn`
 - Response: `200 BranchOut`
 
 | Parameter | In | Type | Required |
@@ -1344,6 +1386,62 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 114 op
 |---|---|---|---|
 | `entry_id` | path | string(uuid) | yes |
 
+### organization
+
+#### `GET /api/v1/organization`
+
+**Get Organization**
+
+- Permission: `org.read`
+- operationId: `get_organization_api_v1_organization_get`
+- Request body: -
+- Response: `200 OrganizationProfileOut`
+
+#### `PATCH /api/v1/organization`
+
+**Update Organization**
+
+- Permission: `org.manage`
+- operationId: `update_organization_api_v1_organization_patch`
+- Request body: `OrganizationProfileIn`
+- Response: `200 OrganizationProfileOut`
+
+#### `POST /api/v1/organization/export`
+
+**Export Organization** - Every tenant table as JSON in one zip (data portability / offboarding).
+
+- Permission: `org.offboard`
+- operationId: `export_organization_api_v1_organization_export_post`
+- Request body: -
+- Response: `200 (no body)`
+
+#### `POST /api/v1/organization/offboarding`
+
+**Request Offboarding** - Record the owner's closure request. Nothing is deleted here: the vendor
+
+- Permission: `org.offboard`
+- operationId: `request_offboarding_api_v1_organization_offboarding_post`
+- Request body: `OffboardingIn`
+- Response: `200 OrganizationProfileOut`
+
+#### `DELETE /api/v1/organization/offboarding`
+
+**Cancel Offboarding**
+
+- Permission: `org.offboard`
+- operationId: `cancel_offboarding_api_v1_organization_offboarding_delete`
+- Request body: -
+- Response: `200 OrganizationProfileOut`
+
+#### `GET /api/v1/organization/onboarding`
+
+**Onboarding**
+
+- Permission: `org.read`
+- operationId: `onboarding_api_v1_organization_onboarding_get`
+- Request body: -
+- Response: `200 OnboardingOut`
+
 ### patients
 
 #### `GET /api/v1/patients`
@@ -1500,6 +1598,179 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 114 op
 | `limit` | query | integer | no |
 | `offset` | query | integer | no |
 
+### platform
+
+#### `GET /api/v1/platform/catalog`
+
+**Catalog**
+
+- Permission: public
+- operationId: `catalog_api_v1_platform_catalog_get`
+- Request body: -
+- Response: `200 CatalogOut`
+
+#### `GET /api/v1/platform/overview`
+
+**Overview**
+
+- Permission: public
+- operationId: `overview_api_v1_platform_overview_get`
+- Request body: -
+- Response: `200 PlatformOverviewOut`
+
+#### `GET /api/v1/platform/plans`
+
+**List Plans**
+
+- Permission: public
+- operationId: `list_plans_api_v1_platform_plans_get`
+- Request body: -
+- Response: `200 list[PlanOut]`
+
+#### `PATCH /api/v1/platform/plans/{code}`
+
+**Update Plan**
+
+- Permission: public
+- operationId: `update_plan_api_v1_platform_plans__code__patch`
+- Request body: `PlanUpdateIn`
+- Response: `200 PlanOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `code` | path | string | yes |
+
+#### `PUT /api/v1/platform/plans/{code}/features`
+
+**Set Plan Features**
+
+- Permission: public
+- operationId: `set_plan_features_api_v1_platform_plans__code__features_put`
+- Request body: `PlanFeaturesIn`
+- Response: `200 PlanOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `code` | path | string | yes |
+
+#### `PUT /api/v1/platform/plans/{code}/limits`
+
+**Set Plan Limits**
+
+- Permission: public
+- operationId: `set_plan_limits_api_v1_platform_plans__code__limits_put`
+- Request body: `PlanLimitsIn`
+- Response: `200 PlanOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `code` | path | string | yes |
+
+#### `GET /api/v1/platform/support/tickets`
+
+**Support Queue**
+
+- Permission: public
+- operationId: `support_queue_api_v1_platform_support_tickets_get`
+- Request body: -
+- Response: `200 list[SupportTicketOut]`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `status` | query | string \| null | no |
+
+#### `GET /api/v1/platform/support/tickets/{ticket_id}`
+
+**Support Ticket**
+
+- Permission: public
+- operationId: `support_ticket_api_v1_platform_support_tickets__ticket_id__get`
+- Request body: -
+- Response: `200 SupportTicketDetailOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `ticket_id` | path | string(uuid) | yes |
+
+#### `PATCH /api/v1/platform/support/tickets/{ticket_id}`
+
+**Support Update**
+
+- Permission: public
+- operationId: `support_update_api_v1_platform_support_tickets__ticket_id__patch`
+- Request body: `PlatformTicketUpdateIn`
+- Response: `200 SupportTicketOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `ticket_id` | path | string(uuid) | yes |
+
+#### `POST /api/v1/platform/support/tickets/{ticket_id}/messages`
+
+**Support Reply**
+
+- Permission: public
+- operationId: `support_reply_api_v1_platform_support_tickets__ticket_id__messages_post`
+- Request body: `PlatformSupportMessageIn`
+- Response: `200 SupportTicketDetailOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `ticket_id` | path | string(uuid) | yes |
+
+#### `GET /api/v1/platform/tenants`
+
+**List Tenants**
+
+- Permission: public
+- operationId: `list_tenants_api_v1_platform_tenants_get`
+- Request body: -
+- Response: `200 list[PlatformTenantOut]`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `q` | query | string \| null | no |
+| `status` | query | string \| null | no |
+
+#### `GET /api/v1/platform/tenants/{org_id}`
+
+**Tenant Detail**
+
+- Permission: public
+- operationId: `tenant_detail_api_v1_platform_tenants__org_id__get`
+- Request body: -
+- Response: `200 PlatformTenantDetailOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `org_id` | path | string(uuid) | yes |
+
+#### `PATCH /api/v1/platform/tenants/{org_id}`
+
+**Update Tenant**
+
+- Permission: public
+- operationId: `update_tenant_api_v1_platform_tenants__org_id__patch`
+- Request body: `PlatformTenantUpdateIn`
+- Response: `200 PlatformTenantOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `org_id` | path | string(uuid) | yes |
+
+#### `PUT /api/v1/platform/tenants/{org_id}/subscription`
+
+**Set Subscription**
+
+- Permission: public
+- operationId: `set_subscription_api_v1_platform_tenants__org_id__subscription_put`
+- Request body: `PlatformSubscriptionIn`
+- Response: `200 PlatformTenantDetailOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `org_id` | path | string(uuid) | yes |
+
 ### prescriptions
 
 #### `GET /api/v1/prescriptions`
@@ -1609,6 +1880,94 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 114 op
 |---|---|---|---|
 | `from` | query | string(date) \| null | no |
 | `to` | query | string(date) \| null | no |
+
+### subscription
+
+#### `GET /api/v1/plans`
+
+**List Public Plans** - Public catalogue (no auth). A null price means "not configured yet".
+
+- Permission: public
+- operationId: `list_public_plans_api_v1_plans_get`
+- Request body: -
+- Response: `200 list[PlanOut]`
+
+#### `GET /api/v1/subscription`
+
+**Get Subscription**
+
+- Permission: `subscription.read`
+- operationId: `get_subscription_api_v1_subscription_get`
+- Request body: -
+- Response: `200 SubscriptionOut`
+
+#### `POST /api/v1/subscription/change-request`
+
+**Request Plan Change**
+
+- Permission: `subscription.manage`
+- operationId: `request_plan_change_api_v1_subscription_change_request_post`
+- Request body: `ChangeRequestIn`
+- Response: `201 SupportTicketOut`
+
+### support
+
+#### `GET /api/v1/support/tickets`
+
+**List Tickets**
+
+- Permission: `support.read`
+- operationId: `list_tickets_api_v1_support_tickets_get`
+- Request body: -
+- Response: `200 list[SupportTicketOut]`
+
+#### `POST /api/v1/support/tickets`
+
+**Create Ticket**
+
+- Permission: `support.write`
+- operationId: `create_ticket_api_v1_support_tickets_post`
+- Request body: `SupportTicketIn`
+- Response: `201 SupportTicketOut`
+
+#### `GET /api/v1/support/tickets/{ticket_id}`
+
+**Get Ticket**
+
+- Permission: `support.read`
+- operationId: `get_ticket_api_v1_support_tickets__ticket_id__get`
+- Request body: -
+- Response: `200 SupportTicketDetailOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `ticket_id` | path | string(uuid) | yes |
+
+#### `POST /api/v1/support/tickets/{ticket_id}/close`
+
+**Close**
+
+- Permission: `support.write`
+- operationId: `close_api_v1_support_tickets__ticket_id__close_post`
+- Request body: -
+- Response: `200 SupportTicketOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `ticket_id` | path | string(uuid) | yes |
+
+#### `POST /api/v1/support/tickets/{ticket_id}/messages`
+
+**Reply**
+
+- Permission: `support.write`
+- operationId: `reply_api_v1_support_tickets__ticket_id__messages_post`
+- Request body: `SupportMessageIn`
+- Response: `200 SupportTicketDetailOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `ticket_id` | path | string(uuid) | yes |
 
 ### system
 
@@ -1771,6 +2130,9 @@ Field lists of the request/response schemas referenced above (`*` = required).
 |---|---|
 | `name`* | string |
 | `code`* | string |
+| `address` | string \| null |
+| `phone` | string \| null |
+| `gstin` | string \| null |
 
 ### BranchOut
 
@@ -1781,13 +2143,48 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `name`* | string |
 | `code`* | string |
 | `status`* | string |
+| `address` | string \| null |
+| `phone` | string \| null |
+| `gstin` | string \| null |
 | `created_at`* | string(date-time) |
+
+### BranchUpdateIn
+
+| Field | Type |
+|---|---|
+| `name` | string \| null |
+| `address` | string \| null |
+| `phone` | string \| null |
+| `gstin` | string \| null |
+| `status` | string \| null |
 
 ### CancelLabOrderIn
 
 | Field | Type |
 |---|---|
 | `reason`* | string |
+
+### CatalogEntryOut
+
+| Field | Type |
+|---|---|
+| `key`* | string |
+| `label`* | string |
+
+### CatalogOut
+
+| Field | Type |
+|---|---|
+| `features`* | list[CatalogEntryOut] |
+| `limits`* | list[CatalogEntryOut] |
+
+### ChangeRequestIn
+
+| Field | Type |
+|---|---|
+| `plan_code`* | string |
+| `billing_cycle`* | string (monthly, annual) |
+| `note` | string |
 
 ### CollectSpecimenIn
 
@@ -1870,6 +2267,13 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `generic_name`* | string |
 | `brand_hint`* | string |
 | `drug_class`* | string |
+
+### EditionRef
+
+| Field | Type |
+|---|---|
+| `code`* | string |
+| `name`* | string |
 
 ### EncounterDetailOut
 
@@ -2314,6 +2718,11 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `branch_id`* | string(uuid) \| null |
 | `role`* | string |
 | `permissions`* | list[string] |
+| `edition` | EditionRef \| null |
+| `subscription_status` | string |
+| `features` | list[string] |
+| `mfa_enrollment_required` | boolean |
+| `is_platform_admin` | boolean |
 
 ### MemberCreateIn
 
@@ -2408,6 +2817,27 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `recorded_at`* | string(date-time) |
 | `recorded_by`* | string(uuid) \| null |
 
+### OffboardingIn
+
+| Field | Type |
+|---|---|
+| `password`* | string |
+| `reason`* | string |
+
+### OnboardingOut
+
+| Field | Type |
+|---|---|
+| `completed`* | boolean |
+| `steps`* | list[OnboardingStepOut] |
+
+### OnboardingStepOut
+
+| Field | Type |
+|---|---|
+| `key`* | string |
+| `done`* | boolean |
+
 ### OrganizationOut
 
 | Field | Type |
@@ -2416,6 +2846,51 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `name`* | string |
 | `slug`* | string |
 | `status`* | string |
+
+### OrganizationProfileIn
+
+| Field | Type |
+|---|---|
+| `name` | string \| null |
+| `legal_name` | string \| null |
+| `address_line1` | string \| null |
+| `address_line2` | string \| null |
+| `city` | string \| null |
+| `state` | string \| null |
+| `pincode` | string \| null |
+| `phone` | string \| null |
+| `email` | string(email) \| null |
+| `gstin` | string \| null |
+| `registration_number` | string \| null |
+| `letterhead_note` | string \| null |
+| `default_language` | string \| null |
+| `timezone` | string \| null |
+| `mfa_required_roles` | list[string] \| null |
+
+### OrganizationProfileOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `name`* | string |
+| `slug`* | string |
+| `status`* | string |
+| `legal_name`* | string \| null |
+| `address_line1`* | string \| null |
+| `address_line2`* | string \| null |
+| `city`* | string \| null |
+| `state`* | string \| null |
+| `pincode`* | string \| null |
+| `phone`* | string \| null |
+| `email`* | string \| null |
+| `gstin`* | string \| null |
+| `registration_number`* | string \| null |
+| `letterhead_note`* | string \| null |
+| `default_language`* | string |
+| `timezone`* | string |
+| `mfa_required_roles`* | list[string] |
+| `offboarding_requested_at`* | string(date-time) \| null |
+| `created_at`* | string(date-time) |
 
 ### OutboxMessageOut
 
@@ -2541,6 +3016,132 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `gateway_ref`* | string |
 | `failure_reason`* | string |
 | `created_at`* | string(date-time) |
+
+### PlanFeaturesIn
+
+| Field | Type |
+|---|---|
+| `features`* | list[string] |
+
+### PlanLimitsIn
+
+| Field | Type |
+|---|---|
+| `limits`* | dict[str, integer \| null] |
+
+### PlanOut
+
+| Field | Type |
+|---|---|
+| `code`* | string |
+| `name`* | string |
+| `description`* | string |
+| `tier`* | integer |
+| `price_monthly_paise`* | integer \| null |
+| `price_annual_paise`* | integer \| null |
+| `currency`* | string |
+| `trial_days`* | integer |
+| `features`* | list[string] |
+| `limits`* | dict[str, integer \| null] |
+| `is_active` | boolean \| null |
+| `is_public` | boolean \| null |
+
+### PlanUpdateIn
+
+| Field | Type |
+|---|---|
+| `name` | string \| null |
+| `description` | string \| null |
+| `price_monthly_paise` | integer \| null |
+| `price_annual_paise` | integer \| null |
+| `trial_days` | integer \| null |
+| `is_active` | boolean \| null |
+| `is_public` | boolean \| null |
+
+### PlatformOverviewOut
+
+| Field | Type |
+|---|---|
+| `tenants_by_status`* | dict[str, integer] |
+| `tenants_by_plan`* | dict[str, integer] |
+| `trials_expiring_7d`* | integer |
+| `open_tickets`* | integer |
+| `mrr_paise`* | integer |
+| `unpriced_active_subscriptions`* | integer |
+
+### PlatformSubscriptionIn
+
+| Field | Type |
+|---|---|
+| `plan_code`* | string |
+| `status`* | string (trialing, active, past_due, read_only, suspended, cancelled) |
+| `billing_cycle` | string (monthly, annual) |
+| `trial_ends_at` | string(date-time) \| null |
+| `current_period_end` | string(date-time) \| null |
+| `limit_overrides` | dict[str, integer \| null] |
+| `feature_overrides` | dict[str, boolean] |
+| `reason`* | string |
+
+### PlatformSupportMessageIn
+
+| Field | Type |
+|---|---|
+| `body`* | string |
+| `internal` | boolean |
+
+### PlatformTenantDetailOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `name`* | string |
+| `slug`* | string |
+| `status`* | string |
+| `created_at`* | string(date-time) |
+| `plan_code`* | string \| null |
+| `subscription_status`* | string \| null |
+| `effective_status`* | string \| null |
+| `trial_ends_at`* | string(date-time) \| null |
+| `users`* | integer |
+| `branches`* | integer |
+| `beds`* | integer |
+| `patients`* | integer |
+| `offboarding_requested_at`* | string(date-time) \| null |
+| `subscription`* | SubscriptionOut \| null |
+| `events`* | list[SubscriptionEventOut] |
+
+### PlatformTenantOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `name`* | string |
+| `slug`* | string |
+| `status`* | string |
+| `created_at`* | string(date-time) |
+| `plan_code`* | string \| null |
+| `subscription_status`* | string \| null |
+| `effective_status`* | string \| null |
+| `trial_ends_at`* | string(date-time) \| null |
+| `users`* | integer |
+| `branches`* | integer |
+| `beds`* | integer |
+| `patients`* | integer |
+| `offboarding_requested_at`* | string(date-time) \| null |
+
+### PlatformTenantUpdateIn
+
+| Field | Type |
+|---|---|
+| `status`* | string (active, suspended) |
+| `reason`* | string |
+
+### PlatformTicketUpdateIn
+
+| Field | Type |
+|---|---|
+| `status` | string \| null |
+| `priority` | string \| null |
 
 ### PrescriberOut
 
@@ -2690,6 +3291,7 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `full_name`* | string |
 | `email`* | string(email) |
 | `password`* | string |
+| `plan_code` | string \| null |
 
 ### RejectSpecimenIn
 
@@ -2809,6 +3411,90 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `reason`* | string |
 | `created_at`* | string(date-time) |
 
+### SubscriptionEventOut
+
+| Field | Type |
+|---|---|
+| `id`* | integer |
+| `from_plan`* | string \| null |
+| `to_plan`* | string \| null |
+| `from_status`* | string \| null |
+| `to_status`* | string \| null |
+| `reason`* | string |
+| `actor_name`* | string \| null |
+| `created_at`* | string(date-time) |
+
+### SubscriptionOut
+
+| Field | Type |
+|---|---|
+| `plan`* | PlanOut |
+| `status`* | string |
+| `effective_status`* | string |
+| `billing_cycle`* | string |
+| `trial_ends_at`* | string(date-time) \| null |
+| `current_period_end`* | string(date-time) \| null |
+| `read_only_reason`* | string \| null |
+| `features`* | list[string] |
+| `usage`* | dict[str, UsageOut] |
+
+### SupportMessageIn
+
+| Field | Type |
+|---|---|
+| `body`* | string |
+
+### SupportMessageOut
+
+| Field | Type |
+|---|---|
+| `id`* | integer |
+| `author_name`* | string \| null |
+| `author_side`* | string |
+| `body`* | string |
+| `internal` | boolean |
+| `created_at`* | string(date-time) |
+
+### SupportTicketDetailOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `number`* | string |
+| `subject`* | string |
+| `category`* | string |
+| `priority`* | string |
+| `status`* | string |
+| `created_at`* | string(date-time) |
+| `updated_at`* | string(date-time) |
+| `created_by_name` | string \| null |
+| `organization_name` | string \| null |
+| `messages`* | list[SupportMessageOut] |
+
+### SupportTicketIn
+
+| Field | Type |
+|---|---|
+| `subject`* | string |
+| `category`* | string (technical, billing, account, feature_request, data_request, other) |
+| `priority` | string (low, normal, high, urgent) |
+| `body`* | string |
+
+### SupportTicketOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `number`* | string |
+| `subject`* | string |
+| `category`* | string |
+| `priority`* | string |
+| `status`* | string |
+| `created_at`* | string(date-time) |
+| `updated_at`* | string(date-time) |
+| `created_by_name` | string \| null |
+| `organization_name` | string \| null |
+
 ### TokenPair
 
 | Field | Type |
@@ -2837,6 +3523,13 @@ Field lists of the request/response schemas referenced above (`*` = required).
 |---|---|
 | `to_bed_id`* | string(uuid) |
 | `reason`* | string |
+
+### UsageOut
+
+| Field | Type |
+|---|---|
+| `limit`* | integer \| null |
+| `used`* | integer |
 
 ### UserOut
 

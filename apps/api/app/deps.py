@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 import jwt as pyjwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from .config import get_settings
@@ -28,6 +28,9 @@ from .models import Membership, Organization, RefreshSession, Role, RolePermissi
 from .security import decode_access_token
 
 _bearer = HTTPBearer(auto_error=False)
+
+# account self-service stays reachable while MFA enrolment is pending
+_SELF_SERVICE_PREFIX = "/api/v1/auth/"
 
 
 def _unauthorized(detail: str = "Not authenticated") -> HTTPException:
@@ -46,10 +49,20 @@ class Principal:
     membership: Membership
     role_key: str
     permissions: set[str] = field(default_factory=set)
+    mfa_enrollment_required: bool = False
 
     @property
     def user_id(self) -> uuid.UUID:
         return self.user.id
+
+    @property
+    def is_platform_admin(self) -> bool:
+        """Vendor operator: super-admin flag + TOTP (unless a local demo
+        explicitly disables the MFA requirement)."""
+        if not self.user.is_superadmin:
+            return False
+        return (self.user.mfa_totp_enabled_at is not None
+                or not get_settings().platform_mfa_required)
 
 
 def _is_trusted_proxy(host: str | None) -> bool:
@@ -152,6 +165,17 @@ def get_current_principal(
             status_code=status.HTTP_403_FORBIDDEN, detail="Membership role missing"
         )
 
+    # Role-aware MFA policy: members of listed roles (and platform operators)
+    # must enrol TOTP; until then only account self-service endpoints work.
+    must_enrol = user.mfa_totp_enabled_at is None and (
+        role.key in (org_row.mfa_required_roles or [])
+        or (user.is_superadmin and get_settings().platform_mfa_required)
+    )
+    if must_enrol and not request.url.path.startswith(_SELF_SERVICE_PREFIX):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="mfa_enrollment_required"
+        )
+
     if user.is_superadmin:
         from .models import Permission
 
@@ -172,9 +196,24 @@ def get_current_principal(
         membership=membership,
         role_key=role.key,
         permissions=permissions,
+        mfa_enrollment_required=must_enrol,
     )
     # read by the PHI-access audit middleware (main.py)
     request.state.principal = principal
+    return principal
+
+
+def require_platform_admin(
+    principal: Principal = Depends(get_current_principal),
+    db: Session = Depends(get_db, scope="function"),
+) -> Principal:
+    """Vendor console guard. Sets the transaction-local ``app.platform_admin``
+    GUC, which opens ONLY the commercial tables (plans, subscriptions,
+    support, organizations) — patient/clinical tables keep tenant-only RLS."""
+    if not principal.is_platform_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Platform administrator access required")
+    db.execute(text("SELECT set_config('app.platform_admin', 'true', true)"))
     return principal
 
 

@@ -65,7 +65,7 @@
 
 ## Migrations
 
-Database at Alembic head **0010** (catalog read from PostgreSQL 16). Files in `apps/api/alembic/versions/`.
+Database at Alembic head **0011** (catalog read from PostgreSQL 16). Files in `apps/api/alembic/versions/`.
 
 | Revision | Down | File | Summary |
 |---|---|---|---|
@@ -79,6 +79,7 @@ Database at Alembic head **0010** (catalog read from PostgreSQL 16). Files in `a
 | 0008 | 0007 | `0008_m6_ipd_operations.py` | M6: IPD (wards, beds, admissions, nursing, discharge) + operations (inventory, expenses) and the report backing tables. |
 | 0009 | 0008 | `0009_m7_security.py` | M7.0 security: MFA, password reset, invitations, rate limits, comms outbox. |
 | 0010 | 0009 | `0010_m7_integrity.py` | M7.0 integrity hardening: signed-Rx INSERT guard, dispense caps, lab order items, invoice/payment immutability, OPD queue uniqueness. |
+| 0011 | 0010 | `0011_m71_tenancy_saas.py` | M7.1: tenant administration, commercial editions, platform console, support. |
 
 ## Application role
 
@@ -120,11 +121,14 @@ Database at Alembic head **0010** (catalog read from PostgreSQL 16). Files in `a
 | [mfa_recovery_codes](#mfa_recovery_codes) | **no** | 0 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [nursing_records](#nursing_records) | yes | 1 | 2 | SELECT, INSERT |
 | [opd_queue](#opd_queue) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
-| [organizations](#organizations) | yes | 3 | 0 | SELECT, INSERT, UPDATE, DELETE |
+| [organizations](#organizations) | yes | 5 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [password_reset_tokens](#password_reset_tokens) | **no** | 0 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [patients](#patients) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [payments](#payments) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
 | [permissions](#permissions) | **no** | 0 | 0 | SELECT |
+| [plan_features](#plan_features) | yes | 2 | 0 | SELECT, INSERT, UPDATE, DELETE |
+| [plan_limits](#plan_limits) | yes | 2 | 0 | SELECT, INSERT, UPDATE, DELETE |
+| [plans](#plans) | yes | 2 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [prescription_items](#prescription_items) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
 | [prescriptions](#prescriptions) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
 | [rate_limit_counters](#rate_limit_counters) | **no** | 0 | 0 | SELECT, INSERT, UPDATE, DELETE |
@@ -133,6 +137,10 @@ Database at Alembic head **0010** (catalog read from PostgreSQL 16). Files in `a
 | [roles](#roles) | **no** | 0 | 0 | SELECT |
 | [stock_batches](#stock_batches) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
 | [stock_movements](#stock_movements) | yes | 1 | 2 | SELECT, INSERT |
+| [subscription_events](#subscription_events) | yes | 1 | 0 | SELECT, INSERT |
+| [subscriptions](#subscriptions) | yes | 3 | 0 | SELECT, INSERT, UPDATE |
+| [support_ticket_messages](#support_ticket_messages) | yes | 2 | 0 | SELECT, INSERT |
+| [support_tickets](#support_tickets) | yes | 1 | 0 | SELECT, INSERT, UPDATE |
 | [users](#users) | **no** | 0 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [wards](#wards) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
 
@@ -434,6 +442,10 @@ Database at Alembic head **0010** (catalog read from PostgreSQL 16). Files in `a
 | `code` | character varying(30) | no |  |
 | `status` | character varying(20) | no | `'active'::character varying` |
 | `created_at` | timestamp with time zone | no | `now()` |
+| `address` | character varying(300) | yes |  |
+| `phone` | character varying(20) | yes |  |
+| `gstin` | character varying(15) | yes |  |
+| `updated_at` | timestamp with time zone | no | `now()` |
 
 **Primary key** `branches_pkey`: `PRIMARY KEY (id)`
 
@@ -447,6 +459,7 @@ Database at Alembic head **0010** (catalog read from PostgreSQL 16). Files in `a
 
 **Check constraints**
 
+- `ck_branch_gstin`: `CHECK (gstin IS NULL OR gstin::text ~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$'::text)`
 - `ck_branch_status`: `CHECK (status::text = ANY (ARRAY['active'::character varying, 'inactive'::character varying]::text[]))`
 
 **Indexes**
@@ -1564,8 +1577,29 @@ Database at Alembic head **0010** (catalog read from PostgreSQL 16). Files in `a
 | `status` | character varying(20) | no | `'active'::character varying` |
 | `created_at` | timestamp with time zone | no | `now()` |
 | `updated_at` | timestamp with time zone | no | `now()` |
+| `legal_name` | character varying(200) | yes |  |
+| `address_line1` | character varying(200) | yes |  |
+| `address_line2` | character varying(200) | yes |  |
+| `city` | character varying(100) | yes |  |
+| `state` | character varying(100) | yes |  |
+| `pincode` | character varying(6) | yes |  |
+| `phone` | character varying(20) | yes |  |
+| `email` | character varying(320) | yes |  |
+| `gstin` | character varying(15) | yes |  |
+| `registration_number` | character varying(60) | yes |  |
+| `letterhead_note` | character varying(500) | yes |  |
+| `default_language` | character varying(2) | no | `'en'::character varying` |
+| `timezone` | character varying(64) | no | `'Asia/Kolkata'::character varying` |
+| `mfa_required_roles` | character varying(40)[] | no | `'{}'::character varying[]` |
+| `offboarding_requested_at` | timestamp with time zone | yes |  |
+| `offboarding_requested_by` | uuid | yes |  |
+| `offboarding_reason` | character varying(500) | yes |  |
 
 **Primary key** `organizations_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `organizations_offboarding_requested_by_fkey`: `FOREIGN KEY (offboarding_requested_by) REFERENCES users(id) ON DELETE SET NULL`
 
 **Unique constraints**
 
@@ -1573,6 +1607,9 @@ Database at Alembic head **0010** (catalog read from PostgreSQL 16). Files in `a
 
 **Check constraints**
 
+- `ck_org_gstin`: `CHECK (gstin IS NULL OR gstin::text ~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$'::text)`
+- `ck_org_language`: `CHECK (default_language::text = ANY (ARRAY['en'::character varying, 'mr'::character varying, 'hi'::character varying]::text[]))`
+- `ck_org_pincode`: `CHECK (pincode IS NULL OR pincode::text ~ '^[1-9][0-9]{5}$'::text)`
 - `ck_org_status`: `CHECK (status::text = ANY (ARRAY['active'::character varying, 'suspended'::character varying, 'deleting'::character varying]::text[]))`
 
 **RLS policies**
@@ -1581,9 +1618,14 @@ Database at Alembic head **0010** (catalog read from PostgreSQL 16). Files in `a
   - WITH CHECK `(current_setting('app.is_bootstrap'::text, true) = 'true'::text)`
 - `org_select_member` FOR SELECT TO public
   - USING `((id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid) OR (EXISTS ( SELECT 1 FROM memberships m WHERE ((m.organization_id = organizations.id) AND (m.user_id = (NULLIF(current_setting('app.current_user_id'::text, true), ''::text))::uuid)))))`
+- `org_select_platform` FOR SELECT TO public
+  - USING `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
 - `org_update_member` FOR UPDATE TO public
   - USING `(EXISTS ( SELECT 1 FROM memberships m WHERE ((m.organization_id = organizations.id) AND (m.user_id = (NULLIF(current_setting('app.current_user_id'::text, true), ''::text))::uuid) AND ((m.status)::text = 'active'::text))))`
   - WITH CHECK `true`
+- `org_update_platform` FOR UPDATE TO public
+  - USING `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
+  - WITH CHECK `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
 
 ### password_reset_tokens
 
@@ -1728,6 +1770,100 @@ Database at Alembic head **0010** (catalog read from PostgreSQL 16). Files in `a
 | `description` | text | no | `''::text` |
 
 **Primary key** `permissions_pkey`: `PRIMARY KEY (key)`
+
+### plan_features
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE, DELETE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `plan_id` | uuid | no |  |
+| `feature_key` | character varying(40) | no |  |
+
+**Primary key** `pk_plan_features`: `PRIMARY KEY (plan_id, feature_key)`
+
+**Foreign keys**
+
+- `plan_features_plan_id_fkey`: `FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE CASCADE`
+
+**RLS policies**
+
+- `plan_features_read` FOR SELECT TO public
+  - USING `true`
+- `plan_features_write` FOR ALL TO public
+  - USING `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
+  - WITH CHECK `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
+
+### plan_limits
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE, DELETE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `plan_id` | uuid | no |  |
+| `limit_key` | character varying(40) | no |  |
+| `limit_value` | bigint | yes |  |
+
+**Primary key** `pk_plan_limits`: `PRIMARY KEY (plan_id, limit_key)`
+
+**Foreign keys**
+
+- `plan_limits_plan_id_fkey`: `FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE CASCADE`
+
+**Check constraints**
+
+- `ck_plan_limit_nonneg`: `CHECK (limit_value IS NULL OR limit_value >= 0)`
+
+**RLS policies**
+
+- `plan_limits_read` FOR SELECT TO public
+  - USING `true`
+- `plan_limits_write` FOR ALL TO public
+  - USING `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
+  - WITH CHECK `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
+
+### plans
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE, DELETE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `code` | character varying(40) | no |  |
+| `name` | character varying(120) | no |  |
+| `description` | character varying(1000) | no | `''::character varying` |
+| `tier` | integer | no |  |
+| `price_monthly_paise` | bigint | yes |  |
+| `price_annual_paise` | bigint | yes |  |
+| `currency` | character varying(3) | no | `'INR'::character varying` |
+| `trial_days` | integer | no | `30` |
+| `is_active` | boolean | no | `true` |
+| `is_public` | boolean | no | `true` |
+| `created_at` | timestamp with time zone | no | `now()` |
+| `updated_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `plans_pkey`: `PRIMARY KEY (id)`
+
+**Unique constraints**
+
+- `plans_code_key`: `UNIQUE (code)`
+
+**Check constraints**
+
+- `ck_plan_price_annual`: `CHECK (price_annual_paise IS NULL OR price_annual_paise >= 0)`
+- `ck_plan_price_monthly`: `CHECK (price_monthly_paise IS NULL OR price_monthly_paise >= 0)`
+- `ck_plan_trial_days`: `CHECK (trial_days >= 0 AND trial_days <= 365)`
+
+**RLS policies**
+
+- `plans_read` FOR SELECT TO public
+  - USING `true`
+- `plans_write` FOR ALL TO public
+  - USING `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
+  - WITH CHECK `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
 
 ### prescription_items
 
@@ -2040,6 +2176,172 @@ Database at Alembic head **0010** (catalog read from PostgreSQL 16). Files in `a
 - `trg_movement_append_only`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `forbid_movement_mutation()`
 - `trg_movement_apply`: BEFORE INSERT FOR EACH ROW -> `apply_stock_movement()`
 
+### subscription_events
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | bigint | no | `identity BY DEFAULT` |
+| `organization_id` | uuid | no |  |
+| `from_plan` | character varying(40) | yes |  |
+| `to_plan` | character varying(40) | yes |  |
+| `from_status` | character varying(20) | yes |  |
+| `to_status` | character varying(20) | yes |  |
+| `reason` | character varying(500) | no | `''::character varying` |
+| `actor_user_id` | uuid | yes |  |
+| `created_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `subscription_events_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `subscription_events_actor_user_id_fkey`: `FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL`
+- `subscription_events_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+
+**Indexes**
+
+- `ix_subevent_org_created`: `btree (organization_id, created_at)`
+
+**RLS policies**
+
+- `subevent_rw` FOR ALL TO public
+  - USING `((organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid) OR (COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text))`
+  - WITH CHECK `((organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid) OR (COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text))`
+
+### subscriptions
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `plan_id` | uuid | no |  |
+| `status` | character varying(20) | no |  |
+| `billing_cycle` | character varying(10) | no | `'monthly'::character varying` |
+| `trial_ends_at` | timestamp with time zone | yes |  |
+| `current_period_start` | timestamp with time zone | yes |  |
+| `current_period_end` | timestamp with time zone | yes |  |
+| `grace_until` | timestamp with time zone | yes |  |
+| `feature_overrides` | jsonb | no | `'{}'::jsonb` |
+| `limit_overrides` | jsonb | no | `'{}'::jsonb` |
+| `created_at` | timestamp with time zone | no | `now()` |
+| `updated_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `subscriptions_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `subscriptions_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `subscriptions_plan_id_fkey`: `FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE RESTRICT`
+
+**Unique constraints**
+
+- `subscriptions_organization_id_key`: `UNIQUE (organization_id)`
+
+**Check constraints**
+
+- `ck_subscription_cycle`: `CHECK (billing_cycle::text = ANY (ARRAY['monthly'::character varying, 'annual'::character varying]::text[]))`
+- `ck_subscription_status`: `CHECK (status::text = ANY (ARRAY['trialing'::character varying, 'active'::character varying, 'past_due'::character varying, 'read_only'::character varying, 'suspended'::character varying, 'cancelled'::character varying]::text[]))`
+
+**RLS policies**
+
+- `subscription_insert` FOR INSERT TO public
+  - WITH CHECK `((organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid) OR (COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text))`
+- `subscription_read` FOR SELECT TO public
+  - USING `((organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid) OR (COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text))`
+- `subscription_update` FOR UPDATE TO public
+  - USING `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
+  - WITH CHECK `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
+
+### support_ticket_messages
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | bigint | no | `identity BY DEFAULT` |
+| `ticket_id` | uuid | no |  |
+| `organization_id` | uuid | no |  |
+| `author_user_id` | uuid | yes |  |
+| `author_side` | character varying(10) | no |  |
+| `body` | character varying(5000) | no |  |
+| `internal` | boolean | no | `false` |
+| `created_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `support_ticket_messages_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `support_ticket_messages_author_user_id_fkey`: `FOREIGN KEY (author_user_id) REFERENCES users(id) ON DELETE SET NULL`
+- `support_ticket_messages_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `support_ticket_messages_ticket_id_fkey`: `FOREIGN KEY (ticket_id) REFERENCES support_tickets(id) ON DELETE CASCADE`
+
+**Check constraints**
+
+- `ck_ticketmsg_internal_vendor`: `CHECK (NOT internal OR author_side::text = 'vendor'::text)`
+- `ck_ticketmsg_side`: `CHECK (author_side::text = ANY (ARRAY['customer'::character varying, 'vendor'::character varying]::text[]))`
+
+**Indexes**
+
+- `ix_ticketmsg_ticket`: `btree (ticket_id, id)`
+
+**RLS policies**
+
+- `ticketmsg_insert` FOR INSERT TO public
+  - WITH CHECK `(((organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid) AND (NOT internal) AND ((author_side)::text = 'customer'::text)) OR (COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text))`
+- `ticketmsg_read` FOR SELECT TO public
+  - USING `(((organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid) AND (NOT internal)) OR (COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text))`
+
+### support_tickets
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `number` | character varying(20) | no |  |
+| `subject` | character varying(200) | no |  |
+| `category` | character varying(20) | no |  |
+| `priority` | character varying(10) | no | `'normal'::character varying` |
+| `status` | character varying(25) | no | `'open'::character varying` |
+| `created_by` | uuid | yes |  |
+| `created_at` | timestamp with time zone | no | `now()` |
+| `updated_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `support_tickets_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `support_tickets_created_by_fkey`: `FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL`
+- `support_tickets_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+
+**Unique constraints**
+
+- `support_tickets_number_key`: `UNIQUE (number)`
+
+**Check constraints**
+
+- `ck_ticket_category`: `CHECK (category::text = ANY (ARRAY['technical'::character varying, 'billing'::character varying, 'account'::character varying, 'feature_request'::character varying, 'data_request'::character varying, 'other'::character varying]::text[]))`
+- `ck_ticket_priority`: `CHECK (priority::text = ANY (ARRAY['low'::character varying, 'normal'::character varying, 'high'::character varying, 'urgent'::character varying]::text[]))`
+- `ck_ticket_status`: `CHECK (status::text = ANY (ARRAY['open'::character varying, 'in_progress'::character varying, 'waiting_on_customer'::character varying, 'resolved'::character varying, 'closed'::character varying]::text[]))`
+
+**Indexes**
+
+- `ix_ticket_org_status`: `btree (organization_id, status)`
+
+**RLS policies**
+
+- `ticket_rw` FOR ALL TO public
+  - USING `((organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid) OR (COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text))`
+  - WITH CHECK `((organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid) OR (COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text))`
+
 ### users
 
 - Row-level security: **disabled**
@@ -2125,6 +2427,9 @@ Database at Alembic head **0010** (catalog read from PostgreSQL 16). Files in `a
 | `inventory_movements_id_seq` | (none) |
 | `ledger_entries_id_seq` | (none) |
 | `stock_movements_id_seq` | (none) |
+| `subscription_events_id_seq` | (none) |
+| `support_ticket_messages_id_seq` | (none) |
+| `support_ticket_number_seq` | SELECT, USAGE |
 
 ## SECURITY DEFINER functions
 
@@ -2132,6 +2437,7 @@ Database at Alembic head **0010** (catalog read from PostgreSQL 16). Files in `a
 |---|---|---|---|---|---|
 | `insert_audit_event(p_organization_id uuid, p_actor_user_id uuid, p_action text, p_resource_type text, p_resource_id text, p_metadata jsonb, p_correlation_id text, p_ip_address text)` | void | plpgsql | `search_path=public` | hms | yes |
 | `invitation_org_for_token(p_token_hash text)` | uuid | sql | `search_path=public` | hms | yes |
+| `platform_tenant_overview()` | TABLE(organization_id uuid, users bigint, branches bigint, beds bigint, patients bigint) | plpgsql | `search_path=public` | hms | yes |
 
 ## Other functions (SECURITY INVOKER)
 
@@ -2165,19 +2471,19 @@ Database at Alembic head **0010** (catalog read from PostgreSQL 16). Files in `a
 
 ## Seeded RBAC catalogue
 
-42 permission keys (seeded by migrations):
+47 permission keys (seeded by migrations):
 
-`admission.manage`, `appointment.read`, `appointment.write`, `audit.read`, `bed.manage`, `bed.read`, `billing.invoice`, `billing.payment`, `billing.read`, `billing.refund`, `branch.manage`, `branch.read`, `discharge`, `encounter.read`, `encounter.write`, `expense.manage`, `expense.read`, `inventory.manage`, `inventory.read`, `lab.import`, `lab.order`, `lab.read`, `lab.release`, `lab.verify`, `member.manage`, `member.read`, `nursing.read`, `nursing.write`, `org.manage`, `org.read`, `org.transfer_ownership`, `patient.merge`, `patient.read`, `patient.write`, `pharmacy.dispense`, `pharmacy.manage`, `pharmacy.read`, `prescription.read`, `prescription.sign`, `queue.manage`, `queue.read`, `report.read`
+`admission.manage`, `appointment.read`, `appointment.write`, `audit.read`, `bed.manage`, `bed.read`, `billing.invoice`, `billing.payment`, `billing.read`, `billing.refund`, `branch.manage`, `branch.read`, `discharge`, `encounter.read`, `encounter.write`, `expense.manage`, `expense.read`, `inventory.manage`, `inventory.read`, `lab.import`, `lab.order`, `lab.read`, `lab.release`, `lab.verify`, `member.manage`, `member.read`, `nursing.read`, `nursing.write`, `org.manage`, `org.offboard`, `org.read`, `org.transfer_ownership`, `patient.merge`, `patient.read`, `patient.write`, `pharmacy.dispense`, `pharmacy.manage`, `pharmacy.read`, `prescription.read`, `prescription.sign`, `queue.manage`, `queue.read`, `report.read`, `subscription.manage`, `subscription.read`, `support.read`, `support.write`
 
 | System role | Permissions |
 |---|---|
-| `admin` | admission.manage, appointment.read, appointment.write, audit.read, bed.manage, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, branch.manage, branch.read, discharge, encounter.read, encounter.write, expense.manage, expense.read, inventory.manage, inventory.read, lab.import, lab.order, lab.read, lab.release, lab.verify, member.manage, member.read, nursing.read, nursing.write, org.manage, org.read, patient.merge, patient.read, patient.write, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read |
-| `auditor` | audit.read, branch.read, member.read, org.read |
-| `billing` | appointment.read, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, branch.read, expense.manage, expense.read, lab.read, member.read, org.read, patient.read, pharmacy.read, report.read |
+| `admin` | admission.manage, appointment.read, appointment.write, audit.read, bed.manage, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, branch.manage, branch.read, discharge, encounter.read, encounter.write, expense.manage, expense.read, inventory.manage, inventory.read, lab.import, lab.order, lab.read, lab.release, lab.verify, member.manage, member.read, nursing.read, nursing.write, org.manage, org.read, patient.merge, patient.read, patient.write, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, subscription.manage, subscription.read, support.read, support.write |
+| `auditor` | audit.read, branch.read, member.read, org.read, subscription.read |
+| `billing` | appointment.read, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, branch.read, expense.manage, expense.read, lab.read, member.read, org.read, patient.read, pharmacy.read, report.read, subscription.read |
 | `doctor` | admission.manage, appointment.read, bed.read, billing.read, branch.read, discharge, encounter.read, encounter.write, expense.read, inventory.read, lab.order, lab.read, lab.release, lab.verify, member.read, nursing.read, nursing.write, org.read, patient.read, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read |
 | `lab_technician` | bed.read, branch.read, lab.import, lab.order, lab.read, lab.verify, member.read, org.read, patient.read |
 | `nurse` | admission.manage, appointment.read, bed.read, branch.read, encounter.read, encounter.write, inventory.read, lab.order, lab.read, member.read, nursing.read, nursing.write, org.read, patient.read, pharmacy.read, prescription.read, queue.read, report.read |
-| `owner` | admission.manage, appointment.read, appointment.write, audit.read, bed.manage, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, branch.manage, branch.read, discharge, encounter.read, encounter.write, expense.manage, expense.read, inventory.manage, inventory.read, lab.import, lab.order, lab.read, lab.release, lab.verify, member.manage, member.read, nursing.read, nursing.write, org.manage, org.read, org.transfer_ownership, patient.merge, patient.read, patient.write, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read |
+| `owner` | admission.manage, appointment.read, appointment.write, audit.read, bed.manage, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, branch.manage, branch.read, discharge, encounter.read, encounter.write, expense.manage, expense.read, inventory.manage, inventory.read, lab.import, lab.order, lab.read, lab.release, lab.verify, member.manage, member.read, nursing.read, nursing.write, org.manage, org.offboard, org.read, org.transfer_ownership, patient.merge, patient.read, patient.write, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, subscription.manage, subscription.read, support.read, support.write |
 | `pharmacist` | bed.read, branch.read, inventory.read, lab.read, member.read, org.read, patient.read, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read |
 | `receptionist` | admission.manage, appointment.read, appointment.write, bed.read, billing.invoice, billing.payment, billing.read, branch.read, lab.read, member.read, org.read, patient.read, patient.write, pharmacy.read, prescription.read, queue.manage, queue.read |
-| `support` | org.read |
+| `support` | org.read, support.read, support.write |

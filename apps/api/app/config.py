@@ -62,6 +62,12 @@ class Settings(BaseSettings):
     # Reverse proxies whose X-Forwarded-For header is trusted (IPs or CIDRs).
     trusted_proxies: list[str] = ["127.0.0.1/32", "::1/128"]
 
+    # Edition given (as a trial) to self-registered clinics without a choice.
+    default_signup_plan: str = "hospital_advanced"
+    # Platform (vendor) console: super-admins must have TOTP enrolled. Only a
+    # local demo may switch this off; production refuses (validator below).
+    platform_mfa_required: bool = True
+
     # Public URL of the web portal, used in e-mailed links (reset, invitations).
     web_base_url: str = "http://localhost:3000"
 
@@ -117,6 +123,8 @@ class Settings(BaseSettings):
                 "JWT_SECRET must be a unique random value of at least 32 characters "
                 f"when ENVIRONMENT={self.environment!r}"
             )
+        if not self.platform_mfa_required:
+            raise ValueError("PLATFORM_MFA_REQUIRED cannot be disabled outside development/test")
         if not self.field_encryption_key:
             raise ValueError(
                 f"FIELD_ENCRYPTION_KEY is required when ENVIRONMENT={self.environment!r}"
