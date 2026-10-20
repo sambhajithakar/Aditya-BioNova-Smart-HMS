@@ -1,13 +1,20 @@
+"use client";
+
 /**
  * Paper sizes for the browser print pipeline (/print/rx/[id] and
  * /print/test). Pure CSS: `@page { size }` + a sheet width per paper.
  *
  * - A4 (default) and A5: prescriptions and receipts.
  * - 80 mm thermal roll: RECEIPTS ONLY (a prescription needs the full page
- *   layout, signature block and amendments), `@page { size: 80mm auto }` so
- *   the roll is cut after the content. 72 mm printable width is the common
- *   80 mm-printer head width; physical printers were NOT tested here.
+ *   layout, signature block and amendments). CSS has no "auto" page length
+ *   (`size: 80mm auto` is invalid and browsers fall back to Letter), so the
+ *   page length is the measured receipt height (useRollLength) — the roll
+ *   is fed only as far as the content; fallback 297 mm. 72 mm printable
+ *   width is the common 80 mm-printer head width. Physical printers were
+ *   NOT tested in development.
  */
+import { useEffect, useState } from "react";
+
 export type Paper = "a4" | "a5" | "80mm";
 
 export const PAPERS: Paper[] = ["a4", "a5", "80mm"];
@@ -23,7 +30,14 @@ export function papersFor(isReceipt: boolean): Paper[] {
 }
 
 /** Print CSS for a paper (appended after the base print sheet CSS). */
-export function pageCss(paper: Paper): string {
+/** Page length for an 80 mm roll from the rendered sheet height (CSS px). */
+export function rollLengthMm(sheetHeightPx: number): number {
+  const mm = (sheetHeightPx * 25.4) / 96;
+  // + 10% and 12 mm for the @page margins and print-vs-screen line wrapping
+  return Math.max(60, Math.min(2000, Math.ceil(mm * 1.1 + 12)));
+}
+
+export function pageCss(paper: Paper, rollMm = 297): string {
   if (paper === "80mm") {
     return `
   .print-sheet.paper-80mm { max-width: 72mm; padding: 2mm; font-size: 11px; line-height: 1.3; }
@@ -37,7 +51,7 @@ export function pageCss(paper: Paper): string {
   .paper-80mm .tri { font-size: 10px; }
   .paper-80mm .print-foot { margin-top: 4mm; justify-content: center; }
   @media print {
-    @page { size: 80mm auto; margin: 3mm 4mm; }
+    @page { size: 80mm ${rollMm}mm; margin: 3mm 4mm; }
     .print-sheet.paper-80mm { max-width: none; width: 72mm; padding: 0; }
   }`;
   }
@@ -58,3 +72,36 @@ export const PAPER_LABEL: Record<Paper, { en: string; mr: string; hi: string }> 
   a5: { en: "A5", mr: "A5", hi: "A5" },
   "80mm": { en: "80 mm roll", mr: "80 मिमी रोल", hi: "80 मिमी रोल" },
 };
+
+/**
+ * Measured roll length (mm) for the 80 mm layout: the `.print-sheet` height
+ * minus its screen-only (.no-print) parts, re-measured whenever `content`
+ * changes. 297 mm until measured.
+ */
+export function useRollLength(paper: Paper, content: unknown): number {
+  const [mm, setMm] = useState(297);
+  useEffect(() => {
+    if (paper !== "80mm") return;
+    const sheet = document.querySelector<HTMLElement>(".print-sheet");
+    if (!sheet) return;
+    const measure = () => {
+      let h = sheet.getBoundingClientRect().height;
+      sheet.querySelectorAll<HTMLElement>(".no-print").forEach((el) => {
+        const cs = getComputedStyle(el);
+        h -= el.getBoundingClientRect().height + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
+      });
+      setMm(rollLengthMm(h));
+    };
+    // Re-measure when fonts/data change the layout, and right before printing.
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
+    ro?.observe(sheet);
+    window.addEventListener("beforeprint", measure);
+    const id = requestAnimationFrame(measure);
+    return () => {
+      cancelAnimationFrame(id);
+      ro?.disconnect();
+      window.removeEventListener("beforeprint", measure);
+    };
+  }, [paper, content]);
+  return mm;
+}

@@ -42,6 +42,7 @@ import {
   visibleNav,
 } from "@/lib/saas";
 import { ConnectivityBanner, QuickSearch } from "@/components/device/ShellBits";
+import { subscribeConn } from "@/lib/connectivity";
 
 // Not needed for first paint (renders after /auth/me): own chunk.
 const DeviceChrome = dynamic(() => import("@/components/device/DeviceChrome"), { ssr: false });
@@ -110,19 +111,26 @@ export function AppShell({
         })
         .catch((err) => {
           if (cancelled || !initial) return;
-          // Offline / 5xx with an already-verified member: keep the page
-          // (the connectivity banner explains); auth errors still sign out.
-          const transient = !(err instanceof ApiError) || err.status >= 500;
-          if (cachedMe && transient) return;
+          // Server unreachable (network down / gateway error) is not an auth
+          // failure: stay here (the connectivity banner explains) and retry
+          // when the connection returns. Auth errors still sign out (401s
+          // also arrive through onAuthFailure).
+          const unreachable =
+            !(err instanceof ApiError) || [502, 503, 504].includes(err.status);
+          if (unreachable) return;
           goLogin();
         });
     void loadMe(true);
     const offMe = onMeChanged(() => void loadMe(false));
+    const offConn = subscribeConn((s) => {
+      if (s.status === "online") void loadMe(true);
+    });
     return () => {
       cancelled = true;
       off();
       offMfa();
       offMe();
+      offConn();
     };
   }, [router, pathname]);
 

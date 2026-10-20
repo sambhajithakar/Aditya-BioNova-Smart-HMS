@@ -26,7 +26,7 @@ import {
 } from "@/lib/api";
 import { onAuthFailure } from "@/lib/session";
 import { itemDrugName } from "@/lib/print";
-import { PAPER_LABEL, Paper, pageCss, papersFor, parsePaper } from "@/lib/print-paper";
+import { PAPER_LABEL, Paper, pageCss, papersFor, parsePaper, useRollLength } from "@/lib/print-paper";
 
 type Label = { en: string; mr: string; hi: string };
 
@@ -115,7 +115,6 @@ function PrintView() {
   const type = search.get("type") === "receipt" ? "receipt" : "rx";
   const paper = parsePaper(search.get("paper"), type === "receipt");
   const sheetClass = `print-sheet paper-${paper}`;
-  const css = PRINT_CSS + pageCss(paper);
 
   const [rx, setRx] = useState<PrescriptionDetail | null>(null);
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -125,6 +124,8 @@ function PrintView() {
   const [branchName, setBranchName] = useState<string>("");
   const [prescriber, setPrescriber] = useState<Prescriber | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const roll = useRollLength(paper, receipt);
+  const css = PRINT_CSS + pageCss(paper, roll);
 
   useEffect(() => onAuthFailure(() => router.replace("/login")), [router]);
 

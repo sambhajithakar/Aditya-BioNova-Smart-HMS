@@ -267,6 +267,7 @@ function Billing() {
                 <tr key={idx}>
                   <td>
                     <select
+                      aria-label={`${t("itemType", lang)} ${idx + 1}`}
                       value={l.item_type}
                       onChange={(e) =>
                         setLines((xs) =>
@@ -287,6 +288,7 @@ function Billing() {
                   </td>
                   <td>
                     <input
+                      aria-label={`${t("itemDescription", lang)} ${idx + 1}`}
                       value={l.description}
                       onChange={(e) =>
                         setLines((xs) =>
@@ -299,6 +301,7 @@ function Billing() {
                   </td>
                   <td style={{ width: "4rem" }}>
                     <input
+                      aria-label={`${t("qty", lang)} ${idx + 1}`}
                       inputMode="numeric"
                       value={l.quantity}
                       onChange={(e) =>
@@ -314,6 +317,7 @@ function Billing() {
                   </td>
                   <td style={{ width: "6rem" }}>
                     <input
+                      aria-label={`${t("unitPrice", lang)} ${idx + 1}`}
                       inputMode="decimal"
                       value={l.unit_price}
                       onChange={(e) =>
@@ -329,6 +333,7 @@ function Billing() {
                   </td>
                   <td style={{ width: "4rem" }}>
                     <input
+                      aria-label={`${t("taxRate", lang)} ${idx + 1}`}
                       inputMode="decimal"
                       value={l.tax_rate}
                       onChange={(e) =>

@@ -29,7 +29,7 @@ import {
 import { BOTTOM_SLOTS, pickBottomNav } from "./device-nav";
 import { NAV } from "./nav";
 import { consumePatientSearch, debounce, onPatientSearch, requestPatientSearch } from "./quick-search";
-import { pageCss, papersFor, parsePaper } from "./print-paper";
+import { pageCss, papersFor, parsePaper, rollLengthMm } from "./print-paper";
 import { cachesToClear, swUrl } from "./pwa";
 import { dictionaries } from "./i18n";
 import { deviceDictionaries } from "./i18n-device";
@@ -270,7 +270,14 @@ describe("print paper sizes", () => {
   it("emits the matching @page size", () => {
     expect(pageCss("a4")).toMatch(/@page \{ size: A4;/);
     expect(pageCss("a5")).toMatch(/@page \{ size: A5;/);
-    expect(pageCss("80mm")).toMatch(/@page \{ size: 80mm auto;/);
+    expect(pageCss("80mm")).toMatch(/@page \{ size: 80mm 297mm;/);
+    expect(pageCss("80mm", 140)).toMatch(/@page \{ size: 80mm 140mm;/);
+    expect(pageCss("80mm")).not.toMatch(/auto/); // "80mm auto" is invalid CSS
+  });
+  it("roll length follows the receipt height, bounded", () => {
+    expect(rollLengthMm(377)).toBe(122); // ~99.8 mm of content +10% +12 mm, rounded up
+    expect(rollLengthMm(10)).toBe(60);
+    expect(rollLengthMm(1e6)).toBe(2000);
   });
 });
 

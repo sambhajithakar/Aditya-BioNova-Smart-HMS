@@ -78,7 +78,9 @@ async function send(path: string, options: RequestOpts = {}, retried = false): P
     if (!(err instanceof DOMException && err.name === "AbortError")) reportNetworkFailure();
     throw err;
   }
-  if (res.status < 502 || res.status > 504) reportNetworkOk();
+  // 502–504: the web server answered but the API behind it is unreachable.
+  if (res.status >= 502 && res.status <= 504) reportNetworkFailure();
+  else reportNetworkOk();
   if (res.status === 401 && auth) {
     if (!retried && (await refreshSession())) {
       return send(path, options, true);

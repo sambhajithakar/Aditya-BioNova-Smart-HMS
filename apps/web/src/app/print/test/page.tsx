@@ -10,7 +10,7 @@
 import { Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLang } from "@/lib/lang";
-import { PAPERS, Paper, pageCss, parsePaper } from "@/lib/print-paper";
+import { PAPERS, Paper, pageCss, parsePaper, useRollLength } from "@/lib/print-paper";
 
 const SAMPLE = {
   clinic: "Sample Clinic (synthetic)",
@@ -39,11 +39,17 @@ function PrinterTest() {
   const pathname = usePathname();
   const search = useSearchParams();
   const paper = parsePaper(search.get("paper"), true);
+  const roll = useRollLength(paper, paper);
   const total = SAMPLE.lines.reduce((a, l) => a + l.q * l.r, 0);
   const label: Record<Paper, string> = { a4: t("devPaperA4"), a5: t("devPaperA5"), "80mm": t("devPaper80") };
 
   return (
-    <main className={`print-sheet paper-${paper} printer-test`} data-testid="printer-test" data-paper={paper}>
+    <main
+      className={`print-sheet paper-${paper} printer-test`}
+      data-testid="printer-test"
+      data-paper={paper}
+      data-roll-mm={paper === "80mm" ? roll : undefined}
+    >
       <span className="mark tl" aria-hidden="true" />
       <span className="mark tr" aria-hidden="true" />
       <span className="mark bl" aria-hidden="true" />
@@ -123,7 +129,7 @@ function PrinterTest() {
         <p className="tri">{t("devSampleReceipt")}</p>
       </section>
 
-      <style>{TEST_CSS + pageCss(paper)}</style>
+      <style>{TEST_CSS + pageCss(paper, roll)}</style>
     </main>
   );
 }
