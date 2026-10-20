@@ -8,6 +8,7 @@ from datetime import datetime, time
 from decimal import Decimal
 
 from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, SmallInteger, String, Time, text
+from sqlalchemy import Index, UniqueConstraint  # noqa: E402  (table args)
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -47,6 +48,11 @@ class OrgSettings(Base):
 
 class BranchWorkingHours(Base):
     __tablename__ = "branch_working_hours"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "branch_id", "weekday", "opens_at",
+                         name="uq_bwh_session"),
+        Index("ix_bwh_org_branch", "organization_id", "branch_id", "weekday"),
+    )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     organization_id: Mapped[uuid.UUID] = _org()
@@ -62,6 +68,11 @@ class BranchWorkingHours(Base):
 
 class FeeSchedule(Base):
     __tablename__ = "fee_schedule"
+    __table_args__ = (
+        Index("uq_fee_org_provider", "organization_id",
+              text("coalesce(provider_user_id, '00000000-0000-0000-0000-000000000000'::uuid)"),
+              unique=True),
+    )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     organization_id: Mapped[uuid.UUID] = _org()
@@ -77,6 +88,13 @@ class FeeSchedule(Base):
 
 class CheckinToken(Base):
     __tablename__ = "checkin_tokens"
+    __table_args__ = (
+        Index("ix_checkin_org_appt", "organization_id", "appointment_id"),
+        Index("uq_checkin_live_per_appt", "appointment_id", unique=True,
+              postgresql_where=text("used_at IS NULL AND revoked_at IS NULL")),
+        Index("uq_checkin_used_per_appt", "appointment_id", unique=True,
+              postgresql_where=text("used_at IS NOT NULL")),
+    )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     organization_id: Mapped[uuid.UUID] = _org()
@@ -95,6 +113,9 @@ class CheckinToken(Base):
 
 class PrinterProfile(Base):
     __tablename__ = "printer_profiles"
+    __table_args__ = (
+        Index("uq_printer_org_name", "organization_id", text("lower(name)"), unique=True),
+    )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     organization_id: Mapped[uuid.UUID] = _org()

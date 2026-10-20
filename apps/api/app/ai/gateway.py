@@ -28,6 +28,8 @@ _CLASS_RANK = {"C0": 0, "C1": 1, "C2": 2, "C3": 3}
 # owner can tune these later as data (AI_ARCHITECTURE.md §2.3, decision D5).
 CREDIT_COSTS: dict[str, dict[str, int]] = {
     "copilot.intent": {"mock": 0, "live": 1},
+    "rag.answer": {"mock": 0, "live": 2},       # AI-1 knowledge assistant
+    "scribe.draft": {"mock": 0, "live": 5},     # AI-1 Clinical Scribe draft
 }
 
 

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | **Phase AI-0 implemented (2026-10-20), mock inference only**: gateway in `apps/api/app/ai/` (kill switches, tenant opt-in, C0–C3 ceilings, credit ledger, sealed `ai_requests` audit) and the Business Copilot (pattern-based redaction of e-mails/phones/UHIDs/ID numbers — **not names**; a `deid.py` NER pipeline is not built). Everything after AI-0 (Scribe, agents, RAG, document AI, ML, self-hosted models) remains a **design proposal — not implemented**. No AI provider is connected. |
+| Status | **AI-0 implemented (2026-10-20), mock inference only**: gateway in `apps/api/app/ai/` (kill switches, tenant opt-in, C0–C3 ceilings, credit ledger, sealed `ai_requests` audit) and the Business Copilot (pattern-based redaction — **not names**; no `deid.py` NER). **AI-1 implemented (2026-10-20) — see the status table in §11 and docs/AI_EVALUATION.md**: statistical forecasting (OPD, beds, pharmacy/inventory demand) and no-show risk with model-run registry; knowledge assistant (BM25 + extractive quotes, **mock inference**, text/Markdown only); agents as deterministic planners with human approval; Clinical Scribe **draft** workflow with **mock transcription** (typed/pasted transcript, no ASR, no audio stored). **Not implemented**: self-hosted models, embeddings/pgvector, ASR, Document AI/OCR, de-identification NER. No AI provider is connected. |
 | Date | 2026-10-20 |
 | Scope | M13 "AI Intelligence (assistive)" in IMPLEMENTATION_PLAN.md / TASKS.md roadmap |
 | Depends on | M7.1/M7.2 entitlements (`ai_*` features, `ai_credits_monthly` limit), M10 lab model, M14 legal review for anything clinical |
@@ -683,6 +683,17 @@ Tested with fixtures just below and just above each threshold.
   models; for baselines a plain-language rule ("same weekday average of last 4 weeks").
   MLflow (Apache-2.0) is optional — a PostgreSQL registry is sufficient at pilot scale.
 
+
+### 6.5 AI-disabled behaviour (decided in AI-1)
+
+Forecasts and no-show scores are deterministic statistics computed in the API: they need
+the `ai_forecast` edition feature **and** the tenant's opt-in, but **no provider**, consume
+**no credits** and keep working when `AI_ENABLED=false` (the kill switch governs model
+inference). Agents are deterministic and behave the same. With `AI_ENABLED=false` the
+knowledge assistant still lists the retrieved documents (search) but returns no answer, and
+the scribe keeps the segmented transcript but produces no draft — the clinician writes the
+note manually.
+
 ---
 
 ## 7. RAG knowledge assistant
@@ -859,6 +870,29 @@ Aligned to TASKS.md roadmap order: M13 starts after M7.2 (entitlements, quotas) 
 M10; clinical items additionally wait for M14 legal review. Each phase ships with
 tests in the same PR (IMPLEMENTATION_PLAN principle 3/6).
 
+
+### Implementation status (honest, 2026-10-20)
+
+| Item | Status | Where | Notes |
+|---|---|---|---|
+| Gateway, credits, audit, kill switches | Done (AI-0) | `app/ai/gateway.py` | `CREDIT_COSTS` now also prices `rag.answer` (live 2) and `scribe.draft` (live 5); mock = 0 |
+| Copilot | Done (AI-0), mock | `app/ai/copilot.py` | |
+| OPD demand forecast | **Done — statistical** | `app/ai/forecasting.py`, `forecast_service.py`, `GET /ai/forecast/opd` | Seasonal naive / 4-week mean / Holt-Winters picked by rolling-origin MAE; empirical 80/95 % intervals; ≥ 56 days |
+| Bed occupancy forecast | **Done — statistical** | `GET /ai/forecast/beds` | Census from admissions; ≥ 180 days |
+| Pharmacy & inventory demand, days of cover, reorder, FEFO expiry projection | **Done — statistical** | `GET /ai/forecast/pharmacy`, `/inventory` | MA-28 / SES / Croston-SBA; ≥ 84 days with ≥ 6 active weeks |
+| No-show risk | **Done — statistical** | `app/ai/noshow.py`, `GET /ai/forecast/no-show` | Logistic (IRLS) vs rate baseline; ≥ 1,000 appointments / 100 no-shows; reminder prioritisation only |
+| Model registry | Done (simplified) | `ai_model_runs` (append-only) | One tenant table instead of `ml_model_versions` + `ml_tenant_models`; no stored `ml_forecasts` (computed on request) |
+| Worker/job table, Copilot forecast functions | Not done | — | Forecasts are computed in the request (clinic-scale data, < 1 s) |
+| RAG documents, approval, role visibility | **Done** | `kb_documents`, `kb_chunks`, `/ai/knowledge/*` | Text/Markdown only (**no PDF**: no permissive pure-Python extractor in the locked deps); PHI uploads refused |
+| RAG retrieval | **Done — lexical** | `app/ai/knowledge.py` | BM25 in Python, Devanagari-aware tokeniser; **no embeddings / pgvector** (spike §7.3 not done) |
+| RAG answering | **Done — mock** | `/ai/knowledge/ask` | Extractive quotes + citations; groundedness check + schema for any live model (tested with fake outputs only) |
+| Agents (propose → approve → execute) | **Done — deterministic** | `app/ai/agents.py`, `ai_proposals`, `ai_proposal_events`, `/ai/agents/*` | Follow-up reminder **tasks** (no messages sent; comms not used), reorder **drafts** (no supplier order / stock movement), reconciliation + ops **report drafts** (no money movement); state-machine trigger; re-validation; 24 h expiry; 50 proposals/agent/day |
+| Clinical Scribe | **Done — draft workflow, mock** | `app/ai/scribe.py`, `scribe_consents`, `scribe_sessions`, `/ai/scribe/*` | Consent recorded first; `MockTranscriber` (typed transcript), `SelfHostedASRAdapter` stub **disabled**; trilingual rule sectioniser; medications verbatim + "verify"; accept goes through `encounters.update_encounter` (open encounters only); **no audio stored** (`audio_stored = false` constraint) |
+| Usage by feature | Done | `GET /ai/governance/usage` | credits/requests per feature/task/inference + feature status |
+| Document AI / OCR | **Not implemented** | — | No OCR engine available |
+| De-identification NER (§2.5) | Not implemented | — | Pattern redaction only (Copilot); scribe stays in-process (C3) |
+| Self-hosted inference (AI-2) | Not implemented | — | |
+
 ### Phase AI-0 — Gateway, mock, metering, audit, Business Copilot (first slice)
 
 Why first: no PHI leaves the system; no external contract needed; exercises every
@@ -888,7 +922,7 @@ Acceptance tests:
    labelled `inference: "mock"`.
 8. Cross-tenant: asking for another tenant's branch id → not found.
 
-### Phase AI-1 — Operational forecasting
+### Phase AI-1 — Operational forecasting (implemented 2026-10-20, statistical; see status table)
 
 Scope: worker + job table; OPD demand, inventory demand, near-expiry projection;
 registry tables; Copilot forecast functions; dashboard tiles with intervals.
@@ -907,7 +941,7 @@ filter); RAG eval (§7.5) thresholds met on the demo corpus; ACL and cross-tenan
 leakage tests = 0; de-id recall ≥ 0.98 on direct identifiers per language reported;
 live-provider responses labelled `live` with model version.
 
-### Phase AI-3 — Agents (propose → approve → execute)
+### Phase AI-3 — Agents (propose → approve → execute) (implemented 2026-10-20 with deterministic planners)
 
 Scope: `ai_proposals`, executor, reminder and inventory agents (dry-run first),
 reconciliation and ops-report drafts.

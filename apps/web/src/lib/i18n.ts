@@ -15,6 +15,7 @@ export const LANGS: { code: Lang; label: string; native: string }[] = [
 import { aiDictionaries } from "./i18n-ai";
 import { billingDictionaries } from "./i18n-billing";
 import { commsDictionaries } from "./i18n-comms";
+import { ai1Dictionaries } from "./i18n-ai1";
 import { saasDictionaries } from "./i18n-saas";
 import { setupDictionaries } from "./i18n-setup";
 
@@ -1122,6 +1123,7 @@ export const dictionaries: Record<Lang, Dict> = {
     ...billingDictionaries.en,
     ...commsDictionaries.en,
     ...setupDictionaries.en,
+    ...ai1Dictionaries.en,
   },
   mr: {
     ...coreDictionaries.mr,
@@ -1130,6 +1132,7 @@ export const dictionaries: Record<Lang, Dict> = {
     ...billingDictionaries.mr,
     ...commsDictionaries.mr,
     ...setupDictionaries.mr,
+    ...ai1Dictionaries.mr,
   },
   hi: {
     ...coreDictionaries.hi,
@@ -1138,6 +1141,7 @@ export const dictionaries: Record<Lang, Dict> = {
     ...billingDictionaries.hi,
     ...commsDictionaries.hi,
     ...setupDictionaries.hi,
+    ...ai1Dictionaries.hi,
   },
 };
 
