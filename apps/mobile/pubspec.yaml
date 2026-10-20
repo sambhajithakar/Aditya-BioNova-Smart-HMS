@@ -1,5 +1,5 @@
 name: aditya_bionova_mobile
-description: "Aditya BioNova Smart HMS — offline-first mobile app for doctors and field staff (M4)."
+description: "Aditya BioNova Smart HMS — offline-first mobile app for doctors and field staff."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -44,6 +44,10 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+  # Deterministic timers for the automatic-retry scheduler tests (already
+  # in the lock file as a transitive dependency of flutter_test).
+  fake_async: ^1.3.3
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

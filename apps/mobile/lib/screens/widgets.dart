@@ -12,7 +12,8 @@ String opStateLabel(OutboxOp op) => switch (op.status) {
       OpStatus.pending =>
         op.attempts == 0 ? 'Pending sync' : 'Pending sync · retry ${op.attempts}',
       OpStatus.inFlight => 'Syncing…',
-      OpStatus.failed => 'Failed — will retry',
+      OpStatus.failed => 'Not sent yet — retries automatically'
+          '${op.attempts > 1 ? ' (attempt ${op.attempts})' : ''}',
       OpStatus.conflicted => 'Conflict — needs you',
     };
 
@@ -51,7 +52,7 @@ class OpStateChip extends StatelessWidget {
     final (label, tone) = switch (op.status) {
       OpStatus.pending => ('Saved on device · ${opStateLabel(op)}', scheme.primary),
       OpStatus.inFlight => (opStateLabel(op), scheme.tertiary),
-      OpStatus.failed => (opStateLabel(op), scheme.error),
+      OpStatus.failed => ('Saved on device · ${opStateLabel(op)}', scheme.error),
       OpStatus.conflicted => (opStateLabel(op), scheme.error),
     };
     return StateChip(label: label, tone: tone);

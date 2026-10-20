@@ -9,8 +9,9 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../main.dart';
+import '../app_graph.dart';
 import '../sync/outbox.dart';
+import '../util/dates.dart';
 
 const List<String> _itemTypes = [
   'consultation',
@@ -41,18 +42,17 @@ class _BillingTabState extends State<BillingTab> {
   @override
   void initState() {
     super.initState();
-    final patients = widget.graph.directory.patients;
-    _patientId = patients.isNotEmpty ? patients.first['id'] as String? : null;
+    _patientId =
+        widget.graph.directory.resolveSelection(null, widget.graph.idMap);
   }
 
-  String _patientRef(String id) {
-    final entry = widget.graph.directory.patientById(id);
-    if (entry == null || entry['local'] != true) return id;
-    return widget.graph.idMap.serverIdOf(id) ?? '\$ref:$id';
-  }
+  /// Never a raw device id: server id, or `$ref:` until it syncs (H24).
+  String _patientRef(String id) =>
+      widget.graph.directory.refFor(id, widget.graph.idMap);
 
   Future<void> _saveInvoice() async {
-    final patientId = _patientId;
+    final patientId =
+        widget.graph.directory.resolveSelection(_patientId, widget.graph.idMap);
     final description = _description.text.trim();
     if (patientId == null) {
       setState(() => _error = 'Pick a patient first.');
@@ -72,9 +72,12 @@ class _BillingTabState extends State<BillingTab> {
     final branchId = widget.graph.directory.branches.isNotEmpty
         ? widget.graph.directory.branches.first['id'] as String?
         : null;
-    final today = DateTime.now().toUtc().toIso8601String().split('T').first;
-    final dedupeKey =
-        'invoice:$patientId:${description.toLowerCase()}:$today';
+    // D10: the key covers everything that makes two lines different —
+    // type, description, quantity and unit price — on the local day (D12).
+    // Only a true double-tap of the SAME line collapses into one op.
+    final dedupeKey = 'invoice:$patientId:$_itemType:'
+        '${description.toLowerCase()}:$quantity:${price.toStringAsFixed(2)}:'
+        '${localDay()}';
     final existing = widget.graph.outbox.openOpFor(dedupeKey);
     final op = widget.graph.outbox.enqueue(
       entity: 'invoice',
@@ -105,6 +108,7 @@ class _BillingTabState extends State<BillingTab> {
       return;
     }
 
+    widget.graph.scheduler.requestSync();
     setState(() {
       _error = null;
       _notice = 'Invoice saved on device — pending sync. Totals and the '
@@ -129,15 +133,13 @@ class _BillingTabState extends State<BillingTab> {
         DropdownButton<String>(
           key: const Key('billing-patient'),
           isExpanded: true,
-          value: _patientId,
+          value: directory.resolveSelection(_patientId, widget.graph.idMap),
           hint: const Text('—'),
           items: [
             for (final p in directory.patients)
               DropdownMenuItem<String>(
                 value: p['id'] as String,
-                child: Text(p['local'] == true
-                    ? '${p['full_name'] ?? ''} (pending sync)'
-                    : directory.patientLabel(p['id'] as String)),
+                child: Text(directory.pickerLabel(p, widget.graph.idMap)),
               ),
           ],
           onChanged: (v) => setState(() => _patientId = v),

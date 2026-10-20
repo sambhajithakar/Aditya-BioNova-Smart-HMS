@@ -11,9 +11,10 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../app_graph.dart';
 import '../data/directory.dart';
-import '../main.dart';
 import '../sync/outbox.dart';
+import '../util/dates.dart';
 import 'widgets.dart';
 
 class RxTab extends StatefulWidget {
@@ -32,6 +33,7 @@ class _RxTabState extends State<RxTab> {
   final _dose = TextEditingController();
   final _frequency = TextEditingController();
   final _duration = TextEditingController(text: '5');
+  final _dispenseQty = TextEditingController();
   final List<Map<String, dynamic>> _items = <Map<String, dynamic>>[];
   String? _error;
   String? _notice;
@@ -39,11 +41,21 @@ class _RxTabState extends State<RxTab> {
   @override
   void initState() {
     super.initState();
-    final patients = widget.graph.directory.patients;
-    _patientId = patients.isNotEmpty ? patients.first['id'] as String? : null;
+    _patientId =
+        widget.graph.directory.resolveSelection(null, widget.graph.idMap);
     final drugs = widget.graph.directory.drugs;
     _drugId = drugs.isNotEmpty ? drugs.first['id'] as String? : null;
     _adopt();
+  }
+
+  @override
+  void dispose() {
+    _diagnosis.dispose();
+    _dose.dispose();
+    _frequency.dispose();
+    _duration.dispose();
+    _dispenseQty.dispose();
+    super.dispose();
   }
 
   Future<void> _adopt() async {
@@ -66,11 +78,9 @@ class _RxTabState extends State<RxTab> {
     }
   }
 
-  String _patientRef(String id) {
-    final entry = widget.graph.directory.patientById(id);
-    if (entry == null || entry['local'] != true) return id;
-    return widget.graph.idMap.serverIdOf(id) ?? '\$ref:$id';
-  }
+  /// Never a raw device id: server id, or `$ref:` until it syncs (H24).
+  String _patientRef(String id) =>
+      widget.graph.directory.refFor(id, widget.graph.idMap);
 
   void _addItem() {
     final drugId = _drugId;
@@ -83,6 +93,15 @@ class _RxTabState extends State<RxTab> {
     final duration = int.tryParse(_duration.text.trim()) ?? 0;
     if (dose.isEmpty || frequency.isEmpty || duration < 1) {
       setState(() => _error = 'Dose, frequency and duration are required.');
+      return;
+    }
+    // Optional units to dispense (API: 1..10000). Blank = not specified.
+    final qtyText = _dispenseQty.text.trim();
+    final dispenseQty = qtyText.isEmpty ? null : int.tryParse(qtyText);
+    if (qtyText.isNotEmpty &&
+        (dispenseQty == null || dispenseQty < 1 || dispenseQty > 10000)) {
+      setState(() => _error = 'Quantity to dispense must be 1–10000 units '
+          '(or leave it blank).');
       return;
     }
     final drug = widget.graph.directory.drugs.firstWhere(
@@ -98,14 +117,17 @@ class _RxTabState extends State<RxTab> {
         'route': 'oral',
         'frequency': frequency,
         'duration_days': duration,
+        'dispense_quantity': ?dispenseQty,
       });
       _dose.clear();
       _frequency.clear();
+      _dispenseQty.clear();
     });
   }
 
   Future<void> _saveDraft() async {
-    final patientId = _patientId;
+    final patientId =
+        widget.graph.directory.resolveSelection(_patientId, widget.graph.idMap);
     if (patientId == null) {
       setState(() => _error = 'Pick a patient first.');
       return;
@@ -131,11 +153,20 @@ class _RxTabState extends State<RxTab> {
               'route': item['route'],
               'frequency': item['frequency'],
               'duration_days': item['duration_days'],
+              if (item['dispense_quantity'] != null)
+                'dispense_quantity': item['dispense_quantity'],
             },
         ],
       },
-      dedupeKey:
-          'rx:$patientId:${_items.map((i) => i['drug_id']).join(',')}',
+      // D11: the whole regimen (drug, dose, frequency, days, quantity) on
+      // the local day — a corrected dose is a NEW draft, a double-tap is not.
+      dedupeKey: 'rx:$patientId:${localDay()}:${_items.map((i) => [
+            i['drug_id'],
+            i['dose'],
+            i['frequency'],
+            i['duration_days'],
+            i['dispense_quantity'] ?? '',
+          ].join('/')).join(',')}',
       localRef: localRef,
     );
 
@@ -162,6 +193,7 @@ class _RxTabState extends State<RxTab> {
       _items.clear();
       _diagnosis.clear();
     });
+    widget.graph.scheduler.requestSync();
   }
 
   Future<void> _sign(String localRef, String serverId) async {
@@ -205,15 +237,13 @@ class _RxTabState extends State<RxTab> {
         DropdownButton<String>(
           key: const Key('rx-patient'),
           isExpanded: true,
-          value: _patientId,
+          value: directory.resolveSelection(_patientId, widget.graph.idMap),
           hint: const Text('—'),
           items: [
             for (final p in directory.patients)
               DropdownMenuItem<String>(
                 value: p['id'] as String,
-                child: Text(p['local'] == true
-                    ? '${p['full_name'] ?? ''} (pending sync)'
-                    : directory.patientLabel(p['id'] as String)),
+                child: Text(directory.pickerLabel(p, widget.graph.idMap)),
               ),
           ],
           onChanged: (v) => setState(() => _patientId = v),
@@ -265,6 +295,15 @@ class _RxTabState extends State<RxTab> {
             ),
           ],
         ),
+        TextField(
+          key: const Key('rx-dispense-qty'),
+          controller: _dispenseQty,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Units to dispense (optional)',
+            helperText: 'Pharmacy cannot hand out more than this in total',
+          ),
+        ),
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
@@ -281,7 +320,8 @@ class _RxTabState extends State<RxTab> {
             leading: const Icon(Icons.medication_outlined, size: 18),
             title: Text(
               '${item['drug_name']} — ${item['dose']}, ${item['frequency']}, '
-              '${item['duration_days']} days',
+              '${item['duration_days']} days'
+              '${item['dispense_quantity'] != null ? ' · dispense ${item['dispense_quantity']}' : ''}',
             ),
           ),
         TextField(
@@ -326,13 +366,13 @@ class _RxTabState extends State<RxTab> {
     final localRef = draft['localRef'] as String? ?? '';
     final serverId = draft['serverId'] as String?;
     final signed = draft['signed'] == true;
-    final op = widget.graph.outbox.openOpFor('rx:$localRef') ??
-        widget.graph.outbox.ops.cast<OutboxOp?>().firstWhere(
-              (o) => o?.localRef == localRef,
-              orElse: () => null,
-            );
+    final op = widget.graph.outbox.creatorOf(localRef);
     final conflicted = op?.status == OpStatus.conflicted;
     final pending = op != null && !conflicted;
+    // D17: no op AND no server id means the draft was discarded — it was
+    // never sent and must not read "Synced".
+    final synced = op == null && serverId != null;
+    final discarded = draft['discarded'] == true || (op == null && !synced);
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
@@ -351,7 +391,8 @@ class _RxTabState extends State<RxTab> {
               [
                 for (final item in (draft['items'] as List<dynamic>? ?? const []))
                   '${item['drug_name']} ${item['dose']} ${item['frequency']} '
-                  '${item['duration_days']}d',
+                  '${item['duration_days']}d'
+                  '${item['dispense_quantity'] != null ? ' ×${item['dispense_quantity']}' : ''}',
               ].join('\n'),
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -366,10 +407,13 @@ class _RxTabState extends State<RxTab> {
                 else if (pending)
                   const StateChip(
                       label: 'Saved on device · Pending sync', tone: Color(0xFF0B5D8A))
+                else if (discarded)
+                  const StateChip(
+                      label: 'Discarded — not sent', tone: Color(0xFF6B6B6B))
                 else
                   const StateChip(label: 'Synced', tone: Color(0xFF1B7F5A)),
                 const Spacer(),
-                if (!signed)
+                if (!signed && !discarded)
                   TextButton(
                     key: Key('rx-sign-$localRef'),
                     onPressed: (serverId != null && !pending)

@@ -27,6 +27,26 @@ class RxDraftBook {
 
   Future<void> save() => store.saveSection(section, {'drafts': drafts});
 
+  /// Forget every draft (sign-out / local reset).
+  Future<void> clear() async {
+    drafts = <Map<String, dynamic>>[];
+    await store.saveSection(section, null);
+  }
+
+  /// Mark drafts whose outbox op was discarded: they were never sent and
+  /// must never be shown as "Synced" (audit D17).
+  Future<void> markDiscarded(Iterable<String> localRefs) async {
+    final refs = localRefs.toSet();
+    var changed = false;
+    for (final draft in drafts) {
+      if (refs.contains(draft['localRef']) && draft['serverId'] == null) {
+        draft['discarded'] = true;
+        changed = true;
+      }
+    }
+    if (changed) await save();
+  }
+
   Future<void> addDraft({
     required String localRef,
     required String patientRef,
