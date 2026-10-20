@@ -1,16 +1,21 @@
-"""Seed a SYNTHETIC demonstration clinic through the real API.
+"""Seed SYNTHETIC demonstration tenants through the real API.
 
 Every person, phone number and address below is invented. Never point this
 at a database holding real patient data; it refuses to run unless
 ENVIRONMENT is development or test.
 
-Run from apps/api with the same DATABASE_URL / JWT_SECRET as the API:
-    python ../../scripts/seed_demo.py            # idempotent: skips if seeded
+Run from apps/api with the same DATABASE_URL / MIGRATION_DATABASE_URL /
+JWT_SECRET as the API:
+    python ../../scripts/seed_demo.py            # idempotent: skips seeded tenants
 
-Creates one clinic ("Sunrise Demo Clinic", slug ``sunrise-demo``) with a
-branch, one account per staff role, synthetic patients, appointments, an OPD
-queue, ward/beds with one admission, pharmacy stock, an inventory item and a
-lab order. Prints the demo credentials at the end.
+Creates, each on its own commercial edition:
+  * Sunrise Demo Clinic        (clinic_plus_ai)    OPD, pharmacy, laboratory
+  * BioNova Demo Hospital      (hospital_advanced) + wards, beds, admissions
+  * Gram Arogya Rural Clinic   (rural_clinic)      offline-first single doctor
+  * Aditya BioNova Platform    platform super-admin for the vendor console
+    (the super-admin flag is set with the owner/migration DB role — it can
+    never be granted through the API)
+Prints the demo credentials at the end.
 """
 from __future__ import annotations
 
@@ -21,25 +26,29 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps" / "api"))
 
+import psycopg2  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.config import get_settings  # noqa: E402
 from app.main import app  # noqa: E402
 
-SLUG = "sunrise-demo"
-DOMAIN = "sunrise-demo.example.com"   # reserved example domain: never deliverable
 PASSWORD = os.environ.get("DEMO_PASSWORD", "Demo-Sunrise-2026!")
 
-STAFF = [  # (role, full name)
-    ("admin", "Asha Admin (demo)"),
-    ("doctor", "Dr. Meera Kulkarni (demo)"),
-    ("nurse", "Sunita Pawar (demo)"),
-    ("receptionist", "Rahul Shinde (demo)"),
-    ("pharmacist", "Kiran Joshi (demo)"),
-    ("lab_technician", "Vikas More (demo)"),
-    ("billing", "Neha Deshmukh (demo)"),
-    ("auditor", "Arun Auditor (demo)"),
+TENANTS = [
+    # slug, name, plan, domain (reserved example domains), staff roles, modules
+    ("sunrise-demo", "Sunrise Demo Clinic", "clinic_plus_ai", "sunrise-demo.example.com",
+     ["admin", "doctor", "nurse", "receptionist", "pharmacist", "lab_technician", "billing",
+      "auditor"], {"pharmacy", "laboratory"}),
+    ("bionova-demo-hospital", "BioNova Demo Hospital", "hospital_advanced",
+     "demo-hospital.example.com",
+     ["admin", "doctor", "nurse", "receptionist", "pharmacist", "lab_technician", "billing"],
+     {"pharmacy", "laboratory", "ipd"}),
+    ("gram-arogya-rural", "Gram Arogya Rural Clinic", "rural_clinic",
+     "rural-demo.example.com", ["doctor"], set()),
 ]
+PLATFORM = ("aditya-bionova-platform", "Aditya BioNova Platform",
+            "platform@aditya-bionova.example.com")
+
 PATIENTS = [  # synthetic names / numbers in the reserved 90000xxxxx range
     ("Ganesh Patil", "male", "1972-03-14"),
     ("Savita Jadhav", "female", "1985-07-02"),
@@ -58,46 +67,44 @@ def ok(resp, code: int, what: str):
     return resp.json()
 
 
-def main() -> None:
-    if not get_settings().is_dev:
-        sys.exit("seed_demo: refusing to run outside ENVIRONMENT=development|test")
-    c = TestClient(app)
+def _register(c: TestClient, slug: str, name: str, plan: str, email: str, owner: str):
+    return ok(c.post("/api/v1/auth/register", json={
+        "organization_name": name, "organization_slug": slug, "full_name": owner,
+        "email": email, "password": PASSWORD, "plan_code": plan,
+    }), 201, f"register {slug}")
 
-    owner_email = f"owner@{DOMAIN}"
-    probe = c.post("/api/v1/auth/login", json={"email": owner_email, "password": PASSWORD})
-    if probe.status_code == 200:
-        print("seed_demo: demo clinic already seeded")
-        return print_credentials()
 
-    reg = ok(c.post("/api/v1/auth/register", json={
-        "organization_name": "Sunrise Demo Clinic",
-        "organization_slug": SLUG,
-        "full_name": "Dr. Sameer Owner (demo)",
-        "email": owner_email,
-        "password": PASSWORD,
-    }), 201, "register clinic")
+def seed_tenant(c: TestClient, idx: int, slug: str, name: str, plan: str, domain: str,
+                roles: list[str], modules: set[str]) -> None:
+    reg = _register(c, slug, name, plan, f"owner@{domain}", "Dr. Sameer Owner (demo)")
     h = {"Authorization": f"Bearer {reg['tokens']['access_token']}"}
-    branch = ok(c.post("/api/v1/branches", json={"name": "Kothrud OPD", "code": "KOTHRUD"},
-                       headers=h), 201, "branch")
-    b = branch["id"]
+    ok(c.patch("/api/v1/organization", json={
+        "legal_name": f"{name} (synthetic demo)", "address_line1": "1 Synthetic Nagar",
+        "city": "Pune", "state": "Maharashtra", "pincode": "411038",
+        "phone": "+91 20 0000 0000", "default_language": "mr" if "rural" in slug else "en",
+    }, headers=h), 200, "organization profile")
+    b = ok(c.post("/api/v1/branches", json={"name": "Main OPD", "code": "MAIN"}, headers=h),
+           201, "branch")["id"]
 
     doctor_id = None
-    for role, name in STAFF:
+    for role in roles:
         m = ok(c.post("/api/v1/members", json={
-            "email": f"{role.replace('_', '')}@{DOMAIN}", "full_name": name,
+            "email": f"{role.replace('_', '')}@{domain}", "full_name": f"{role.title()} (demo)",
             "password": PASSWORD, "role_key": role, "branch_id": b,
         }, headers=h), 201, f"member {role}")
         if role == "doctor":
             doctor_id = m["user_id"]
+            ok(c.patch(f"/api/v1/members/{m['membership_id']}",
+                       json={"registration_number": f"MMC-DEMO-{1000 + idx}"}, headers=h),
+               200, "doctor registration number")
 
     patients = []
-    for i, (name, gender, dob) in enumerate(PATIENTS):
+    for i, (pname, gender, dob) in enumerate(PATIENTS):
         patients.append(ok(c.post("/api/v1/patients", json={
-            "full_name": name, "phone": f"90000{i:05d}", "gender": gender,
+            "full_name": pname, "phone": f"9000{idx}{i:05d}", "gender": gender,
             "date_of_birth": dob, "address": "Synthetic Nagar, Pune (demo)",
-            "allergies": "Penicillin" if i == 1 else "",
-            "allow_duplicates": True,
-        }, headers=h), 201, f"patient {name}"))
+            "allergies": "Penicillin" if i == 1 else "", "allow_duplicates": True,
+        }, headers=h), 201, f"patient {pname}"))
 
     tomorrow = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0) \
         + timedelta(days=1)
@@ -105,52 +112,95 @@ def main() -> None:
         start = tomorrow + timedelta(hours=k)
         ok(c.post("/api/v1/appointments", json={
             "patient_id": p["id"], "branch_id": b, "provider_user_id": doctor_id,
-            "starts_at": start.isoformat(), "ends_at": (start + timedelta(minutes=15)).isoformat(),
+            "starts_at": start.isoformat(),
+            "ends_at": (start + timedelta(minutes=15)).isoformat(),
             "reason": "Follow-up (demo)",
         }, headers=h), 201, "appointment")
     for p in patients[3:6]:
         ok(c.post("/api/v1/opd/queue", json={"patient_id": p["id"], "branch_id": b},
                   headers=h), 201, "queue")
 
-    ward = ok(c.post("/api/v1/ipd/wards", json={"branch_id": b, "name": "General Ward",
-                                                "code": "GW1"}, headers=h), 201, "ward")
-    beds = [ok(c.post("/api/v1/ipd/beds", json={"ward_id": ward["id"], "label": f"GW1-{n}"},
-                      headers=h), 201, "bed") for n in range(1, 5)]
-    ok(c.post("/api/v1/ipd/admissions", json={
-        "patient_id": patients[6]["id"], "ward_id": ward["id"], "bed_id": beds[0]["id"],
-        "reason": "Community-acquired pneumonia — observation (demo)",
-        "attending_user_id": doctor_id,
-    }, headers=h), 201, "admission")
+    if "ipd" in modules:
+        ward = ok(c.post("/api/v1/ipd/wards", json={"branch_id": b, "name": "General Ward",
+                                                    "code": "GW1"}, headers=h), 201, "ward")
+        icu = ok(c.post("/api/v1/ipd/wards", json={"branch_id": b, "name": "ICU",
+                                                   "code": "ICU", "ward_type": "icu"},
+                        headers=h), 201, "icu")
+        beds = [ok(c.post("/api/v1/ipd/beds", json={"ward_id": ward["id"],
+                                                    "label": f"GW1-{n}"}, headers=h),
+                   201, "bed") for n in range(1, 9)]
+        for n in range(1, 4):
+            ok(c.post("/api/v1/ipd/beds", json={"ward_id": icu["id"], "label": f"ICU-{n}"},
+                      headers=h), 201, "icu bed")
+        ok(c.post("/api/v1/ipd/admissions", json={
+            "patient_id": patients[6]["id"], "ward_id": ward["id"], "bed_id": beds[0]["id"],
+            "reason": "Community-acquired pneumonia — observation (demo)",
+            "attending_user_id": doctor_id,
+        }, headers=h), 201, "admission")
 
-    drugs = ok(c.get("/api/v1/prescriptions/drugs?limit=5", headers=h), 200, "drugs")
-    for n, d in enumerate(drugs[:3]):
-        ok(c.post("/api/v1/pharmacy/stock/batches", json={
-            "branch_id": b, "drug_id": d["id"], "batch_number": f"DEMO-{n + 1:03d}",
-            "expiry_date": (date.today() + timedelta(days=300 + 30 * n)).isoformat(),
-            "quantity": 200, "unit_cost": 1.5 + n, "supplier": "Synthetic Pharma (demo)",
-        }, headers=h), 201, "stock")
+    if "pharmacy" in modules:
+        drugs = ok(c.get("/api/v1/prescriptions/drugs?limit=5", headers=h), 200, "drugs")
+        for n, d in enumerate(drugs[:3]):
+            ok(c.post("/api/v1/pharmacy/stock/batches", json={
+                "branch_id": b, "drug_id": d["id"], "batch_number": f"DEMO-{n + 1:03d}",
+                "expiry_date": (date.today() + timedelta(days=300 + 30 * n)).isoformat(),
+                "quantity": 200, "unit_cost": 1.5 + n, "supplier": "Synthetic Pharma (demo)",
+            }, headers=h), 201, "stock")
+        ok(c.post("/api/v1/inventory/items", json={
+            "branch_id": b, "name": "Surgical gloves (box)", "sku": "GLV-M", "unit": "box",
+            "reorder_level": 10, "unit_cost": 350,
+        }, headers=h), 201, "inventory item")
 
-    ok(c.post("/api/v1/inventory/items", json={
-        "branch_id": b, "name": "Surgical gloves (box)", "sku": "GLV-M", "unit": "box",
-        "reorder_level": 10, "unit_cost": 350,
-    }, headers=h), 201, "inventory item")
+    if "laboratory" in modules:
+        tests = ok(c.get("/api/v1/lab/tests", headers=h), 200, "lab tests")
+        ok(c.post("/api/v1/lab/orders", json={
+            "patient_id": patients[4]["id"], "branch_id": b,
+            "test_ids": [t["id"] for t in tests[:2]], "clinical_notes": "Routine check (demo)",
+        }, headers=h), 201, "lab order")
 
-    tests = ok(c.get("/api/v1/lab/tests", headers=h), 200, "lab tests")
-    ok(c.post("/api/v1/lab/orders", json={
-        "patient_id": patients[4]["id"], "branch_id": b,
-        "test_ids": [t["id"] for t in tests[:2]], "clinical_notes": "Routine check (demo)",
-    }, headers=h), 201, "lab order")
-
-    print(f"seed_demo: seeded clinic '{SLUG}' — {len(STAFF) + 1} accounts, "
+    ok(c.post("/api/v1/support/tickets", json={
+        "subject": "How do I print an A5 receipt? (demo)", "category": "technical",
+        "body": "Synthetic demo ticket — no patient data."}, headers=h), 201, "ticket")
+    print(f"seed_demo: seeded '{slug}' ({plan}) — {len(roles) + 1} accounts, "
           f"{len(patients)} synthetic patients")
+
+
+def seed_platform(c: TestClient) -> None:
+    slug, name, email = PLATFORM
+    _register(c, slug, name, "hospital_advanced", email, "Platform Operator (demo)")
+    dsn = get_settings().migration_database_url.replace("postgresql+psycopg2://",
+                                                         "postgresql://")
+    with psycopg2.connect(dsn) as conn, conn.cursor() as cur:
+        cur.execute("UPDATE users SET is_superadmin = true WHERE email = %s", (email,))
+    print(f"seed_demo: platform super-admin {email} "
+          f"(MFA {'required' if get_settings().platform_mfa_required else 'NOT required — demo'})")
+
+
+def main() -> None:
+    if not get_settings().is_dev:
+        sys.exit("seed_demo: refusing to run outside ENVIRONMENT=development|test")
+    c = TestClient(app)
+    for idx, (slug, name, plan, domain, roles, modules) in enumerate(TENANTS, start=1):
+        if c.post("/api/v1/auth/login", json={"email": f"owner@{domain}",
+                                              "password": PASSWORD}).status_code == 200:
+            print(f"seed_demo: '{slug}' already seeded")
+            continue
+        seed_tenant(c, idx, slug, name, plan, domain, roles, modules)
+    if c.post("/api/v1/auth/login", json={"email": PLATFORM[2],
+                                          "password": PASSWORD}).status_code == 200:
+        print("seed_demo: platform admin already seeded")
+    else:
+        seed_platform(c)
     print_credentials()
 
 
 def print_credentials() -> None:
     print("\nDemo accounts (synthetic; password for all: " + PASSWORD + ")")
-    print(f"  owner           owner@{DOMAIN}")
-    for role, _name in STAFF:
-        print(f"  {role:<15} {role.replace('_', '')}@{DOMAIN}")
+    print(f"  platform console  {PLATFORM[2]}")
+    for _slug, name, plan, domain, roles, _m in TENANTS:
+        print(f"  {name} [{plan}]")
+        for role in ["owner", *roles]:
+            print(f"    {role:<15} {role.replace('_', '')}@{domain}")
 
 
 if __name__ == "__main__":
