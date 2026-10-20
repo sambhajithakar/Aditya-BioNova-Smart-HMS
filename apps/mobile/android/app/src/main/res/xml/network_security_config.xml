@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Release / profile network policy: HTTPS only. Cleartext HTTP is refused
+  for every host, so a release build pointed at an http:// API_BASE fails
+  loudly instead of sending PHI and bearer tokens in the clear.
+
+  The debug build type overrides this file (src/debug/res/xml/) to allow
+  cleartext for local development against the emulator host (10.0.2.2) or
+  a LAN dev server.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

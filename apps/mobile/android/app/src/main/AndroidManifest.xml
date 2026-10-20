@@ -1,8 +1,22 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Release builds must reach the API (audit C3 / D1). Flutter's template
+         only declares INTERNET in the debug/profile manifests, and none of
+         our plugins merge it in, so it is declared here for every build. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- allowBackup=false + exclude-everything rules (audit H23 / D5): the
+         offline store is sealed with a Keystore key that is never backed
+         up, so a restored copy could never be decrypted, and it holds PHI.
+         networkSecurityConfig: HTTPS only in release/profile; the debug
+         build overlays a config that permits cleartext for local dev. -->
     <application
-        android:label="aditya_bionova_mobile"
+        android:label="Aditya BioNova HMS"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:networkSecurityConfig="@xml/network_security_config">
         <activity
             android:name=".MainActivity"
             android:exported="true"
