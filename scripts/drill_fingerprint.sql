@@ -49,7 +49,14 @@ FROM pg_default_acl
 ORDER BY 1, 2, 3;
 
 \echo '## indexes'
-SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'public' ORDER BY 1;
+-- Partial-index predicates with `col IN (...)` hit the same cast-placement
+-- deparse quirk as CHECK constraints below; compare the same normalised form
+-- (index name, table, columns, uniqueness and predicate logic still compared).
+SELECT indexname,
+       regexp_replace(
+         regexp_replace(indexdef, '::[a-z_ ]+(\[\])?', '', 'g'),
+         '[()[:space:]]', '', 'g')
+FROM pg_indexes WHERE schemaname = 'public' ORDER BY 1;
 
 \echo '## constraints'
 -- CHECK constraints with `col IN (...)` are deparsed differently after a
