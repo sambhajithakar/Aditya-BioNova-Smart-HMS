@@ -5,12 +5,16 @@
  * and the patient profile card. Duplicate 409s show the candidates and ask
  * for an explicit confirmation — the workflow the blueprint requires.
  */
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PatientCommsPanel } from "@/components/PatientComms";
 import { ApiError, DuplicateCandidate, PageOf, Patient, api } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { useLang } from "@/lib/lang";
+import { consumePatientSearch, debounce, onPatientSearch } from "@/lib/quick-search";
+
+/** Search-as-you-type waits this long after the last keystroke (one request, not one per key). */
+const SEARCH_DEBOUNCE_MS = 250;
 
 const EMPTY_FORM = {
   full_name: "",
@@ -33,22 +37,36 @@ function PatientsBody() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
+  const searchRef = useRef<HTMLInputElement>(null);
+  const seq = useRef(0);
 
   const search = useCallback(async (q: string) => {
+    const mine = ++seq.current; // ignore responses that arrive out of order
     try {
       const page = await api.get<PageOf<Patient>>(
         `/patients?limit=20${q ? `&q=${encodeURIComponent(q)}` : ""}`
       );
-      setResults(page.items);
+      if (mine === seq.current) setResults(page.items);
     } catch {
-      setError("Search failed");
+      if (mine === seq.current) setError("Search failed");
     }
   }, []);
+  const debouncedSearch = useMemo(() => debounce((q: string) => void search(q), SEARCH_DEBOUNCE_MS), [search]);
+  useEffect(() => () => debouncedSearch.cancel(), [debouncedSearch]);
 
+  // Quick search from the shell header / phone search button (in memory).
   useEffect(() => {
-    void search("");
-  }, [search]);
+    const run = (q: string) => {
+      setQuery(q);
+      debouncedSearch.cancel();
+      void search(q);
+      searchRef.current?.focus();
+    };
+    const queued = consumePatientSearch();
+    if (queued) run(queued.q);
+    else void search("");
+    return onPatientSearch((r) => run(r.q));
+  }, [search, debouncedSearch]);
 
   async function submit(allowDuplicates: boolean) {
     setBusy(true);
@@ -102,10 +120,12 @@ function PatientsBody() {
               <label htmlFor="q">{t("searchPatient", lang)}</label>
               <input
                 id="q"
+                ref={searchRef}
+                type="search"
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
-                  void search(e.target.value);
+                  debouncedSearch(e.target.value);
                 }}
                 placeholder={t("searchPatient", lang)}
               />
@@ -152,6 +172,7 @@ function PatientsBody() {
                 <label htmlFor="full_name">{t("fullName", lang)}</label>
                 <input
                   id="full_name"
+                  data-shortcut="new"
                   required
                   minLength={2}
                   value={form.full_name}
@@ -234,7 +255,7 @@ function PatientsBody() {
                 </div>
               )}
 
-              <div style={{ display: "flex", gap: "0.5rem" }}>
+              <div className="sticky-actions" style={{ display: "flex", gap: "0.5rem" }}>
                 <button className="primary" type="submit" disabled={busy}>
                   {t("registerPatient", lang)}
                 </button>

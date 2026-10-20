@@ -1,0 +1,260 @@
+/* Device optimisation: phone bottom bar, quick search, connectivity banner,
+   shortcuts dialog, PWA update toast, desktop density, low-height screens.
+   Loaded after globals.css (see app/layout.tsx). docs/DEVICE_COMPATIBILITY.md */
+:root {
+  --bottom-nav-h: 64px;
+  --touch: 44px; /* WCAG 2.5.5 target size */
+}
+html, body {
+  /* No webfont is downloaded ("Inter" was never shipped): the system UI font
+     stack, with the platform Devanagari fonts for मराठी / हिंदी. */
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Devanagari",
+    "Nirmala UI", sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+.skip-link {
+  position: absolute;
+  left: 0.5rem;
+  top: -100px;
+  z-index: 100;
+  background: var(--white);
+  color: var(--navy-800);
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius);
+  font-weight: 700;
+}
+.skip-link:focus { top: 0.5rem; }
+.shell-content:focus { outline: none; }
+.link-button {
+  background: none;
+  border: 0;
+  padding: 0 0.25rem;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  min-height: 32px;
+}
+
+/* quick patient search (header) */
+.quick-search { display: inline-flex; gap: 0.35rem; align-items: center; }
+.app-header .quick-search input[type="search"] {
+  width: 17rem;
+  min-height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.96);
+}
+.app-header button.icon-only {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch);
+  min-height: var(--touch);
+  padding: 0;
+}
+.app-header .quick-search-phone { display: none; }
+@media (max-width: 1100px) {
+  .app-header .quick-search input[type="search"] { width: 12rem; }
+}
+
+/* Grid/flex children may shrink below their content's min-content width, so a
+   wide (nowrap, scrollable) table scrolls inside its card instead of widening
+   the page. Without this, phones zoom the whole layout out (layout viewport
+   grows past 360 px) and the fixed bottom bar slides partly off-screen. */
+.grid > *, .row > * { min-width: 0; }
+.card { max-width: 100%; }
+/* Form controls inside table cells (e.g. invoice line items) fill their cell
+   instead of keeping the browser's ~20-character intrinsic width, which made
+   the Billing line table ~1440 px wide on 800–1280 px screens. */
+td > input:not([type="checkbox"]):not([type="radio"]),
+td > select {
+  width: 100%;
+  min-width: 3.5rem;
+}
+td > select { min-width: 7.5rem; } /* option text must stay readable */
+
+/* bottom navigation (phones only) */
+.bottom-nav { display: none; }
+@media (max-width: 767.98px) {
+  .with-bottom-nav .layout-nav,
+  .with-bottom-nav .header-only,
+  .with-bottom-nav .quick-search { display: none !important; }
+  .with-bottom-nav .app-header .quick-search-phone { display: inline-flex; margin-left: auto; }
+  .with-bottom-nav .app-header { padding: 0.4rem 0.75rem; gap: 0.15rem 0.5rem; }
+  .with-bottom-nav .app-header .brand { font-size: 0.95rem; }
+  .with-bottom-nav .app-header .spacer { display: none; }
+  .with-bottom-nav .shell-content {
+    padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + 0.5rem);
+  }
+  .with-bottom-nav .bottom-nav {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    min-height: var(--bottom-nav-h);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--white);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -2px 8px rgba(6, 34, 58, 0.08);
+  }
+  .bottom-nav a,
+  .bottom-nav button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: var(--bottom-nav-h);
+    min-width: var(--touch);
+    padding: 4px 2px;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.15;
+    text-decoration: none;
+    text-align: center;
+    cursor: pointer;
+  }
+  .bottom-nav span {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  .bottom-nav .active { color: var(--teal-600); box-shadow: inset 0 3px 0 var(--teal-600); }
+  /* sticky primary actions, kept above the bottom bar */
+  .with-bottom-nav .sticky-actions {
+    position: sticky;
+    bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px));
+    z-index: 5;
+    background: var(--white);
+    padding: 0.5rem 0;
+    box-shadow: 0 -6px 8px -6px rgba(6, 34, 58, 0.2);
+  }
+  /* comfortable touch targets in page content */
+  main button.primary, main button.secondary, main button.ghost, main button.danger,
+  main a.primary, main button:not([class]) { min-height: var(--touch); }
+}
+
+/* sheets & dialogs (native <dialog>: focus trap + Esc) */
+.sheet-dialog {
+  border: 0;
+  border-radius: 14px;
+  padding: 1rem 1.1rem 1.25rem;
+  max-width: min(640px, calc(100vw - 2rem));
+  width: 100%;
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  box-shadow: 0 10px 30px rgba(6, 34, 58, 0.3);
+  color: var(--text);
+}
+.sheet-dialog::backdrop { background: rgba(6, 34, 58, 0.45); }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.sheet-head h2 { margin: 0; font-size: 1.2rem; }
+.more-sheet {
+  margin: auto 0 0;
+  max-width: none;
+  width: 100%;
+  border-radius: 16px 16px 0 0;
+  max-height: 85vh;
+  padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+}
+.sheet-links {
+  list-style: none;
+  margin: 0.75rem 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.4rem;
+}
+.sheet-links a {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 48px;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--navy-800);
+  text-decoration: none;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.sheet-links a svg { flex: none; }
+.sheet-links a.active { background: var(--teal-100); border-color: var(--teal-500); }
+.sheet-foot { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between; }
+.sheet-foot button.secondary { min-height: var(--touch); }
+.lang-switch.on-light { border-color: var(--navy-700); }
+.lang-switch.on-light button { color: var(--navy-800); min-height: var(--touch); }
+.lang-switch.on-light button[aria-pressed="true"] { color: var(--white); }
+.shortcuts-table td { border-bottom: 1px solid var(--border); padding: 0.45rem 0.4rem; }
+.shortcuts-table td.keys { white-space: nowrap; width: 1%; }
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: var(--surface);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* connectivity + update toast */
+.conn-banner { font-weight: 600; }
+.needs-connection { margin: 0.5rem 0; }
+.update-toast {
+  position: fixed;
+  z-index: 60;
+  right: 1rem;
+  bottom: 1rem;
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  background: var(--navy-800);
+  color: var(--white);
+  padding: 0.6rem 0.75rem 0.6rem 1rem;
+  border-radius: var(--radius);
+  box-shadow: 0 6px 20px rgba(6, 34, 58, 0.35);
+}
+@media (max-width: 767.98px) {
+  .update-toast { left: 0.75rem; right: 0.75rem; bottom: calc(var(--bottom-nav-h) + 0.75rem); }
+}
+
+/* desktops / laptops with a mouse: denser tables, wider pages on big screens */
+@media (min-width: 1024px) and (pointer: fine) {
+  th, td { padding: 0.4rem 0.55rem; }
+  td { font-size: 0.95rem; }
+}
+@media (min-width: 1440px) {
+  main.page { max-width: 1320px; }
+}
+/* low-height netbooks (1024x600) and landscape phones: compact header */
+@media (max-height: 640px) and (min-width: 768px) {
+  .app-header { padding-top: 0.4rem; padding-bottom: 0.4rem; }
+  .layout-nav { padding-top: 0.2rem; padding-bottom: 0.2rem; }
+  .layout-nav a { min-height: 36px; padding-top: 0.4rem; padding-bottom: 0.4rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+}
+@media print {
+  .bottom-nav, .update-toast, .conn-banner, .skip-link, .app-header, .layout-nav, .shell-banner {
+    display: none !important;
+  }
+}

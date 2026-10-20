@@ -11,6 +11,8 @@ const baseURL = process.env.E2E_BASE_URL || "http://127.0.0.1:3100";
 
 export default defineConfig({
   testDir: "./e2e",
+  // The benchmark is slow (throttled CPU + network): opt in with E2E_PERF=1.
+  testIgnore: process.env.E2E_PERF ? [] : ["**/perf.spec.ts"],
   timeout: 120_000,
   expect: { timeout: 15_000 },
   fullyParallel: false,

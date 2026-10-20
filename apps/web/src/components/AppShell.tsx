@@ -18,11 +18,17 @@
  * shows trial / past-due / read-only / suspended subscriptions; a member who
  * must enrol MFA (me.mfa_enrollment_required, or any API 403
  * "mfa_enrollment_required") is sent to /settings/security.
+ *
+ * Device optimisation: phones (<768px) get a bottom bar + "More" sheet
+ * instead of the scrolling top nav, a one-tap patient search, keyboard
+ * shortcuts on desktops, an Online/Reconnecting/Offline banner and the PWA
+ * service worker (components/device/DeviceChrome.tsx).
  */
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { ReactNode, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Me, api, logout } from "@/lib/api";
+import { ApiError, Me, api, logout } from "@/lib/api";
 import { onAuthFailure, onMeChanged, onMfaEnrollmentRequired } from "@/lib/session";
 import { LANGS } from "@/lib/i18n";
 import { useLang } from "@/lib/lang";
@@ -35,8 +41,28 @@ import {
   subscriptionBanner,
   visibleNav,
 } from "@/lib/saas";
+import { ConnectivityBanner, QuickSearch } from "@/components/device/ShellBits";
+import { subscribeConn } from "@/lib/connectivity";
+
+// Not needed for first paint (renders after /auth/me): own chunk.
+const DeviceChrome = dynamic(() => import("@/components/device/DeviceChrome"), { ssr: false });
 
 export { NAV };
+
+/**
+ * Perf: the member from the last successful GET /auth/me in THIS page
+ * lifetime (module memory only — never Web Storage). Every page renders its
+ * own <AppShell>, so without this each client-side navigation waited one
+ * extra round trip before rendering. The cached value is shown immediately
+ * and re-validated in the background when older than ME_REVALIDATE_MS (and
+ * whenever something reports it changed, or the connection returns); it is
+ * dropped on logout and on any auth failure, so the gate still requires a
+ * session established by /auth/me. The API enforces permissions on every
+ * call regardless.
+ */
+let cachedMe: Me | null = null;
+let cachedMeAt = 0;
+const ME_REVALIDATE_MS = 30_000;
 
 const BANNER_KEY: Record<string, string> = {
   trialing: "bannerTrialing",
@@ -56,13 +82,15 @@ export function AppShell({
   const router = useRouter();
   const pathname = usePathname();
   const { lang, setLang, t } = useLang();
-  const [me, setMe] = useState<Me | null>(null);
+  const [me, setMe] = useState<Me | null>(() => cachedMe);
   const [signingOut, setSigningOut] = useState(false);
   const [mfaForced, setMfaForced] = useState(false);
 
   useEffect(() => {
-    const goLogin = () =>
+    const goLogin = () => {
+      cachedMe = null;
       router.replace(`/login?next=${encodeURIComponent(pathname || "/dashboard")}`);
+    };
     const off = onAuthFailure(goLogin);
     const offMfa = onMfaEnrollmentRequired(() => {
       setMfaForced(true);
@@ -83,23 +111,50 @@ export function AppShell({
             return;
           }
           if (!m.mfa_enrollment_required) setMfaForced(false);
+          // Unchanged member → keep the same object, so pages whose effects
+          // depend on `me` do not refetch their data after re-validation.
+          cachedMeAt = Date.now();
+          if (cachedMe && JSON.stringify(cachedMe) === JSON.stringify(m)) {
+            setMe(cachedMe);
+            return;
+          }
+          cachedMe = m;
           setMe(m);
         })
-        .catch(() => {
-          if (!cancelled && initial) goLogin();
+        .catch((err) => {
+          if (cancelled || !initial) return;
+          // Server unreachable (network down / gateway error) is not an auth
+          // failure: stay here (the connectivity banner explains) and retry
+          // when the connection returns. Auth errors still sign out (401s
+          // also arrive through onAuthFailure).
+          const unreachable =
+            !(err instanceof ApiError) || [502, 503, 504].includes(err.status);
+          if (unreachable) return;
+          goLogin();
         });
-    void loadMe(true);
+    if (cachedMe && Date.now() - cachedMeAt < ME_REVALIDATE_MS) {
+      // Fresh enough: no request competing with the page's own first fetches.
+      const target = mfaRedirectTarget(cachedMe, pathname);
+      if (target) router.replace(target);
+    } else {
+      void loadMe(true);
+    }
     const offMe = onMeChanged(() => void loadMe(false));
+    const offConn = subscribeConn((s) => {
+      if (s.status === "online") void loadMe(true);
+    });
     return () => {
       cancelled = true;
       off();
       offMfa();
       offMe();
+      offConn();
     };
   }, [router, pathname]);
 
   async function signOut() {
     setSigningOut(true);
+    cachedMe = null;
     try {
       await logout();
     } finally {
@@ -115,9 +170,14 @@ export function AppShell({
     ? NAV.filter((n) => n.key === "security")
     : visibleNav(NAV, me);
   const banner = subscriptionBanner(me);
+  const bottomNav = !!me && !mfaRequired;
 
   return (
     <MeContext.Provider value={me}>
+      <div className={bottomNav ? "app-shell with-bottom-nav" : "app-shell"}>
+      <a className="skip-link" href="#main-content">
+        {t("devSkipToContent")}
+      </a>
       <header className="app-header">
         <span className="brand">{t("brand")}</span>
         {me && (
@@ -135,12 +195,13 @@ export function AppShell({
           </span>
         )}
         <span className="spacer" />
+        {bottomNav && hasPermission(me, "patient.read") && <QuickSearch />}
         {me?.is_platform_admin && !mfaRequired && (
           <Link className="header-link" href="/platform" data-testid="platform-link">
             {t("platformConsole")}
           </Link>
         )}
-        <span className="lang-switch" role="group" aria-label="Language">
+        <span className="lang-switch header-only" role="group" aria-label="Language">
           {LANGS.map((l) => (
             <button
               key={l.code}
@@ -153,7 +214,7 @@ export function AppShell({
           ))}
         </span>
         <button
-          className="on-dark"
+          className="on-dark header-only"
           type="button"
           onClick={() => void signOut()}
           disabled={signingOut}
@@ -168,6 +229,10 @@ export function AppShell({
           <Link
             key={item.key}
             href={item.href}
+            // Perf: no viewport prefetch of ~20 modules on every page (it
+            // saturated slow links); DeviceChrome prefetches the role's
+            // most-used modules when idle.
+            prefetch={false}
             className={item.key === active ? "active" : undefined}
             aria-current={item.key === active ? "page" : undefined}
           >
@@ -194,6 +259,9 @@ export function AppShell({
         </div>
       )}
 
+      <ConnectivityBanner />
+
+      <div id="main-content" tabIndex={-1} className="shell-content">
       {!me ? (
         <main className="page">
           <p className="muted" aria-live="polite">
@@ -218,6 +286,17 @@ export function AppShell({
       ) : (
         children
       )}
+      </div>
+      {bottomNav && (
+        <DeviceChrome
+          nav={nav}
+          active={active}
+          role={me?.role}
+          onSignOut={() => void signOut()}
+          signingOut={signingOut}
+        />
+      )}
+      </div>
     </MeContext.Provider>
   );
 }

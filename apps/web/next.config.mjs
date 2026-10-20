@@ -4,6 +4,10 @@
 // value must be present when building (see infra docs).
 const API_ORIGIN = process.env.API_ORIGIN || "http://127.0.0.1:8000";
 const isProd = process.env.NODE_ENV === "production";
+// Versions the service worker (/sw.js?v=…): each build installs a new worker,
+// which purges the previous build's static cache on activation.
+const BUILD_ID =
+  process.env.NEXT_PUBLIC_BUILD_ID || process.env.GIT_SHA || `b${Date.now().toString(36)}`;
 
 // Static security headers for every response. The Content-Security-Policy
 // itself is set per request by src/middleware.ts because it carries a nonce.
@@ -28,6 +32,7 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  env: { NEXT_PUBLIC_BUILD_ID: BUILD_ID },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
@@ -42,6 +47,30 @@ const nextConfig = {
               "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), serial=()",
           },
         ],
+      },
+      // PWA. The worker must always be revalidated. The static offline page
+      // is outside the middleware (no nonce), so it gets a script-free CSP.
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, max-age=0" },
+          { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self'" },
+        ],
+      },
+      {
+        source: "/offline.html",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, max-age=0" },
+          {
+            key: "Content-Security-Policy",
+            value:
+              "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+          },
+        ],
+      },
+      {
+        source: "/manifest.webmanifest",
+        headers: [{ key: "Content-Type", value: "application/manifest+json; charset=utf-8" }],
       },
       {
         source: "/api/session/:path*",
