@@ -2554,6 +2554,909 @@
         }
       }
     },
+    "/api/v1/saas/catalog": {
+      "get": {
+        "tags": [
+          "saas-billing"
+        ],
+        "summary": "Catalog",
+        "operationId": "catalog_api_v1_saas_catalog_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingCatalog"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/saas/orders": {
+      "post": {
+        "tags": [
+          "saas-billing"
+        ],
+        "summary": "Create Order",
+        "operationId": "create_order_api_v1_saas_orders_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "saas-billing"
+        ],
+        "summary": "List Orders",
+        "operationId": "list_orders_api_v1_saas_orders_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrderOut"
+                  },
+                  "title": "Response List Orders Api V1 Saas Orders Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/saas/orders/{order_id}/retry": {
+      "post": {
+        "tags": [
+          "saas-billing"
+        ],
+        "summary": "Retry Order",
+        "description": "Failed-payment recovery: a fresh order for the same item at today's price.",
+        "operationId": "retry_order_api_v1_saas_orders__order_id__retry_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/saas/orders/{order_id}/verify": {
+      "post": {
+        "tags": [
+          "saas-billing"
+        ],
+        "summary": "Verify Payment",
+        "description": "Browser callback after the hosted checkout. The signature is checked\nserver-side; the webhook remains the safety net if the browser never\ncomes back.",
+        "operationId": "verify_payment_api_v1_saas_orders__order_id__verify_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/saas/orders/{order_id}/simulate": {
+      "post": {
+        "tags": [
+          "saas-billing"
+        ],
+        "summary": "Simulate Payment",
+        "description": "Development demo only: plays the hosted checkout AND the provider's\nwebhook for a simulator order, through the real verification code.",
+        "operationId": "simulate_payment_api_v1_saas_orders__order_id__simulate_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/saas/payments": {
+      "get": {
+        "tags": [
+          "saas-billing"
+        ],
+        "summary": "List Payments",
+        "operationId": "list_payments_api_v1_saas_payments_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/app__schemas_billing__PaymentOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Payments Api V1 Saas Payments Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/saas/invoices": {
+      "get": {
+        "tags": [
+          "saas-billing"
+        ],
+        "summary": "List Invoices",
+        "operationId": "list_invoices_api_v1_saas_invoices_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/app__schemas_billing__InvoiceOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Invoices Api V1 Saas Invoices Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/saas/invoices/{invoice_id}": {
+      "get": {
+        "tags": [
+          "saas-billing"
+        ],
+        "summary": "Get Invoice",
+        "operationId": "get_invoice_api_v1_saas_invoices__invoice_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invoice Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__schemas_billing__InvoiceOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/saas/refunds": {
+      "get": {
+        "tags": [
+          "saas-billing"
+        ],
+        "summary": "List Refunds",
+        "operationId": "list_refunds_api_v1_saas_refunds_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/app__schemas_billing__RefundOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Refunds Api V1 Saas Refunds Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "saas-billing"
+        ],
+        "summary": "Request Refund",
+        "operationId": "request_refund_api_v1_saas_refunds_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__schemas_billing__RefundIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__schemas_billing__RefundOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/saas/credits": {
+      "get": {
+        "tags": [
+          "saas-billing"
+        ],
+        "summary": "Ai Credits",
+        "operationId": "ai_credits_api_v1_saas_credits_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreditsOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/saas/webhooks/razorpay": {
+      "post": {
+        "tags": [
+          "saas-billing"
+        ],
+        "summary": "Razorpay Webhook",
+        "operationId": "razorpay_webhook_api_v1_saas_webhooks_razorpay_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/platform/billing/orders": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "summary": "Platform Orders",
+        "operationId": "platform_orders_api_v1_platform_billing_orders_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "organization_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrderOut"
+                  },
+                  "title": "Response Platform Orders Api V1 Platform Billing Orders Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/platform/billing/refunds": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "summary": "Platform Refunds",
+        "operationId": "platform_refunds_api_v1_platform_billing_refunds_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "requested",
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/app__schemas_billing__RefundOut"
+                  },
+                  "title": "Response Platform Refunds Api V1 Platform Billing Refunds Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/platform/billing/refunds/{refund_id}/decide": {
+      "post": {
+        "tags": [
+          "platform"
+        ],
+        "summary": "Platform Decide Refund",
+        "operationId": "platform_decide_refund_api_v1_platform_billing_refunds__refund_id__decide_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "refund_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Refund Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundDecisionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__schemas_billing__RefundOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/platform/billing/lifecycle": {
+      "post": {
+        "tags": [
+          "platform"
+        ],
+        "summary": "Platform Lifecycle",
+        "operationId": "platform_lifecycle_api_v1_platform_billing_lifecycle_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LifecycleOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/platform/billing/reconciliation": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "summary": "Platform Reconciliation",
+        "operationId": "platform_reconciliation_api_v1_platform_billing_reconciliation_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "check_provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Check Provider"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconciliationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/platform/billing/credit-packs": {
+      "get": {
+        "tags": [
+          "platform"
+        ],
+        "summary": "Platform Packs",
+        "operationId": "platform_packs_api_v1_platform_billing_credit_packs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CatalogPack"
+                  },
+                  "type": "array",
+                  "title": "Response Platform Packs Api V1 Platform Billing Credit Packs Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/platform/billing/credit-packs/{code}": {
+      "put": {
+        "tags": [
+          "platform"
+        ],
+        "summary": "Platform Put Pack",
+        "operationId": "platform_put_pack_api_v1_platform_billing_credit_packs__code__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreditPackIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogPack"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/patients": {
       "post": {
         "tags": [
@@ -4682,7 +5585,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentOut"
+                  "$ref": "#/components/schemas/app__schemas__PaymentOut"
                 }
               }
             }
@@ -4731,7 +5634,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentOut"
+                  "$ref": "#/components/schemas/app__schemas__PaymentOut"
                 }
               }
             }
@@ -4779,7 +5682,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentOut"
+                  "$ref": "#/components/schemas/app__schemas__PaymentOut"
                 }
               }
             }
@@ -4826,7 +5729,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RefundIn"
+                "$ref": "#/components/schemas/app__schemas__RefundIn"
               }
             }
           }
@@ -4837,7 +5740,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RefundOut"
+                  "$ref": "#/components/schemas/app__schemas__RefundOut"
                 }
               }
             }
@@ -8688,6 +9591,55 @@
         ],
         "title": "BedUpdateIn"
       },
+      "BillingCatalog": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "gst_rate_bp": {
+            "type": "integer",
+            "title": "Gst Rate Bp"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "INR"
+          },
+          "plans": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogPlan"
+            },
+            "type": "array",
+            "title": "Plans"
+          },
+          "credit_packs": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogPack"
+            },
+            "type": "array",
+            "title": "Credit Packs"
+          },
+          "notice": {
+            "type": "string",
+            "title": "Notice"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "mode",
+          "gst_rate_bp",
+          "plans",
+          "credit_packs",
+          "notice"
+        ],
+        "title": "BillingCatalog"
+      },
       "BranchIn": {
         "properties": {
           "name": {
@@ -8950,6 +9902,98 @@
         ],
         "title": "CatalogOut"
       },
+      "CatalogPack": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "credits": {
+            "type": "integer",
+            "title": "Credits"
+          },
+          "price_paise": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Paise"
+          },
+          "purchasable": {
+            "type": "boolean",
+            "title": "Purchasable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "credits",
+          "price_paise",
+          "purchasable"
+        ],
+        "title": "CatalogPack"
+      },
+      "CatalogPlan": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "tier": {
+            "type": "integer",
+            "title": "Tier"
+          },
+          "price_monthly_paise": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Monthly Paise"
+          },
+          "price_annual_paise": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Annual Paise"
+          },
+          "purchasable": {
+            "type": "boolean",
+            "title": "Purchasable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "tier",
+          "price_monthly_paise",
+          "price_annual_paise",
+          "purchasable"
+        ],
+        "title": "CatalogPlan"
+      },
       "ChangeRequestIn": {
         "properties": {
           "plan_code": {
@@ -8980,6 +10024,44 @@
           "billing_cycle"
         ],
         "title": "ChangeRequestIn"
+      },
+      "CheckoutParams": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "key_id": {
+            "type": "string",
+            "title": "Key Id"
+          },
+          "provider_order_id": {
+            "type": "string",
+            "title": "Provider Order Id"
+          },
+          "amount": {
+            "type": "integer",
+            "title": "Amount"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "mode",
+          "key_id",
+          "provider_order_id",
+          "amount",
+          "currency"
+        ],
+        "title": "CheckoutParams"
       },
       "CollectSpecimenIn": {
         "properties": {
@@ -9162,6 +10244,93 @@
           "method"
         ],
         "title": "CopilotComputedWith"
+      },
+      "CreditPackIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 2,
+            "title": "Name"
+          },
+          "credits": {
+            "type": "integer",
+            "maximum": 1000000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Credits"
+          },
+          "price_paise": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Paise"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "credits"
+        ],
+        "title": "CreditPackIn"
+      },
+      "CreditsOut": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "plan_allowance": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Allowance"
+          },
+          "purchased": {
+            "type": "integer",
+            "title": "Purchased"
+          },
+          "used": {
+            "type": "integer",
+            "title": "Used"
+          },
+          "remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "plan_allowance",
+          "purchased",
+          "used",
+          "remaining"
+        ],
+        "title": "CreditsOut"
       },
       "DiagnosisIn": {
         "properties": {
@@ -10672,7 +11841,7 @@
           },
           "payments": {
             "items": {
-              "$ref": "#/components/schemas/PaymentOut"
+              "$ref": "#/components/schemas/app__schemas__PaymentOut"
             },
             "type": "array",
             "title": "Payments",
@@ -10850,110 +12019,6 @@
           "seq"
         ],
         "title": "InvoiceItemOut"
-      },
-      "InvoiceOut": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "organization_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Organization Id"
-          },
-          "branch_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Branch Id"
-          },
-          "patient_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Patient Id"
-          },
-          "encounter_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Encounter Id"
-          },
-          "invoice_number": {
-            "type": "string",
-            "title": "Invoice Number"
-          },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "subtotal": {
-            "type": "number",
-            "title": "Subtotal"
-          },
-          "discount": {
-            "type": "number",
-            "title": "Discount"
-          },
-          "tax_total": {
-            "type": "number",
-            "title": "Tax Total"
-          },
-          "total": {
-            "type": "number",
-            "title": "Total"
-          },
-          "amount_paid": {
-            "type": "number",
-            "title": "Amount Paid"
-          },
-          "notes": {
-            "type": "string",
-            "title": "Notes"
-          },
-          "issued_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Issued At"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "organization_id",
-          "branch_id",
-          "patient_id",
-          "encounter_id",
-          "invoice_number",
-          "status",
-          "subtotal",
-          "discount",
-          "tax_total",
-          "total",
-          "amount_paid",
-          "notes",
-          "issued_at",
-          "created_at"
-        ],
-        "title": "InvoiceOut"
       },
       "IpdReport": {
         "properties": {
@@ -11493,6 +12558,29 @@
           "created_at"
         ],
         "title": "LedgerEntryOut"
+      },
+      "LifecycleOut": {
+        "properties": {
+          "past_due": {
+            "type": "integer",
+            "title": "Past Due"
+          },
+          "read_only": {
+            "type": "integer",
+            "title": "Read Only"
+          },
+          "orders_expired": {
+            "type": "integer",
+            "title": "Orders Expired"
+          }
+        },
+        "type": "object",
+        "required": [
+          "past_due",
+          "read_only",
+          "orders_expired"
+        ],
+        "title": "LifecycleOut"
       },
       "LoginIn": {
         "properties": {
@@ -12160,6 +13248,193 @@
           "done"
         ],
         "title": "OnboardingStepOut"
+      },
+      "OrderCreated": {
+        "properties": {
+          "order": {
+            "$ref": "#/components/schemas/OrderOut"
+          },
+          "checkout": {
+            "$ref": "#/components/schemas/CheckoutParams"
+          }
+        },
+        "type": "object",
+        "required": [
+          "order",
+          "checkout"
+        ],
+        "title": "OrderCreated"
+      },
+      "OrderIn": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "subscription",
+              "ai_credits"
+            ],
+            "title": "Kind"
+          },
+          "plan_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Code"
+          },
+          "billing_cycle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "monthly",
+                  "annual"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billing Cycle"
+          },
+          "pack_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pack Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "OrderIn"
+      },
+      "OrderOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "billing_cycle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billing Cycle"
+          },
+          "credits": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credits"
+          },
+          "amount_paise": {
+            "type": "integer",
+            "title": "Amount Paise"
+          },
+          "tax_paise": {
+            "type": "integer",
+            "title": "Tax Paise"
+          },
+          "total_paise": {
+            "type": "integer",
+            "title": "Total Paise"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "provider_order_id": {
+            "type": "string",
+            "title": "Provider Order Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Reason"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "paid_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paid At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "description",
+          "billing_cycle",
+          "credits",
+          "amount_paise",
+          "tax_paise",
+          "total_paise",
+          "currency",
+          "provider",
+          "provider_order_id",
+          "status",
+          "failure_reason",
+          "created_at",
+          "paid_at"
+        ],
+        "title": "OrderOut"
       },
       "OrganizationOut": {
         "properties": {
@@ -13087,61 +14362,22 @@
         ],
         "title": "PaymentIn"
       },
-      "PaymentOut": {
+      "PaymentResult": {
         "properties": {
-          "id": {
+          "outcome": {
             "type": "string",
-            "format": "uuid",
-            "title": "Id"
+            "title": "Outcome"
           },
-          "invoice_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Invoice Id"
-          },
-          "amount": {
-            "type": "number",
-            "title": "Amount"
-          },
-          "method": {
-            "type": "string",
-            "title": "Method"
-          },
-          "gateway": {
-            "type": "string",
-            "title": "Gateway"
-          },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "gateway_ref": {
-            "type": "string",
-            "title": "Gateway Ref"
-          },
-          "failure_reason": {
-            "type": "string",
-            "title": "Failure Reason"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
+          "order": {
+            "$ref": "#/components/schemas/OrderOut"
           }
         },
         "type": "object",
         "required": [
-          "id",
-          "invoice_id",
-          "amount",
-          "method",
-          "gateway",
-          "status",
-          "gateway_ref",
-          "failure_reason",
-          "created_at"
+          "outcome",
+          "order"
         ],
-        "title": "PaymentOut"
+        "title": "PaymentResult"
       },
       "PlanFeaturesIn": {
         "properties": {
@@ -14336,7 +15572,7 @@
       "ReceiptOut": {
         "properties": {
           "invoice": {
-            "$ref": "#/components/schemas/InvoiceOut"
+            "$ref": "#/components/schemas/app__schemas__InvoiceOut"
           },
           "items": {
             "items": {
@@ -14348,7 +15584,7 @@
           },
           "payments": {
             "items": {
-              "$ref": "#/components/schemas/PaymentOut"
+              "$ref": "#/components/schemas/app__schemas__PaymentOut"
             },
             "type": "array",
             "title": "Payments",
@@ -14356,7 +15592,7 @@
           },
           "refunds": {
             "items": {
-              "$ref": "#/components/schemas/RefundOut"
+              "$ref": "#/components/schemas/app__schemas__RefundOut"
             },
             "type": "array",
             "title": "Refunds",
@@ -14456,6 +15692,29 @@
         ],
         "title": "ReceiveStockIn"
       },
+      "ReconciliationOut": {
+        "properties": {
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checked At"
+          },
+          "issues": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Issues"
+          }
+        },
+        "type": "object",
+        "required": [
+          "checked_at",
+          "issues"
+        ],
+        "title": "ReconciliationOut"
+      },
       "RecoveryCodesOut": {
         "properties": {
           "recovery_codes": {
@@ -14488,69 +15747,25 @@
         ],
         "title": "RefreshIn"
       },
-      "RefundIn": {
+      "RefundDecisionIn": {
         "properties": {
-          "amount": {
-            "type": "number",
-            "maximum": 10000000.0,
-            "exclusiveMinimum": 0.0,
-            "title": "Amount"
+          "approve": {
+            "type": "boolean",
+            "title": "Approve"
           },
-          "reason": {
+          "note": {
             "type": "string",
-            "maxLength": 300,
-            "minLength": 3,
-            "title": "Reason"
+            "maxLength": 500,
+            "title": "Note",
+            "default": ""
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "amount",
-          "reason"
+          "approve"
         ],
-        "title": "RefundIn"
-      },
-      "RefundOut": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "payment_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Payment Id"
-          },
-          "amount": {
-            "type": "number",
-            "title": "Amount"
-          },
-          "reason": {
-            "type": "string",
-            "title": "Reason"
-          },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "payment_id",
-          "amount",
-          "reason",
-          "status",
-          "created_at"
-        ],
-        "title": "RefundOut"
+        "title": "RefundDecisionIn"
       },
       "RegisterIn": {
         "properties": {
@@ -14922,6 +16137,22 @@
         "additionalProperties": false,
         "type": "object",
         "title": "SignRxIn"
+      },
+      "SimulateIn": {
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "success",
+              "failure"
+            ],
+            "title": "Outcome",
+            "default": "success"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SimulateIn"
       },
       "StockAlertOut": {
         "properties": {
@@ -15705,6 +16936,29 @@
         ],
         "title": "ValidationError"
       },
+      "VerifyIn": {
+        "properties": {
+          "provider_payment_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 4,
+            "title": "Provider Payment Id"
+          },
+          "signature": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 16,
+            "title": "Signature"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "provider_payment_id",
+          "signature"
+        ],
+        "title": "VerifyIn"
+      },
       "VitalsIn": {
         "properties": {
           "bp_systolic": {
@@ -16043,6 +17297,579 @@
           "created_at"
         ],
         "title": "WardOut"
+      },
+      "app__schemas__InvoiceOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Organization Id"
+          },
+          "branch_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Branch Id"
+          },
+          "patient_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Patient Id"
+          },
+          "encounter_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Encounter Id"
+          },
+          "invoice_number": {
+            "type": "string",
+            "title": "Invoice Number"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "subtotal": {
+            "type": "number",
+            "title": "Subtotal"
+          },
+          "discount": {
+            "type": "number",
+            "title": "Discount"
+          },
+          "tax_total": {
+            "type": "number",
+            "title": "Tax Total"
+          },
+          "total": {
+            "type": "number",
+            "title": "Total"
+          },
+          "amount_paid": {
+            "type": "number",
+            "title": "Amount Paid"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          },
+          "issued_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issued At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "organization_id",
+          "branch_id",
+          "patient_id",
+          "encounter_id",
+          "invoice_number",
+          "status",
+          "subtotal",
+          "discount",
+          "tax_total",
+          "total",
+          "amount_paid",
+          "notes",
+          "issued_at",
+          "created_at"
+        ],
+        "title": "InvoiceOut"
+      },
+      "app__schemas__PaymentOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "invoice_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Invoice Id"
+          },
+          "amount": {
+            "type": "number",
+            "title": "Amount"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "gateway": {
+            "type": "string",
+            "title": "Gateway"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "gateway_ref": {
+            "type": "string",
+            "title": "Gateway Ref"
+          },
+          "failure_reason": {
+            "type": "string",
+            "title": "Failure Reason"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "invoice_id",
+          "amount",
+          "method",
+          "gateway",
+          "status",
+          "gateway_ref",
+          "failure_reason",
+          "created_at"
+        ],
+        "title": "PaymentOut"
+      },
+      "app__schemas__RefundIn": {
+        "properties": {
+          "amount": {
+            "type": "number",
+            "maximum": 10000000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Amount"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 3,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "amount",
+          "reason"
+        ],
+        "title": "RefundIn"
+      },
+      "app__schemas__RefundOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "payment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Payment Id"
+          },
+          "amount": {
+            "type": "number",
+            "title": "Amount"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "payment_id",
+          "amount",
+          "reason",
+          "status",
+          "created_at"
+        ],
+        "title": "RefundOut"
+      },
+      "app__schemas_billing__InvoiceOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "order_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Order Id"
+          },
+          "related_invoice_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Related Invoice Id"
+          },
+          "issued_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Issued At"
+          },
+          "period_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period Start"
+          },
+          "period_end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period End"
+          },
+          "seller": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Seller"
+          },
+          "buyer": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Buyer"
+          },
+          "lines": {
+            "items": {},
+            "type": "array",
+            "title": "Lines"
+          },
+          "subtotal_paise": {
+            "type": "integer",
+            "title": "Subtotal Paise"
+          },
+          "tax_breakdown": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Tax Breakdown"
+          },
+          "tax_paise": {
+            "type": "integer",
+            "title": "Tax Paise"
+          },
+          "total_paise": {
+            "type": "integer",
+            "title": "Total Paise"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "kind",
+          "order_id",
+          "related_invoice_id",
+          "issued_at",
+          "period_start",
+          "period_end",
+          "seller",
+          "buyer",
+          "lines",
+          "subtotal_paise",
+          "tax_breakdown",
+          "tax_paise",
+          "total_paise",
+          "currency"
+        ],
+        "title": "InvoiceOut"
+      },
+      "app__schemas_billing__PaymentOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "order_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Order Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "provider_payment_id": {
+            "type": "string",
+            "title": "Provider Payment Id"
+          },
+          "amount_paise": {
+            "type": "integer",
+            "title": "Amount Paise"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "order_id",
+          "provider",
+          "provider_payment_id",
+          "amount_paise",
+          "currency",
+          "status",
+          "method",
+          "source",
+          "error",
+          "created_at"
+        ],
+        "title": "PaymentOut"
+      },
+      "app__schemas_billing__RefundIn": {
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Payment Id"
+          },
+          "amount_paise": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Paise"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 5,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "payment_id",
+          "amount_paise",
+          "reason"
+        ],
+        "title": "RefundIn"
+      },
+      "app__schemas_billing__RefundOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Organization Id"
+          },
+          "payment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Payment Id"
+          },
+          "amount_paise": {
+            "type": "integer",
+            "title": "Amount Paise"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "requested_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested By"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Note"
+          },
+          "provider_refund_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Refund Id"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "organization_id",
+          "payment_id",
+          "amount_paise",
+          "reason",
+          "status",
+          "requested_by",
+          "decided_by",
+          "decided_at",
+          "decision_note",
+          "provider_refund_id",
+          "error",
+          "created_at"
+        ],
+        "title": "RefundOut"
       }
     },
     "securitySchemes": {

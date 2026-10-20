@@ -80,6 +80,16 @@ def credits_used(db: Session, organization_id: uuid.UUID, period: str | None = N
         )) or 0)
 
 
+def credits_granted(db: Session, organization_id: uuid.UUID, period: str | None = None) -> int:
+    """Credits added on top of the plan allowance (purchased AI credit packs)."""
+    return int(db.scalar(
+        select(func.coalesce(func.sum(AiCreditEntry.credits), 0)).where(
+            AiCreditEntry.organization_id == organization_id,
+            AiCreditEntry.period == (period or current_period()),
+            AiCreditEntry.entry_type == "grant",
+        )) or 0)
+
+
 def tenant_enabled_features(db: Session, organization_id: uuid.UUID) -> list[str]:
     row = db.get(AiTenantSettings, organization_id)
     return list(row.enabled_features) if row else []
@@ -136,6 +146,8 @@ def dispatch(
             db.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"),
                        {"k": f"ai-credits:{org_id}"})
             limit = ent.limits.get("ai_credits_monthly")
+            if limit is not None:
+                limit += credits_granted(db, org_id)  # purchased packs (M7.2)
             if limit is not None and credits_used(db, org_id) + cost > limit:
                 raise HTTPException(
                     status.HTTP_403_FORBIDDEN,

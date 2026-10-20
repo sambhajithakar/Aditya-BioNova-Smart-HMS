@@ -86,7 +86,7 @@ it does not exist in staging or production builds.
 
 ## Endpoints
 
-Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 149 operations in 23 tags.
+Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 169 operations in 24 tags.
 
 ### Summary
 
@@ -209,6 +209,13 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 149 op
 | pharmacy | POST | `/api/v1/pharmacy/stock/batches` | `pharmacy.manage` | yes |
 | pharmacy | POST | `/api/v1/pharmacy/stock/batches/{batch_id}/adjust` | `pharmacy.manage` |  |
 | pharmacy | GET | `/api/v1/pharmacy/stock/movements` | `pharmacy.read` |  |
+| platform | GET | `/api/v1/platform/billing/credit-packs` | - |  |
+| platform | PUT | `/api/v1/platform/billing/credit-packs/{code}` | - |  |
+| platform | POST | `/api/v1/platform/billing/lifecycle` | - |  |
+| platform | GET | `/api/v1/platform/billing/orders` | - |  |
+| platform | GET | `/api/v1/platform/billing/reconciliation` | - |  |
+| platform | GET | `/api/v1/platform/billing/refunds` | - |  |
+| platform | POST | `/api/v1/platform/billing/refunds/{refund_id}/decide` | - |  |
 | platform | GET | `/api/v1/platform/catalog` | public |  |
 | platform | GET | `/api/v1/platform/overview` | public |  |
 | platform | GET | `/api/v1/platform/plans` | public |  |
@@ -231,6 +238,19 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 149 op
 | prescriptions | POST | `/api/v1/prescriptions/{rx_id}/sign` | `prescription.sign` |  |
 | prescriptions | POST | `/api/v1/prescriptions/{rx_id}/warnings` | `prescription.sign` |  |
 | reports | GET | `/api/v1/reports/summary` | `report.read` |  |
+| saas-billing | GET | `/api/v1/saas/catalog` | - |  |
+| saas-billing | GET | `/api/v1/saas/credits` | - |  |
+| saas-billing | GET | `/api/v1/saas/invoices` | - |  |
+| saas-billing | GET | `/api/v1/saas/invoices/{invoice_id}` | - |  |
+| saas-billing | GET | `/api/v1/saas/orders` | - |  |
+| saas-billing | POST | `/api/v1/saas/orders` | - | yes |
+| saas-billing | POST | `/api/v1/saas/orders/{order_id}/retry` | - | yes |
+| saas-billing | POST | `/api/v1/saas/orders/{order_id}/simulate` | - |  |
+| saas-billing | POST | `/api/v1/saas/orders/{order_id}/verify` | - |  |
+| saas-billing | GET | `/api/v1/saas/payments` | - |  |
+| saas-billing | GET | `/api/v1/saas/refunds` | - |  |
+| saas-billing | POST | `/api/v1/saas/refunds` | - |  |
+| saas-billing | POST | `/api/v1/saas/webhooks/razorpay` | - |  |
 | subscription | GET | `/api/v1/plans` | public |  |
 | subscription | GET | `/api/v1/subscription` | `subscription.read` |  |
 | subscription | POST | `/api/v1/subscription/change-request` | `subscription.manage` |  |
@@ -617,7 +637,7 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 149 op
 - operationId: `record_payment_api_v1_billing_invoices__invoice_id__payments_post`
 - Idempotency-Key: supported
 - Request body: `PaymentIn`
-- Response: `201 PaymentOut`
+- Response: `201 app__schemas__PaymentOut`
 
 | Parameter | In | Type | Required |
 |---|---|---|---|
@@ -670,7 +690,7 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 149 op
 - Permission: `billing.payment`
 - operationId: `sandbox_confirm_api_v1_billing_payments__payment_id__confirm_post`
 - Request body: -
-- Response: `200 PaymentOut`
+- Response: `200 app__schemas__PaymentOut`
 
 | Parameter | In | Type | Required |
 |---|---|---|---|
@@ -683,7 +703,7 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 149 op
 - Permission: `billing.payment`
 - operationId: `sandbox_fail_api_v1_billing_payments__payment_id__fail_post`
 - Request body: -
-- Response: `200 PaymentOut`
+- Response: `200 app__schemas__PaymentOut`
 
 | Parameter | In | Type | Required |
 |---|---|---|---|
@@ -695,8 +715,8 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 149 op
 
 - Permission: `billing.refund`
 - operationId: `refund_payment_api_v1_billing_payments__payment_id__refund_post`
-- Request body: `RefundIn`
-- Response: `201 RefundOut`
+- Request body: `app__schemas__RefundIn`
+- Response: `201 app__schemas__RefundOut`
 
 | Parameter | In | Type | Required |
 |---|---|---|---|
@@ -1666,6 +1686,91 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 149 op
 
 ### platform
 
+#### `GET /api/v1/platform/billing/credit-packs`
+
+**Platform Packs**
+
+- Permission: -
+- operationId: `platform_packs_api_v1_platform_billing_credit_packs_get`
+- Request body: -
+- Response: `200 list[CatalogPack]`
+
+#### `PUT /api/v1/platform/billing/credit-packs/{code}`
+
+**Platform Put Pack**
+
+- Permission: -
+- operationId: `platform_put_pack_api_v1_platform_billing_credit_packs__code__put`
+- Request body: `CreditPackIn`
+- Response: `200 CatalogPack`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `code` | path | string | yes |
+
+#### `POST /api/v1/platform/billing/lifecycle`
+
+**Platform Lifecycle**
+
+- Permission: -
+- operationId: `platform_lifecycle_api_v1_platform_billing_lifecycle_post`
+- Request body: -
+- Response: `200 LifecycleOut`
+
+#### `GET /api/v1/platform/billing/orders`
+
+**Platform Orders**
+
+- Permission: -
+- operationId: `platform_orders_api_v1_platform_billing_orders_get`
+- Request body: -
+- Response: `200 list[OrderOut]`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `limit` | query | integer | no |
+| `organization_id` | query | string(uuid) \| null | no |
+| `status` | query | string \| null | no |
+
+#### `GET /api/v1/platform/billing/reconciliation`
+
+**Platform Reconciliation**
+
+- Permission: -
+- operationId: `platform_reconciliation_api_v1_platform_billing_reconciliation_get`
+- Request body: -
+- Response: `200 ReconciliationOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `check_provider` | query | boolean | no |
+
+#### `GET /api/v1/platform/billing/refunds`
+
+**Platform Refunds**
+
+- Permission: -
+- operationId: `platform_refunds_api_v1_platform_billing_refunds_get`
+- Request body: -
+- Response: `200 list[app__schemas_billing__RefundOut]`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `status` | query | string \| null | no |
+
+#### `POST /api/v1/platform/billing/refunds/{refund_id}/decide`
+
+**Platform Decide Refund**
+
+- Permission: -
+- operationId: `platform_decide_refund_api_v1_platform_billing_refunds__refund_id__decide_post`
+- Request body: `RefundDecisionIn`
+- Response: `200 app__schemas_billing__RefundOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `refund_id` | path | string(uuid) | yes |
+
 #### `GET /api/v1/platform/catalog`
 
 **Catalog**
@@ -1946,6 +2051,147 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 149 op
 |---|---|---|---|
 | `from` | query | string(date) \| null | no |
 | `to` | query | string(date) \| null | no |
+
+### saas-billing
+
+#### `GET /api/v1/saas/catalog`
+
+**Catalog**
+
+- Permission: -
+- operationId: `catalog_api_v1_saas_catalog_get`
+- Request body: -
+- Response: `200 BillingCatalog`
+
+#### `GET /api/v1/saas/credits`
+
+**Ai Credits**
+
+- Permission: -
+- operationId: `ai_credits_api_v1_saas_credits_get`
+- Request body: -
+- Response: `200 CreditsOut`
+
+#### `GET /api/v1/saas/invoices`
+
+**List Invoices**
+
+- Permission: -
+- operationId: `list_invoices_api_v1_saas_invoices_get`
+- Request body: -
+- Response: `200 list[app__schemas_billing__InvoiceOut]`
+
+#### `GET /api/v1/saas/invoices/{invoice_id}`
+
+**Get Invoice**
+
+- Permission: -
+- operationId: `get_invoice_api_v1_saas_invoices__invoice_id__get`
+- Request body: -
+- Response: `200 app__schemas_billing__InvoiceOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `invoice_id` | path | string(uuid) | yes |
+
+#### `GET /api/v1/saas/orders`
+
+**List Orders**
+
+- Permission: -
+- operationId: `list_orders_api_v1_saas_orders_get`
+- Request body: -
+- Response: `200 list[OrderOut]`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `limit` | query | integer | no |
+
+#### `POST /api/v1/saas/orders`
+
+**Create Order**
+
+- Permission: -
+- operationId: `create_order_api_v1_saas_orders_post`
+- Idempotency-Key: supported
+- Request body: `OrderIn`
+- Response: `201 OrderCreated`
+
+#### `POST /api/v1/saas/orders/{order_id}/retry`
+
+**Retry Order** - Failed-payment recovery: a fresh order for the same item at today's price.
+
+- Permission: -
+- operationId: `retry_order_api_v1_saas_orders__order_id__retry_post`
+- Idempotency-Key: supported
+- Request body: -
+- Response: `201 OrderCreated`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `order_id` | path | string(uuid) | yes |
+
+#### `POST /api/v1/saas/orders/{order_id}/simulate`
+
+**Simulate Payment** - Development demo only: plays the hosted checkout AND the provider's
+
+- Permission: -
+- operationId: `simulate_payment_api_v1_saas_orders__order_id__simulate_post`
+- Request body: `SimulateIn`
+- Response: `200 PaymentResult`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `order_id` | path | string(uuid) | yes |
+
+#### `POST /api/v1/saas/orders/{order_id}/verify`
+
+**Verify Payment** - Browser callback after the hosted checkout. The signature is checked
+
+- Permission: -
+- operationId: `verify_payment_api_v1_saas_orders__order_id__verify_post`
+- Request body: `VerifyIn`
+- Response: `200 PaymentResult`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `order_id` | path | string(uuid) | yes |
+
+#### `GET /api/v1/saas/payments`
+
+**List Payments**
+
+- Permission: -
+- operationId: `list_payments_api_v1_saas_payments_get`
+- Request body: -
+- Response: `200 list[app__schemas_billing__PaymentOut]`
+
+#### `GET /api/v1/saas/refunds`
+
+**List Refunds**
+
+- Permission: -
+- operationId: `list_refunds_api_v1_saas_refunds_get`
+- Request body: -
+- Response: `200 list[app__schemas_billing__RefundOut]`
+
+#### `POST /api/v1/saas/refunds`
+
+**Request Refund**
+
+- Permission: -
+- operationId: `request_refund_api_v1_saas_refunds_post`
+- Request body: `app__schemas_billing__RefundIn`
+- Response: `201 app__schemas_billing__RefundOut`
+
+#### `POST /api/v1/saas/webhooks/razorpay`
+
+**Razorpay Webhook**
+
+- Permission: -
+- operationId: `razorpay_webhook_api_v1_saas_webhooks_razorpay_post`
+- Request body: -
+- Response: `200 (no body)`
 
 ### subscription
 
@@ -2230,6 +2476,18 @@ Field lists of the request/response schemas referenced above (`*` = required).
 |---|---|
 | `status`* | string |
 
+### BillingCatalog
+
+| Field | Type |
+|---|---|
+| `provider`* | string |
+| `mode`* | string |
+| `gst_rate_bp`* | integer |
+| `currency` | string |
+| `plans`* | list[CatalogPlan] |
+| `credit_packs`* | list[CatalogPack] |
+| `notice`* | string |
+
 ### BranchIn
 
 | Field | Type |
@@ -2284,6 +2542,27 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `features`* | list[CatalogEntryOut] |
 | `limits`* | list[CatalogEntryOut] |
 
+### CatalogPack
+
+| Field | Type |
+|---|---|
+| `code`* | string |
+| `name`* | string |
+| `credits`* | integer |
+| `price_paise`* | integer \| null |
+| `purchasable`* | boolean |
+
+### CatalogPlan
+
+| Field | Type |
+|---|---|
+| `code`* | string |
+| `name`* | string |
+| `tier`* | integer |
+| `price_monthly_paise`* | integer \| null |
+| `price_annual_paise`* | integer \| null |
+| `purchasable`* | boolean |
+
 ### ChangeRequestIn
 
 | Field | Type |
@@ -2291,6 +2570,17 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `plan_code`* | string |
 | `billing_cycle`* | string (monthly, annual) |
 | `note` | string |
+
+### CheckoutParams
+
+| Field | Type |
+|---|---|
+| `provider`* | string |
+| `mode`* | string |
+| `key_id`* | string |
+| `provider_order_id`* | string |
+| `amount`* | integer |
+| `currency`* | string |
 
 ### CollectSpecimenIn
 
@@ -2337,6 +2627,25 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `function`* | string |
 | `args`* | object |
 | `method`* | string |
+
+### CreditPackIn
+
+| Field | Type |
+|---|---|
+| `name`* | string |
+| `credits`* | integer |
+| `price_paise` | integer \| null |
+| `is_active` | boolean |
+
+### CreditsOut
+
+| Field | Type |
+|---|---|
+| `period`* | string |
+| `plan_allowance`* | integer \| null |
+| `purchased`* | integer |
+| `used`* | integer |
+| `remaining`* | integer \| null |
 
 ### DiagnosisIn
 
@@ -2673,7 +2982,7 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `issued_at`* | string(date-time) \| null |
 | `created_at`* | string(date-time) |
 | `items` | list[InvoiceItemOut] |
-| `payments` | list[PaymentOut] |
+| `payments` | list[app__schemas__PaymentOut] |
 
 ### InvoiceIn
 
@@ -2709,26 +3018,6 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `tax_rate`* | number |
 | `line_total`* | number |
 | `seq`* | integer |
-
-### InvoiceOut
-
-| Field | Type |
-|---|---|
-| `id`* | string(uuid) |
-| `organization_id`* | string(uuid) |
-| `branch_id`* | string(uuid) |
-| `patient_id`* | string(uuid) |
-| `encounter_id`* | string(uuid) \| null |
-| `invoice_number`* | string |
-| `status`* | string |
-| `subtotal`* | number |
-| `discount`* | number |
-| `tax_total`* | number |
-| `total`* | number |
-| `amount_paid`* | number |
-| `notes`* | string |
-| `issued_at`* | string(date-time) \| null |
-| `created_at`* | string(date-time) |
 
 ### IpdReport
 
@@ -2845,6 +3134,14 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `amount`* | number |
 | `description`* | string |
 | `created_at`* | string(date-time) |
+
+### LifecycleOut
+
+| Field | Type |
+|---|---|
+| `past_due`* | integer |
+| `read_only`* | integer |
+| `orders_expired`* | integer |
 
 ### LoginIn
 
@@ -2983,6 +3280,42 @@ Field lists of the request/response schemas referenced above (`*` = required).
 |---|---|
 | `key`* | string |
 | `done`* | boolean |
+
+### OrderCreated
+
+| Field | Type |
+|---|---|
+| `order`* | OrderOut |
+| `checkout`* | CheckoutParams |
+
+### OrderIn
+
+| Field | Type |
+|---|---|
+| `kind`* | string (subscription, ai_credits) |
+| `plan_code` | string \| null |
+| `billing_cycle` | string \| null |
+| `pack_code` | string \| null |
+
+### OrderOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `kind`* | string |
+| `description`* | string |
+| `billing_cycle`* | string \| null |
+| `credits`* | integer \| null |
+| `amount_paise`* | integer |
+| `tax_paise`* | integer |
+| `total_paise`* | integer |
+| `currency`* | string |
+| `provider`* | string |
+| `provider_order_id`* | string |
+| `status`* | string |
+| `failure_reason`* | string \| null |
+| `created_at`* | string(date-time) |
+| `paid_at`* | string(date-time) \| null |
 
 ### OrganizationOut
 
@@ -3149,19 +3482,12 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `method` | string |
 | `gateway` | string |
 
-### PaymentOut
+### PaymentResult
 
 | Field | Type |
 |---|---|
-| `id`* | string(uuid) |
-| `invoice_id`* | string(uuid) |
-| `amount`* | number |
-| `method`* | string |
-| `gateway`* | string |
-| `status`* | string |
-| `gateway_ref`* | string |
-| `failure_reason`* | string |
-| `created_at`* | string(date-time) |
+| `outcome`* | string |
+| `order`* | OrderOut |
 
 ### PlanFeaturesIn
 
@@ -3377,10 +3703,10 @@ Field lists of the request/response schemas referenced above (`*` = required).
 
 | Field | Type |
 |---|---|
-| `invoice`* | InvoiceOut |
+| `invoice`* | app__schemas__InvoiceOut |
 | `items` | list[InvoiceItemOut] |
-| `payments` | list[PaymentOut] |
-| `refunds` | list[RefundOut] |
+| `payments` | list[app__schemas__PaymentOut] |
+| `refunds` | list[app__schemas__RefundOut] |
 | `ledger` | list[LedgerEntryOut] |
 | `balance_due`* | number |
 | `org_name`* | string |
@@ -3400,6 +3726,13 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `unit_cost` | number |
 | `supplier` | string |
 
+### ReconciliationOut
+
+| Field | Type |
+|---|---|
+| `checked_at`* | string(date-time) |
+| `issues`* | list[object] |
+
 ### RecoveryCodesOut
 
 | Field | Type |
@@ -3412,23 +3745,12 @@ Field lists of the request/response schemas referenced above (`*` = required).
 |---|---|
 | `refresh_token`* | string |
 
-### RefundIn
+### RefundDecisionIn
 
 | Field | Type |
 |---|---|
-| `amount`* | number |
-| `reason`* | string |
-
-### RefundOut
-
-| Field | Type |
-|---|---|
-| `id`* | string(uuid) |
-| `payment_id`* | string(uuid) |
-| `amount`* | number |
-| `reason`* | string |
-| `status`* | string |
-| `created_at`* | string(date-time) |
+| `approve`* | boolean |
+| `note` | string |
 
 ### RegisterIn
 
@@ -3520,6 +3842,12 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | Field | Type |
 |---|---|
 | `acknowledge_allergies` | boolean |
+
+### SimulateIn
+
+| Field | Type |
+|---|---|
+| `outcome` | string (success, failure) |
 
 ### StockAlertOut
 
@@ -3699,6 +4027,13 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `input` | any |
 | `ctx` | object |
 
+### VerifyIn
+
+| Field | Type |
+|---|---|
+| `provider_payment_id`* | string |
+| `signature`* | string |
+
 ### VitalsIn
 
 | Field | Type |
@@ -3753,3 +4088,118 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `bed_count` | integer |
 | `occupied_count` | integer |
 | `available_count` | integer |
+
+### app__schemas__InvoiceOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `organization_id`* | string(uuid) |
+| `branch_id`* | string(uuid) |
+| `patient_id`* | string(uuid) |
+| `encounter_id`* | string(uuid) \| null |
+| `invoice_number`* | string |
+| `status`* | string |
+| `subtotal`* | number |
+| `discount`* | number |
+| `tax_total`* | number |
+| `total`* | number |
+| `amount_paid`* | number |
+| `notes`* | string |
+| `issued_at`* | string(date-time) \| null |
+| `created_at`* | string(date-time) |
+
+### app__schemas__PaymentOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `invoice_id`* | string(uuid) |
+| `amount`* | number |
+| `method`* | string |
+| `gateway`* | string |
+| `status`* | string |
+| `gateway_ref`* | string |
+| `failure_reason`* | string |
+| `created_at`* | string(date-time) |
+
+### app__schemas__RefundIn
+
+| Field | Type |
+|---|---|
+| `amount`* | number |
+| `reason`* | string |
+
+### app__schemas__RefundOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `payment_id`* | string(uuid) |
+| `amount`* | number |
+| `reason`* | string |
+| `status`* | string |
+| `created_at`* | string(date-time) |
+
+### app__schemas_billing__InvoiceOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `number`* | string |
+| `kind`* | string |
+| `order_id`* | string(uuid) |
+| `related_invoice_id`* | string(uuid) \| null |
+| `issued_at`* | string(date-time) |
+| `period_start`* | string(date-time) \| null |
+| `period_end`* | string(date-time) \| null |
+| `seller`* | object |
+| `buyer`* | object |
+| `lines`* | list[-] |
+| `subtotal_paise`* | integer |
+| `tax_breakdown`* | object |
+| `tax_paise`* | integer |
+| `total_paise`* | integer |
+| `currency`* | string |
+
+### app__schemas_billing__PaymentOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `order_id`* | string(uuid) |
+| `provider`* | string |
+| `provider_payment_id`* | string |
+| `amount_paise`* | integer |
+| `currency`* | string |
+| `status`* | string |
+| `method`* | string \| null |
+| `source`* | string |
+| `error`* | string \| null |
+| `created_at`* | string(date-time) |
+
+### app__schemas_billing__RefundIn
+
+| Field | Type |
+|---|---|
+| `payment_id`* | string(uuid) |
+| `amount_paise`* | integer |
+| `reason`* | string |
+
+### app__schemas_billing__RefundOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `organization_id`* | string(uuid) |
+| `payment_id`* | string(uuid) |
+| `amount_paise`* | integer |
+| `reason`* | string |
+| `status`* | string |
+| `requested_by`* | string(uuid) \| null |
+| `decided_by`* | string(uuid) \| null |
+| `decided_at`* | string(date-time) \| null |
+| `decision_note`* | string \| null |
+| `provider_refund_id`* | string \| null |
+| `error`* | string \| null |
+| `created_at`* | string(date-time) |

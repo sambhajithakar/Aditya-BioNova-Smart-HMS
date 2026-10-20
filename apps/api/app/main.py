@@ -44,6 +44,7 @@ from .routers import (
     reports,
     subscription,
     support,
+    saas_billing,
 )
 
 logger = logging.getLogger("hms.api")
@@ -199,7 +200,8 @@ def create_app() -> FastAPI:
     # Account, administration and vendor surfaces stay reachable whatever the
     # subscription state (a lapsed clinic can still manage, export and pay).
     for r in (health.router, auth.router, branches.router, members.router, audit.router,
-              organization.router, subscription.router, support.router, platform.router):
+              organization.router, subscription.router, support.router, platform.router,
+              saas_billing.router, saas_billing.webhooks, saas_billing.platform):
         app.include_router(r, prefix=BASE_PREFIX)
 
     # Clinical/operational modules: gated by the edition's features; writes

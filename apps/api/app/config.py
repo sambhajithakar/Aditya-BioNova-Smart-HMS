@@ -115,6 +115,25 @@ class Settings(BaseSettings):
     ai_openai_region: str = "foreign"          # in-self-hosted | in-cloud:<region> | foreign
     ai_openai_max_data_class: str = "C1"
 
+    # --- SaaS subscription billing (M7.2). The vendor's billing of clinics for
+    # the software — unrelated to patient billing. Only Razorpay TEST mode is
+    # supported; live keys are refused until the owner approves live payments.
+    # "simulator" is an in-process stand-in that moves no money; it is only
+    # allowed in development/test (a production tenant could otherwise grant
+    # itself a paid plan).
+    # simulator | razorpay; unset → simulator in development/test, razorpay elsewhere
+    payments_provider: str | None = None
+    razorpay_key_id: str | None = None            # must start with rzp_test_
+    razorpay_key_secret: str | None = None
+    razorpay_webhook_secret: str | None = None
+    razorpay_api_base: str = "https://api.razorpay.com/v1"
+    saas_gst_rate_bp: int = 1800                  # 18 % GST on software services
+    saas_grace_days: int = 7
+    saas_seller_name: str = "Aditya BioNova (seller details not configured)"
+    saas_seller_gstin: str | None = None
+    saas_seller_state: str = "Maharashtra"
+    saas_seller_address: str = ""
+
     @field_validator("jwt_secret")
     @classmethod
     def _min_secret_length(cls, v: str) -> str:
@@ -130,6 +149,18 @@ class Settings(BaseSettings):
         return v
 
     @model_validator(mode="after")
+    def _sandbox_payments_only(self) -> "Settings":
+        if self.payments_provider is None:
+            self.payments_provider = ("simulator" if self.environment in _DEV_ENVIRONMENTS
+                                      else "razorpay")
+        if self.payments_provider not in ("simulator", "razorpay"):
+            raise ValueError("PAYMENTS_PROVIDER must be simulator or razorpay")
+        if self.razorpay_key_id and not self.razorpay_key_id.startswith("rzp_test_"):
+            raise ValueError("Only Razorpay TEST keys (rzp_test_...) are allowed: live payments "
+                             "are not approved")
+        return self
+
+    @model_validator(mode="after")
     def _production_secrets(self) -> "Settings":
         if self.environment in _DEV_ENVIRONMENTS:
             return self
@@ -140,6 +171,8 @@ class Settings(BaseSettings):
             )
         if not self.platform_mfa_required:
             raise ValueError("PLATFORM_MFA_REQUIRED cannot be disabled outside development/test")
+        if self.payments_provider == "simulator":
+            raise ValueError("PAYMENTS_PROVIDER=simulator is only allowed in development/test")
         if not self.field_encryption_key:
             raise ValueError(
                 f"FIELD_ENCRYPTION_KEY is required when ENVIRONMENT={self.environment!r}"

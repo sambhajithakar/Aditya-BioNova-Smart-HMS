@@ -65,7 +65,7 @@
 
 ## Migrations
 
-Database at Alembic head **0012** (catalog read from PostgreSQL 16). Files in `apps/api/alembic/versions/`.
+Database at Alembic head **0013** (catalog read from PostgreSQL 16). Files in `apps/api/alembic/versions/`.
 
 | Revision | Down | File | Summary |
 |---|---|---|---|
@@ -81,6 +81,7 @@ Database at Alembic head **0012** (catalog read from PostgreSQL 16). Files in `a
 | 0010 | 0009 | `0010_m7_integrity.py` | M7.0 integrity hardening: signed-Rx INSERT guard, dispense caps, lab order items, invoice/payment immutability, OPD queue uniqueness. |
 | 0011 | 0010 | `0011_m71_tenancy_saas.py` | M7.1: tenant administration, commercial editions, platform console, support. |
 | 0012 | 0011 | `0012_ai_gateway.py` | AI-0: AI gateway governance — tenant opt-in, AI request audit, credit ledger. |
+| 0013 | 0012 | `0013_saas_billing.py` | M7.2: SaaS subscription billing — orders, payments, webhooks, invoices, refunds and AI credit packs (Razorpay sandbox / local payment simulator). |
 
 ## Application role
 
@@ -93,6 +94,7 @@ Database at Alembic head **0012** (catalog read from PostgreSQL 16). Files in `a
 | [admission_transfers](#admission_transfers) | yes | 1 | 1 | SELECT, INSERT |
 | [admissions](#admissions) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
 | [ai_credit_ledger](#ai_credit_ledger) | yes | 1 | 1 | SELECT, INSERT |
+| [ai_credit_packs](#ai_credit_packs) | yes | 2 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [ai_requests](#ai_requests) | yes | 1 | 1 | SELECT, INSERT |
 | [ai_tenant_settings](#ai_tenant_settings) | yes | 1 | 0 | SELECT, INSERT, UPDATE |
 | [alembic_version](#alembic_version) | **no** | 0 | 0 | SELECT |
@@ -139,6 +141,11 @@ Database at Alembic head **0012** (catalog read from PostgreSQL 16). Files in `a
 | [refunds](#refunds) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
 | [role_permissions](#role_permissions) | **no** | 0 | 0 | SELECT |
 | [roles](#roles) | **no** | 0 | 0 | SELECT |
+| [saas_invoices](#saas_invoices) | yes | 2 | 1 | SELECT, INSERT, UPDATE, DELETE |
+| [saas_orders](#saas_orders) | yes | 3 | 1 | SELECT, INSERT, UPDATE, DELETE |
+| [saas_payments](#saas_payments) | yes | 2 | 1 | SELECT, INSERT, UPDATE, DELETE |
+| [saas_refunds](#saas_refunds) | yes | 3 | 1 | SELECT, INSERT, UPDATE, DELETE |
+| [saas_webhook_events](#saas_webhook_events) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
 | [stock_batches](#stock_batches) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
 | [stock_movements](#stock_movements) | yes | 1 | 2 | SELECT, INSERT |
 | [subscription_events](#subscription_events) | yes | 1 | 0 | SELECT, INSERT |
@@ -299,6 +306,41 @@ Database at Alembic head **0012** (catalog read from PostgreSQL 16). Files in `a
 **Triggers**
 
 - `trg_ai_credit_ledger_append_only`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `forbid_ai_log_mutation()`
+
+### ai_credit_packs
+
+- Row-level security: enabled (FORCE)
+- Grants for hms_app: SELECT, INSERT, UPDATE, DELETE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `code` | character varying(40) | no |  |
+| `name` | character varying(120) | no |  |
+| `credits` | integer | no |  |
+| `price_paise` | bigint | yes |  |
+| `currency` | character varying(3) | no | `'INR'::character varying` |
+| `is_active` | boolean | no | `true` |
+| `created_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `ai_credit_packs_pkey`: `PRIMARY KEY (id)`
+
+**Unique constraints**
+
+- `ai_credit_packs_code_key`: `UNIQUE (code)`
+
+**Check constraints**
+
+- `ck_aipack_credits`: `CHECK (credits > 0)`
+- `ck_aipack_price`: `CHECK (price_paise IS NULL OR price_paise > 0)`
+
+**RLS policies**
+
+- `aipack_platform` FOR ALL TO public
+  - USING `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
+  - WITH CHECK `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
+- `aipack_read` FOR SELECT TO public
+  - USING `true`
 
 ### ai_requests
 
@@ -2198,6 +2240,281 @@ Database at Alembic head **0012** (catalog read from PostgreSQL 16). Files in `a
 
 - `roles_key_key`: `UNIQUE (key)`
 
+### saas_invoices
+
+- Row-level security: enabled (FORCE)
+- Grants for hms_app: SELECT, INSERT, UPDATE, DELETE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `number` | character varying(30) | no |  |
+| `kind` | character varying(12) | no |  |
+| `order_id` | uuid | no |  |
+| `refund_id` | uuid | yes |  |
+| `related_invoice_id` | uuid | yes |  |
+| `issued_at` | timestamp with time zone | no | `now()` |
+| `period_start` | timestamp with time zone | yes |  |
+| `period_end` | timestamp with time zone | yes |  |
+| `seller` | jsonb | no |  |
+| `buyer` | jsonb | no |  |
+| `lines` | jsonb | no |  |
+| `subtotal_paise` | bigint | no |  |
+| `tax_breakdown` | jsonb | no |  |
+| `tax_paise` | bigint | no |  |
+| `total_paise` | bigint | no |  |
+| `currency` | character varying(3) | no |  |
+
+**Primary key** `saas_invoices_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `saas_invoices_order_id_fkey`: `FOREIGN KEY (order_id) REFERENCES saas_orders(id)`
+- `saas_invoices_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE RESTRICT`
+- `saas_invoices_related_invoice_id_fkey`: `FOREIGN KEY (related_invoice_id) REFERENCES saas_invoices(id)`
+
+**Unique constraints**
+
+- `saas_invoices_number_key`: `UNIQUE (number)`
+
+**Check constraints**
+
+- `ck_saasinv_kind`: `CHECK (kind::text = ANY (ARRAY['invoice'::character varying, 'credit_note'::character varying]::text[]))`
+- `ck_saasinv_total`: `CHECK (total_paise = (subtotal_paise + tax_paise))`
+
+**Indexes**
+
+- `uq_saasinv_order_invoice` (UNIQUE, partial): `btree (order_id)` WHERE `((kind)::text = 'invoice'::text)`
+
+**RLS policies**
+
+- `saas_invoices_platform` FOR ALL TO public
+  - USING `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
+  - WITH CHECK `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
+- `saas_invoices_tenant_read` FOR SELECT TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
+**Triggers**
+
+- `trg_saas_invoices_append_only`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `forbid_billing_record_mutation()`
+
+### saas_orders
+
+- Row-level security: enabled (FORCE)
+- Grants for hms_app: SELECT, INSERT, UPDATE, DELETE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `kind` | character varying(20) | no |  |
+| `plan_id` | uuid | yes |  |
+| `billing_cycle` | character varying(10) | yes |  |
+| `pack_id` | uuid | yes |  |
+| `credits` | integer | yes |  |
+| `description` | character varying(200) | no |  |
+| `amount_paise` | bigint | no |  |
+| `tax_paise` | bigint | no |  |
+| `total_paise` | bigint | no |  |
+| `currency` | character varying(3) | no | `'INR'::character varying` |
+| `gst_rate_bp` | integer | no |  |
+| `provider` | character varying(20) | no |  |
+| `provider_order_id` | character varying(64) | no |  |
+| `idempotency_key` | character varying(100) | no |  |
+| `status` | character varying(12) | no | `'created'::character varying` |
+| `failure_reason` | character varying(300) | yes |  |
+| `created_by` | uuid | yes |  |
+| `created_at` | timestamp with time zone | no | `now()` |
+| `paid_at` | timestamp with time zone | yes |  |
+
+**Primary key** `saas_orders_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `saas_orders_created_by_fkey`: `FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL`
+- `saas_orders_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE RESTRICT`
+- `saas_orders_pack_id_fkey`: `FOREIGN KEY (pack_id) REFERENCES ai_credit_packs(id)`
+- `saas_orders_plan_id_fkey`: `FOREIGN KEY (plan_id) REFERENCES plans(id)`
+
+**Unique constraints**
+
+- `saas_orders_provider_order_id_key`: `UNIQUE (provider_order_id)`
+- `uq_saasorder_idem`: `UNIQUE (organization_id, idempotency_key)`
+
+**Check constraints**
+
+- `ck_saasorder_amounts`: `CHECK (amount_paise > 0 AND tax_paise >= 0 AND total_paise = (amount_paise + tax_paise))`
+- `ck_saasorder_kind`: `CHECK (kind::text = ANY (ARRAY['subscription'::character varying, 'ai_credits'::character varying]::text[]))`
+- `ck_saasorder_provider`: `CHECK (provider::text = ANY (ARRAY['razorpay'::character varying, 'simulator'::character varying]::text[]))`
+- `ck_saasorder_shape`: `CHECK (kind::text = 'subscription'::text AND plan_id IS NOT NULL AND (billing_cycle::text = ANY (ARRAY['monthly'::character varying, 'annual'::character varying]::text[])) OR kind::text = 'ai_credits'::text AND pack_id IS NOT NULL AND credits > 0)`
+- `ck_saasorder_status`: `CHECK (status::text = ANY (ARRAY['created'::character varying, 'paid'::character varying, 'failed'::character varying, 'expired'::character varying, 'cancelled'::character varying]::text[]))`
+
+**Indexes**
+
+- `ix_saasorder_org_created`: `btree (organization_id, created_at)`
+
+**RLS policies**
+
+- `saas_orders_platform` FOR ALL TO public
+  - USING `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
+  - WITH CHECK `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
+- `saas_orders_tenant_create` FOR INSERT TO public
+  - WITH CHECK `((organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid) AND ((status)::text = 'created'::text))`
+- `saas_orders_tenant_read` FOR SELECT TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
+**Triggers**
+
+- `trg_saas_orders_transition`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `guard_saas_order_transition()`
+
+### saas_payments
+
+- Row-level security: enabled (FORCE)
+- Grants for hms_app: SELECT, INSERT, UPDATE, DELETE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `order_id` | uuid | no |  |
+| `provider` | character varying(20) | no |  |
+| `provider_payment_id` | character varying(64) | no |  |
+| `amount_paise` | bigint | no |  |
+| `currency` | character varying(3) | no |  |
+| `status` | character varying(10) | no |  |
+| `method` | character varying(30) | yes |  |
+| `source` | character varying(20) | no |  |
+| `signature_verified` | boolean | no |  |
+| `error` | character varying(300) | yes |  |
+| `created_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `saas_payments_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `saas_payments_order_id_fkey`: `FOREIGN KEY (order_id) REFERENCES saas_orders(id)`
+- `saas_payments_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE RESTRICT`
+
+**Unique constraints**
+
+- `saas_payments_provider_payment_id_key`: `UNIQUE (provider_payment_id)`
+
+**Check constraints**
+
+- `ck_saaspay_amount`: `CHECK (amount_paise > 0)`
+- `ck_saaspay_source`: `CHECK (source::text = ANY (ARRAY['checkout'::character varying, 'webhook'::character varying, 'reconciliation'::character varying]::text[]))`
+- `ck_saaspay_status`: `CHECK (status::text = ANY (ARRAY['captured'::character varying, 'failed'::character varying]::text[]))`
+
+**Indexes**
+
+- `ix_saaspay_order`: `btree (order_id)`
+
+**RLS policies**
+
+- `saas_payments_platform` FOR ALL TO public
+  - USING `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
+  - WITH CHECK `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
+- `saas_payments_tenant_read` FOR SELECT TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
+**Triggers**
+
+- `trg_saas_payments_append_only`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `forbid_billing_record_mutation()`
+
+### saas_refunds
+
+- Row-level security: enabled (FORCE)
+- Grants for hms_app: SELECT, INSERT, UPDATE, DELETE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `payment_id` | uuid | no |  |
+| `amount_paise` | bigint | no |  |
+| `reason` | character varying(500) | no |  |
+| `status` | character varying(12) | no | `'requested'::character varying` |
+| `requested_by` | uuid | yes |  |
+| `decided_by` | uuid | yes |  |
+| `decided_at` | timestamp with time zone | yes |  |
+| `decision_note` | character varying(500) | yes |  |
+| `provider_refund_id` | character varying(64) | yes |  |
+| `error` | character varying(300) | yes |  |
+| `created_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `saas_refunds_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `saas_refunds_decided_by_fkey`: `FOREIGN KEY (decided_by) REFERENCES users(id) ON DELETE SET NULL`
+- `saas_refunds_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE RESTRICT`
+- `saas_refunds_payment_id_fkey`: `FOREIGN KEY (payment_id) REFERENCES saas_payments(id)`
+- `saas_refunds_requested_by_fkey`: `FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE SET NULL`
+
+**Unique constraints**
+
+- `saas_refunds_provider_refund_id_key`: `UNIQUE (provider_refund_id)`
+
+**Check constraints**
+
+- `ck_saasrefund_amount`: `CHECK (amount_paise > 0)`
+- `ck_saasrefund_four_eyes`: `CHECK (decided_by IS NULL OR decided_by IS DISTINCT FROM requested_by)`
+- `ck_saasrefund_status`: `CHECK (status::text = ANY (ARRAY['requested'::character varying, 'rejected'::character varying, 'processed'::character varying, 'failed'::character varying]::text[]))`
+
+**RLS policies**
+
+- `saas_refunds_platform` FOR ALL TO public
+  - USING `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
+  - WITH CHECK `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
+- `saas_refunds_tenant_read` FOR SELECT TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+- `saas_refunds_tenant_request` FOR INSERT TO public
+  - WITH CHECK `((organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid) AND ((status)::text = 'requested'::text) AND (decided_by IS NULL))`
+
+**Triggers**
+
+- `trg_saas_refunds_transition`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `guard_saas_refund_transition()`
+
+### saas_webhook_events
+
+- Row-level security: enabled (FORCE)
+- Grants for hms_app: SELECT, INSERT, UPDATE, DELETE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | bigint | no | `identity BY DEFAULT` |
+| `provider` | character varying(20) | no |  |
+| `event_id` | character varying(100) | no |  |
+| `event_type` | character varying(60) | no |  |
+| `signature_valid` | boolean | no |  |
+| `payload_sha256` | character varying(64) | no |  |
+| `payload` | jsonb | yes |  |
+| `organization_id` | uuid | yes |  |
+| `outcome` | character varying(20) | no |  |
+| `detail` | character varying(300) | no | `''::character varying` |
+| `received_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `saas_webhook_events_pkey`: `PRIMARY KEY (id)`
+
+**Unique constraints**
+
+- `uq_saaswebhook_event`: `UNIQUE (provider, event_id)`
+
+**Check constraints**
+
+- `ck_saaswebhook_outcome`: `CHECK (outcome::text = ANY (ARRAY['processed'::character varying, 'duplicate'::character varying, 'ignored'::character varying, 'rejected'::character varying, 'mismatch'::character varying, 'failed'::character varying]::text[]))`
+
+**RLS policies**
+
+- `saaswebhook_platform` FOR ALL TO public
+  - USING `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
+  - WITH CHECK `(COALESCE(current_setting('app.platform_admin'::text, true), ''::text) = 'true'::text)`
+
+**Triggers**
+
+- `trg_saas_webhook_events_append_only`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `forbid_billing_record_mutation()`
+
 ### stock_batches
 
 - Row-level security: enabled
@@ -2558,6 +2875,9 @@ Database at Alembic head **0012** (catalog read from PostgreSQL 16). Files in `a
 | `comms_messages_id_seq` | SELECT, USAGE |
 | `inventory_movements_id_seq` | (none) |
 | `ledger_entries_id_seq` | (none) |
+| `saas_credit_note_number_seq` | USAGE |
+| `saas_invoice_number_seq` | USAGE |
+| `saas_webhook_events_id_seq` | USAGE |
 | `stock_movements_id_seq` | (none) |
 | `subscription_events_id_seq` | (none) |
 | `support_ticket_messages_id_seq` | (none) |
@@ -2582,6 +2902,7 @@ Database at Alembic head **0012** (catalog read from PostgreSQL 16). Files in `a
 | `forbid_admission_mutation()` | trigger | plpgsql |
 | `forbid_ai_log_mutation()` | trigger | plpgsql |
 | `forbid_append_only_mutation()` | trigger | plpgsql |
+| `forbid_billing_record_mutation()` | trigger | plpgsql |
 | `forbid_closed_encounter()` | trigger | plpgsql |
 | `forbid_closed_laborder()` | trigger | plpgsql |
 | `forbid_completed_encounter_delete()` | trigger | plpgsql |
@@ -2601,22 +2922,24 @@ Database at Alembic head **0012** (catalog read from PostgreSQL 16). Files in `a
 | `forbid_rxitem_mutation()` | trigger | plpgsql |
 | `forbid_specimen_mutation()` | trigger | plpgsql |
 | `forbids_audit_mutation()` | trigger | plpgsql |
+| `guard_saas_order_transition()` | trigger | plpgsql |
+| `guard_saas_refund_transition()` | trigger | plpgsql |
 
 ## Seeded RBAC catalogue
 
-50 permission keys (seeded by migrations):
+53 permission keys (seeded by migrations):
 
-`admission.manage`, `ai.audit.read`, `ai.copilot.use`, `ai.settings.manage`, `appointment.read`, `appointment.write`, `audit.read`, `bed.manage`, `bed.read`, `billing.invoice`, `billing.payment`, `billing.read`, `billing.refund`, `branch.manage`, `branch.read`, `discharge`, `encounter.read`, `encounter.write`, `expense.manage`, `expense.read`, `inventory.manage`, `inventory.read`, `lab.import`, `lab.order`, `lab.read`, `lab.release`, `lab.verify`, `member.manage`, `member.read`, `nursing.read`, `nursing.write`, `org.manage`, `org.offboard`, `org.read`, `org.transfer_ownership`, `patient.merge`, `patient.read`, `patient.write`, `pharmacy.dispense`, `pharmacy.manage`, `pharmacy.read`, `prescription.read`, `prescription.sign`, `queue.manage`, `queue.read`, `report.read`, `subscription.manage`, `subscription.read`, `support.read`, `support.write`
+`admission.manage`, `ai.audit.read`, `ai.copilot.use`, `ai.settings.manage`, `appointment.read`, `appointment.write`, `audit.read`, `bed.manage`, `bed.read`, `billing.invoice`, `billing.payment`, `billing.read`, `billing.refund`, `billing.saas.pay`, `billing.saas.read`, `billing.saas.refund_request`, `branch.manage`, `branch.read`, `discharge`, `encounter.read`, `encounter.write`, `expense.manage`, `expense.read`, `inventory.manage`, `inventory.read`, `lab.import`, `lab.order`, `lab.read`, `lab.release`, `lab.verify`, `member.manage`, `member.read`, `nursing.read`, `nursing.write`, `org.manage`, `org.offboard`, `org.read`, `org.transfer_ownership`, `patient.merge`, `patient.read`, `patient.write`, `pharmacy.dispense`, `pharmacy.manage`, `pharmacy.read`, `prescription.read`, `prescription.sign`, `queue.manage`, `queue.read`, `report.read`, `subscription.manage`, `subscription.read`, `support.read`, `support.write`
 
 | System role | Permissions |
 |---|---|
-| `admin` | admission.manage, ai.audit.read, ai.copilot.use, ai.settings.manage, appointment.read, appointment.write, audit.read, bed.manage, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, branch.manage, branch.read, discharge, encounter.read, encounter.write, expense.manage, expense.read, inventory.manage, inventory.read, lab.import, lab.order, lab.read, lab.release, lab.verify, member.manage, member.read, nursing.read, nursing.write, org.manage, org.read, patient.merge, patient.read, patient.write, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, subscription.manage, subscription.read, support.read, support.write |
-| `auditor` | ai.audit.read, audit.read, branch.read, member.read, org.read, subscription.read |
-| `billing` | ai.copilot.use, appointment.read, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, branch.read, expense.manage, expense.read, lab.read, member.read, org.read, patient.read, pharmacy.read, report.read, subscription.read |
+| `admin` | admission.manage, ai.audit.read, ai.copilot.use, ai.settings.manage, appointment.read, appointment.write, audit.read, bed.manage, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, billing.saas.pay, billing.saas.read, branch.manage, branch.read, discharge, encounter.read, encounter.write, expense.manage, expense.read, inventory.manage, inventory.read, lab.import, lab.order, lab.read, lab.release, lab.verify, member.manage, member.read, nursing.read, nursing.write, org.manage, org.read, patient.merge, patient.read, patient.write, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, subscription.manage, subscription.read, support.read, support.write |
+| `auditor` | ai.audit.read, audit.read, billing.saas.read, branch.read, member.read, org.read, subscription.read |
+| `billing` | ai.copilot.use, appointment.read, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, billing.saas.read, branch.read, expense.manage, expense.read, lab.read, member.read, org.read, patient.read, pharmacy.read, report.read, subscription.read |
 | `doctor` | admission.manage, ai.copilot.use, appointment.read, bed.read, billing.read, branch.read, discharge, encounter.read, encounter.write, expense.read, inventory.read, lab.order, lab.read, lab.release, lab.verify, member.read, nursing.read, nursing.write, org.read, patient.read, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read |
 | `lab_technician` | bed.read, branch.read, lab.import, lab.order, lab.read, lab.verify, member.read, org.read, patient.read |
 | `nurse` | admission.manage, appointment.read, bed.read, branch.read, encounter.read, encounter.write, inventory.read, lab.order, lab.read, member.read, nursing.read, nursing.write, org.read, patient.read, pharmacy.read, prescription.read, queue.read, report.read |
-| `owner` | admission.manage, ai.audit.read, ai.copilot.use, ai.settings.manage, appointment.read, appointment.write, audit.read, bed.manage, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, branch.manage, branch.read, discharge, encounter.read, encounter.write, expense.manage, expense.read, inventory.manage, inventory.read, lab.import, lab.order, lab.read, lab.release, lab.verify, member.manage, member.read, nursing.read, nursing.write, org.manage, org.offboard, org.read, org.transfer_ownership, patient.merge, patient.read, patient.write, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, subscription.manage, subscription.read, support.read, support.write |
+| `owner` | admission.manage, ai.audit.read, ai.copilot.use, ai.settings.manage, appointment.read, appointment.write, audit.read, bed.manage, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, billing.saas.pay, billing.saas.read, billing.saas.refund_request, branch.manage, branch.read, discharge, encounter.read, encounter.write, expense.manage, expense.read, inventory.manage, inventory.read, lab.import, lab.order, lab.read, lab.release, lab.verify, member.manage, member.read, nursing.read, nursing.write, org.manage, org.offboard, org.read, org.transfer_ownership, patient.merge, patient.read, patient.write, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, subscription.manage, subscription.read, support.read, support.write |
 | `pharmacist` | bed.read, branch.read, inventory.read, lab.read, member.read, org.read, patient.read, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read |
 | `receptionist` | admission.manage, appointment.read, appointment.write, bed.read, billing.invoice, billing.payment, billing.read, branch.read, lab.read, member.read, org.read, patient.read, patient.write, pharmacy.read, prescription.read, queue.manage, queue.read |
 | `support` | org.read, support.read, support.write |
