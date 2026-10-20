@@ -17,14 +17,17 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'app_graph.dart';
 import 'auth/app_lock.dart' show AppLock;
 import 'boot.dart';
+import 'l10n/l10n.dart';
 import 'screens/home_screen.dart' show openHome;
 import 'screens/lock_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/recovery_screen.dart';
+import 'settings/app_settings.dart';
 
 export 'app_graph.dart';
 
@@ -33,10 +36,61 @@ Future<void> main() async {
   runApp(HmsRoot(initial: await bootDevice()));
 }
 
-ThemeData hmsTheme() => ThemeData(
-      colorSchemeSeed: const Color(0xFF0B3B5C),
-      useMaterial3: true,
-    );
+/// App theme. [rural] = Rural Clinic mode: every button, chip, icon
+/// button, list row and navigation item is at least [kRuralTouchTarget]
+/// (56 dp) tall, inputs get more padding. The larger text scale is applied
+/// by [ruralTextScale] in `MaterialApp.builder`.
+ThemeData hmsTheme({bool rural = false}) {
+  final base = ThemeData(
+    colorSchemeSeed: const Color(0xFF0B3B5C),
+    useMaterial3: true,
+  );
+  if (!rural) return base;
+  const tall = Size(kRuralTouchTarget, kRuralTouchTarget);
+  return base.copyWith(
+    materialTapTargetSize: MaterialTapTargetSize.padded,
+    visualDensity: VisualDensity.standard,
+    filledButtonTheme:
+        FilledButtonThemeData(style: FilledButton.styleFrom(minimumSize: tall)),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(minimumSize: tall)),
+    textButtonTheme:
+        TextButtonThemeData(style: TextButton.styleFrom(minimumSize: tall)),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(minimumSize: tall)),
+    iconButtonTheme:
+        IconButtonThemeData(style: IconButton.styleFrom(minimumSize: tall)),
+    inputDecorationTheme: const InputDecorationTheme(
+      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 18),
+    ),
+    listTileTheme: const ListTileThemeData(minTileHeight: kRuralTouchTarget),
+    navigationBarTheme: const NavigationBarThemeData(height: 80),
+  );
+}
+
+/// `MaterialApp.builder` for Rural Clinic mode: text at least
+/// [kRuralTextScale]× (a larger phone setting still wins).
+Widget ruralTextScale(BuildContext context, Widget? child) {
+  final media = MediaQuery.of(context);
+  return MediaQuery(
+    data: media.copyWith(
+      textScaler: media.textScaler.clamp(minScaleFactor: kRuralTextScale),
+    ),
+    child: child ?? const SizedBox.shrink(),
+  );
+}
+
+/// Delegates for the app strings plus Material/Cupertino/Widgets in
+/// English, मराठी and हिंदी.
+const List<LocalizationsDelegate<dynamic>> kLocalizationsDelegates = [
+  AppLocalizations.delegate,
+  GlobalMaterialLocalizations.delegate,
+  GlobalCupertinoLocalizations.delegate,
+  GlobalWidgetsLocalizations.delegate,
+];
+
+/// English first: it is the fallback for an unsupported device language.
+const List<Locale> kSupportedLocales = [Locale('en'), Locale('mr'), Locale('hi')];
 
 /// Chooses between the app and the store-recovery screen.
 class HmsRoot extends StatefulWidget {
@@ -56,9 +110,11 @@ class _HmsRootState extends State<HmsRoot> {
     return switch (_outcome) {
       BootReady(:final graph) => HmsApp(graph: graph),
       final BootFailed failure => MaterialApp(
-          title: 'Aditya BioNova Smart HMS',
+          onGenerateTitle: (ctx) => ctx.l10n.appTitle,
           debugShowCheckedModeBanner: false,
           theme: hmsTheme(),
+          localizationsDelegates: kLocalizationsDelegates,
+          supportedLocales: kSupportedLocales,
           home: StoreRecoveryScreen(
             failure: failure,
             onOutcome: (next) => setState(() => _outcome = next),
@@ -134,12 +190,48 @@ class _HmsAppState extends State<HmsApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return HmsMaterialApp(
+      settings: graph.settings,
       navigatorKey: _navigator,
-      title: 'Aditya BioNova Smart HMS',
-      debugShowCheckedModeBanner: false,
-      theme: hmsTheme(),
       home: StartScreen(graph: graph),
+    );
+  }
+}
+
+/// The `MaterialApp` with the device settings applied: UI language
+/// (explicit choice, else the device language, else English) and Rural
+/// Clinic mode (theme + text scale). Rebuilds when the settings change.
+class HmsMaterialApp extends StatelessWidget {
+  const HmsMaterialApp({
+    super.key,
+    required this.settings,
+    required this.home,
+    this.navigatorKey,
+  });
+
+  final AppSettings settings;
+  final Widget home;
+  final GlobalKey<NavigatorState>? navigatorKey;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: settings,
+      builder: (context, _) {
+        final rural = settings.ruralMode;
+        return MaterialApp(
+          navigatorKey: navigatorKey,
+          onGenerateTitle: (ctx) => ctx.l10n.appTitle,
+          debugShowCheckedModeBanner: false,
+          theme: hmsTheme(rural: rural),
+          // null = follow the device language (English if unsupported).
+          locale: settings.locale,
+          localizationsDelegates: kLocalizationsDelegates,
+          supportedLocales: kSupportedLocales,
+          builder: rural ? ruralTextScale : null,
+          home: home,
+        );
+      },
     );
   }
 }

@@ -12,6 +12,8 @@ import 'package:flutter/material.dart';
 
 import '../app_graph.dart';
 import '../data/directory.dart';
+import '../l10n/l10n.dart';
+import '../settings/app_settings.dart';
 import '../sync/outbox.dart';
 import '../util/dates.dart';
 
@@ -81,7 +83,7 @@ class _QueueTabState extends State<QueueTab> {
         widget.graph.directory.resolveSelection(_patientId, widget.graph.idMap);
     final branchId = _branchId;
     if (patientId == null || branchId == null) {
-      setState(() => _error = 'Pick a patient and a branch (need one sync).');
+      setState(() => _error = context.l10n.queuePickBoth);
       return;
     }
     final dedupeKey = 'queue:$patientId:${localDay()}';
@@ -100,51 +102,58 @@ class _QueueTabState extends State<QueueTab> {
     setState(() {
       _error = null;
       _notice = alreadyQueued
-          ? 'Already queued for today — duplicate prevented.'
-          : 'Saved on device — pending sync '
-              '(${outbox.count(OpStatus.pending)} in the outbox).';
+          ? context.l10n.queueDuplicate
+          : context.l10n.queueSaved(outbox.count(OpStatus.pending));
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final outbox = widget.graph.outbox;
+    final l = context.l10n;
+    final itemHeight = widget.graph.settings.ruralMode
+        ? kRuralTouchTarget + 8
+        : kMinInteractiveDimension;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         Row(
           children: [
-            Text('Offline queue entry',
-                style: Theme.of(context).textTheme.titleMedium),
-            const Spacer(),
+            Expanded(
+              child: Text(l.queueTitle,
+                  style: Theme.of(context).textTheme.titleMedium),
+            ),
             TextButton.icon(
               onPressed: _loading ? null : () => _refresh(),
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Refresh'),
+              label: Text(l.refresh),
             ),
           ],
         ),
         const SizedBox(height: 8),
-        Text('Patient', style: Theme.of(context).textTheme.labelLarge),
+        Text(l.patient, style: Theme.of(context).textTheme.labelLarge),
         DropdownButton<String>(
           key: const Key('queue-patient'),
           isExpanded: true,
+          itemHeight: itemHeight,
           value: _directory.resolveSelection(_patientId, widget.graph.idMap),
           hint: const Text('—'),
           items: [
             for (final p in _directory.patients)
               DropdownMenuItem<String>(
                 value: p['id'] as String,
-                child: Text(_directory.pickerLabel(p, widget.graph.idMap)),
+                child: Text(_directory.pickerLabel(p, widget.graph.idMap,
+                    pendingTag: l.pendingSyncTag, syncedTag: l.syncedTag)),
               ),
           ],
           onChanged: (v) => setState(() => _patientId = v),
         ),
         const SizedBox(height: 12),
-        Text('Branch', style: Theme.of(context).textTheme.labelLarge),
+        Text(l.branch, style: Theme.of(context).textTheme.labelLarge),
         DropdownButton<String>(
           key: const Key('queue-branch'),
           isExpanded: true,
+          itemHeight: itemHeight,
           value: _branchId,
           hint: const Text('—'),
           items: [
@@ -160,14 +169,16 @@ class _QueueTabState extends State<QueueTab> {
         FilledButton(
           key: const Key('queue-add'),
           onPressed: _addToQueue,
-          child: const Text('Add to queue (works offline)'),
+          child: Text(l.queueAdd),
         ),
         const SizedBox(height: 8),
         Text(
           key: const Key('outbox-counts'),
-          'Outbox — pending: ${outbox.count(OpStatus.pending)}, '
-          'failed: ${outbox.count(OpStatus.failed)}, '
-          'conflicted: ${outbox.count(OpStatus.conflicted)}',
+          l.outboxCounts(
+            outbox.count(OpStatus.pending),
+            outbox.count(OpStatus.failed),
+            outbox.count(OpStatus.conflicted),
+          ),
           style: Theme.of(context).textTheme.bodySmall,
         ),
         if (_notice != null)
@@ -188,10 +199,7 @@ class _QueueTabState extends State<QueueTab> {
           Padding(
             padding: const EdgeInsets.only(top: 16),
             child: Text(
-              _loading
-                  ? 'Loading patients…'
-                  : 'No patients cached yet — connect once to pull the '
-                      'directory, after which queue entries work offline.',
+              _loading ? l.loadingPatients : l.noPatientsCached,
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),

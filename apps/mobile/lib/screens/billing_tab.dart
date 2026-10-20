@@ -10,6 +10,8 @@ library;
 import 'package:flutter/material.dart';
 
 import '../app_graph.dart';
+import '../l10n/l10n.dart';
+import '../settings/app_settings.dart';
 import '../sync/outbox.dart';
 import '../util/dates.dart';
 
@@ -55,17 +57,17 @@ class _BillingTabState extends State<BillingTab> {
         widget.graph.directory.resolveSelection(_patientId, widget.graph.idMap);
     final description = _description.text.trim();
     if (patientId == null) {
-      setState(() => _error = 'Pick a patient first.');
+      setState(() => _error = context.l10n.pickPatientFirst);
       return;
     }
     if (description.isEmpty) {
-      setState(() => _error = 'Describe the line being billed.');
+      setState(() => _error = context.l10n.billingDescribe);
       return;
     }
     final quantity = int.tryParse(_quantity.text.trim()) ?? 0;
     final price = double.tryParse(_price.text.trim()) ?? 0;
     if (quantity < 1 || price <= 0) {
-      setState(() => _error = 'Quantity and unit price are required.');
+      setState(() => _error = context.l10n.billingQtyPrice);
       return;
     }
 
@@ -103,7 +105,7 @@ class _BillingTabState extends State<BillingTab> {
     if (existing != null && existing.id == op.id) {
       setState(() {
         _error = null;
-        _notice = 'Identical invoice already queued — duplicate prevented.';
+        _notice = context.l10n.billingDuplicate;
       });
       return;
     }
@@ -111,8 +113,7 @@ class _BillingTabState extends State<BillingTab> {
     widget.graph.scheduler.requestSync();
     setState(() {
       _error = null;
-      _notice = 'Invoice saved on device — pending sync. Totals and the '
-          'invoice number are computed by the server.';
+      _notice = context.l10n.billingSaved;
       _description.clear();
       _price.clear();
       _quantity.text = '1';
@@ -123,36 +124,43 @@ class _BillingTabState extends State<BillingTab> {
   Widget build(BuildContext context) {
     final directory = widget.graph.directory;
     final outbox = widget.graph.outbox;
+    final l = context.l10n;
+    final itemHeight = widget.graph.settings.ruralMode
+        ? kRuralTouchTarget + 8
+        : kMinInteractiveDimension;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text('Raise invoice (works offline)',
+        Text(l.billingTitle,
             style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 12),
-        Text('Patient', style: Theme.of(context).textTheme.labelLarge),
+        Text(l.patient, style: Theme.of(context).textTheme.labelLarge),
         DropdownButton<String>(
           key: const Key('billing-patient'),
           isExpanded: true,
+          itemHeight: itemHeight,
           value: directory.resolveSelection(_patientId, widget.graph.idMap),
           hint: const Text('—'),
           items: [
             for (final p in directory.patients)
               DropdownMenuItem<String>(
                 value: p['id'] as String,
-                child: Text(directory.pickerLabel(p, widget.graph.idMap)),
+                child: Text(directory.pickerLabel(p, widget.graph.idMap,
+                    pendingTag: l.pendingSyncTag, syncedTag: l.syncedTag)),
               ),
           ],
           onChanged: (v) => setState(() => _patientId = v),
         ),
         const SizedBox(height: 12),
-        Text('Line type', style: Theme.of(context).textTheme.labelLarge),
+        Text(l.billingLineType, style: Theme.of(context).textTheme.labelLarge),
         DropdownButton<String>(
           key: const Key('billing-item-type'),
           value: _itemType,
           isExpanded: true,
+          itemHeight: itemHeight,
           items: [
             for (final t in _itemTypes)
-              DropdownMenuItem(value: t, child: Text(t)),
+              DropdownMenuItem(value: t, child: Text(itemTypeLabel(l, t))),
           ],
           onChanged: (v) => setState(() => _itemType = v ?? 'consultation'),
         ),
@@ -160,7 +168,7 @@ class _BillingTabState extends State<BillingTab> {
         TextField(
           key: const Key('billing-description'),
           controller: _description,
-          decoration: const InputDecoration(labelText: 'Description'),
+          decoration: InputDecoration(labelText: l.billingDescription),
         ),
         const SizedBox(height: 12),
         Row(
@@ -170,7 +178,7 @@ class _BillingTabState extends State<BillingTab> {
                 key: const Key('billing-quantity'),
                 controller: _quantity,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Quantity'),
+                decoration: InputDecoration(labelText: l.billingQuantity),
               ),
             ),
             const SizedBox(width: 8),
@@ -180,7 +188,7 @@ class _BillingTabState extends State<BillingTab> {
                 controller: _price,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Unit price'),
+                decoration: InputDecoration(labelText: l.billingUnitPrice),
               ),
             ),
           ],
@@ -189,7 +197,7 @@ class _BillingTabState extends State<BillingTab> {
         FilledButton(
           key: const Key('billing-add'),
           onPressed: _saveInvoice,
-          child: const Text('Save invoice (works offline)'),
+          child: Text(l.billingAdd),
         ),
         if (_notice != null)
           Padding(
@@ -207,9 +215,11 @@ class _BillingTabState extends State<BillingTab> {
           ),
         const SizedBox(height: 16),
         Text(
-          'Outbox — pending: ${outbox.count(OpStatus.pending)}, '
-          'failed: ${outbox.count(OpStatus.failed)}, '
-          'conflicted: ${outbox.count(OpStatus.conflicted)}',
+          l.outboxCounts(
+            outbox.count(OpStatus.pending),
+            outbox.count(OpStatus.failed),
+            outbox.count(OpStatus.conflicted),
+          ),
           key: const Key('billing-outbox-counts'),
           style: Theme.of(context).textTheme.bodySmall,
         ),

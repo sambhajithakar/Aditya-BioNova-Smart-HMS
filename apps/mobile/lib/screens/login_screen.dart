@@ -15,8 +15,10 @@ import '../api/client.dart';
 import '../api/transport.dart';
 import '../app_graph.dart';
 import '../auth/session.dart';
+import '../l10n/l10n.dart';
 import 'home_screen.dart';
 import 'lock_screen.dart';
+import 'widgets.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.graph, this.notice});
@@ -57,15 +59,14 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   String _message(Object err) {
+    final l = context.l10n;
     if (err is ApiException) {
-      if (err.status == 429) return err.readable;
-      if (_mfa != null && err.status == 401) {
-        return 'That code was not accepted. Check the time on your phone '
-            'or use a recovery code.';
-      }
+      if (err.status == 429) return rateLimitedMessage(l, err.retryAfter);
+      if (_mfa != null && err.status == 401) return l.loginMfaRejected;
+      // The server's own detail, verbatim (it is the source of truth).
       return err.detail;
     }
-    return 'Could not reach the server. Check the connection and try again.';
+    return l.loginUnreachable;
   }
 
   Future<void> _signIn() async {
@@ -99,7 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (challenge == null) return;
     final code = _code.text.trim();
     if (code.isEmpty) {
-      setState(() => _error = 'Enter the code from your authenticator app.');
+      setState(() => _error = context.l10n.loginMfaMissing);
       return;
     }
     setState(() {
@@ -151,7 +152,12 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final mfa = _mfa != null;
+    final l = context.l10n;
     return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        actions: [LanguageMenuButton(settings: widget.graph.settings)],
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -161,13 +167,13 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Aditya BioNova Smart HMS',
+                  l.appTitle,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Doctor & field staff app',
+                  l.appSubtitle,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
@@ -187,7 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
                     autofillHints: const [AutofillHints.email],
-                    decoration: const InputDecoration(labelText: 'Email'),
+                    decoration: InputDecoration(labelText: l.loginEmail),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -195,33 +201,28 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _password,
                     obscureText: true,
                     autofillHints: const [AutofillHints.password],
-                    decoration: const InputDecoration(labelText: 'Password'),
+                    decoration: InputDecoration(labelText: l.loginPassword),
                     onSubmitted: (_) => _signIn(),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     key: const Key('login-slug'),
                     controller: _slug,
-                    decoration: const InputDecoration(
-                      labelText: 'Clinic slug (optional)',
-                    ),
+                    decoration: InputDecoration(labelText: l.loginSlug),
                   ),
                 ] else ...[
                   Text(
-                    'Two-step verification',
+                    l.loginMfaTitle,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Enter the 6-digit code from your authenticator app, or '
-                    'one of your recovery codes (xxxx-xxxx).',
-                  ),
+                  Text(l.loginMfaHelp),
                   const SizedBox(height: 12),
                   TextField(
                     key: const Key('login-mfa-code'),
                     controller: _code,
                     autofillHints: const [AutofillHints.oneTimeCode],
-                    decoration: const InputDecoration(labelText: 'Code'),
+                    decoration: InputDecoration(labelText: l.loginMfaCode),
                     onSubmitted: (_) => _verify(),
                   ),
                 ],
@@ -239,13 +240,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   FilledButton(
                     key: const Key('login-submit'),
                     onPressed: _busy ? null : _signIn,
-                    child: Text(_busy ? 'Signing in…' : 'Sign in'),
+                    child: Text(_busy ? l.loginSigningIn : l.loginSubmit),
                   )
                 else ...[
                   FilledButton(
                     key: const Key('login-mfa-submit'),
                     onPressed: _busy ? null : _verify,
-                    child: Text(_busy ? 'Verifying…' : 'Verify'),
+                    child: Text(_busy ? l.loginVerifying : l.loginVerify),
                   ),
                   TextButton(
                     key: const Key('login-mfa-back'),
@@ -256,7 +257,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               _code.clear();
                               _error = null;
                             }),
-                    child: const Text('Back'),
+                    child: Text(l.back),
                   ),
                 ],
               ],
