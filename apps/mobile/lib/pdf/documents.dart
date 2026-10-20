@@ -1,7 +1,7 @@
 /// PDF documents the app can print or share (package `pdf`, Apache-2.0).
 ///
 /// * [buildRxDraftPdf] — a PREVIEW of a prescription draft written on the
-///   device, watermarked on every page "DRAFT — not valid until signed
+///   device, watermarked on every page "DRAFT - not valid until signed
 ///   online" plus a banner. It is never a valid prescription.
 /// * [buildSignedRxPdf] — a signed prescription, built ONLY from the
 ///   server's `GET /prescriptions/{id}` answer, and only when the server
@@ -22,8 +22,9 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-/// The watermark every draft page carries (also asserted by tests).
-const String kDraftWatermark = 'DRAFT — not valid until signed online';
+/// The watermark every draft page carries (also asserted by tests). A
+/// plain hyphen: the built-in PDF font is Latin-1 only.
+const String kDraftWatermark = 'DRAFT - not valid until signed online';
 
 class RxSignatureMissing implements Exception {
   const RxSignatureMissing();
@@ -34,17 +35,28 @@ class RxSignatureMissing implements Exception {
       'as a signed prescription.';
 }
 
-/// Keep characters Helvetica (WinAnsi) can draw; others become '?'.
+/// Keep characters the built-in Helvetica can encode (Latin-1); common
+/// typographic punctuation is mapped to ASCII, anything else becomes '?'.
+/// (The `pdf` package silently DROPS a whole text run it cannot encode.)
 String pdfSafe(Object? value) {
   final s = '${value ?? ''}';
   final out = StringBuffer();
   for (final r in s.runes) {
-    final ok = (r >= 0x20 && r <= 0x7e) ||
-        (r >= 0xa0 && r <= 0xff) ||
-        const {0x2014, 0x2013, 0x2019, 0x2018, 0x201c, 0x201d, 0x2022, 0x20ac}
-            .contains(r) ||
-        r == 0x0a;
-    out.write(ok ? String.fromCharCode(r) : '?');
+    final mapped = switch (r) {
+      0x2013 || 0x2014 => '-',
+      0x2018 || 0x2019 => "'",
+      0x201c || 0x201d => '"',
+      0x2022 => '*',
+      0x20b9 => 'Rs.',
+      _ => null,
+    };
+    if (mapped != null) {
+      out.write(mapped);
+    } else if ((r >= 0x20 && r <= 0x7e) || (r >= 0xa0 && r <= 0xff) || r == 0x0a) {
+      out.writeCharCode(r);
+    } else {
+      out.write('?');
+    }
   }
   return out.toString();
 }
@@ -222,7 +234,7 @@ Future<Uint8List> buildReceiptPdf({
       margin: const pw.EdgeInsets.all(24),
       build: (ctx) => [
         _header(clinicName,
-            'Invoice ${pdfSafe(serverInvoice['invoice_number'])} · '
+            'Invoice ${pdfSafe(serverInvoice['invoice_number'])} - '
             '${pdfSafe(serverInvoice['status'])}'),
         pw.TableHelper.fromTextArray(
           headers: const ['Item', 'Qty', 'Unit price', 'Amount'],

@@ -317,8 +317,9 @@ class _MergeReviewScreenState extends State<MergeReviewScreen> {
   }
 
   Future<void> _apply() async {
-    final s = _server;
-    if (s == null) return;
+    final server = _server;
+    if (server == null) return;
+    final s = <String, dynamic>{...server};
     setState(() {
       _busy = true;
       _error = null;

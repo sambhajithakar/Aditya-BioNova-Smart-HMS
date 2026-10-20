@@ -314,7 +314,7 @@ class AppGraph {
     outbox.ownerId = null;
     sessionExpired.value = false;
     deviceRevoked.value = true;
-    await flush();
+    await _flushWrites();
   }
 
   /// Bring quarantined work back for its owner (after their sign-in).
@@ -403,6 +403,12 @@ class AppGraph {
   /// Wait until every queued local write has been sealed to storage —
   /// call before the app can be killed (backgrounding, tests, sign-out).
   Future<void> flush() async {
+    final revoking = _revoking;
+    if (revoking != null) await revoking;
+    await _flushWrites();
+  }
+
+  Future<void> _flushWrites() async {
     final pending = _pendingPersist;
     if (pending != null) await pending;
     await store.flush();
