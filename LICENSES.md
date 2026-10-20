@@ -8,21 +8,26 @@ Third-party components below remain under their own terms.
 Bahmni note). Verify again before each release: `pip-licenses` /
 `npm ls --all` (commands at the bottom).
 
-## Python — API runtime (versions as installed 2026-10-12)
+## Python — API runtime (exact versions pinned in `apps/api/requirements.lock`, 2026-10-20)
 
 | Package | Version | Licence | Commercial use |
 |---|---|---|---|
-| fastapi | 0.143.0 | MIT | ✅ |
-| starlette | 1.7.0 | BSD-3-Clause | ✅ |
+| fastapi | 0.151.0 | MIT | ✅ |
+| starlette | 1.9.0 | BSD-3-Clause | ✅ |
 | uvicorn | 0.54.0 | BSD-3-Clause | ✅ |
-| sqlalchemy | 2.1.4 | MIT | ✅ |
+| sqlalchemy | 2.1.5 | MIT | ✅ |
 | alembic | 1.20.0 | MIT | ✅ |
 | psycopg2-binary | 2.9.13 | **LGPL w/ exceptions** | ✅ dynamically linked, unmodified — compliant; re-evaluate only if statically bundling |
 | pyjwt | 2.15.1 | MIT | ✅ |
 | pydantic / pydantic-core | 2.14.1 / 2.50.1 | MIT | ✅ |
-| pydantic-settings | 2.15.0 | MIT | ✅ |
+| pydantic-settings | 2.16.0 | MIT | ✅ |
 | email-validator | 2.3.0 | Unlicense (public domain) | ✅ |
-| certifi (transitive) | 2026.7.22 | MPL-2.0 | ✅ unmodified; file-level copyleft only |
+| cryptography | 50.0.2 | Apache-2.0 OR BSD-3-Clause (dual) | ✅ (MFA secret encryption) |
+| cffi / pycparser (cryptography) | 2.1.1 / 3.11 | MIT-0 / BSD-3-Clause | ✅ |
+| opentelemetry-api / annotated-doc (fastapi) | 1.45.1 / 0.0.5 | Apache-2.0 / MIT | ✅ |
+| dnspython (email-validator) | 2.9.0 | ISC | ✅ |
+| python-dotenv / pyyaml (pydantic-settings, uvicorn) | 1.2.4 / 6.0.3 | BSD-3-Clause / MIT | ✅ |
+| certifi (transitive, dev/test via httpx) | 2026.10.19 | MPL-2.0 | ✅ unmodified; file-level copyleft only |
 | typing-extensions | 4.16.0 | PSF-2.0 | ✅ |
 | anyio / click / h11 / httpx / httpcore / idna / sniffio | — | MIT / BSD-3 | ✅ |
 | Mako / MarkupSafe (alembic) | 1.4.3 / 3.0.4 | MIT / BSD-3 | ✅ |
@@ -32,8 +37,13 @@ Bahmni note). Verify again before each release: `pip-licenses` /
 
 | Package | Version | Licence |
 |---|---|---|
-| pytest | 8.4.2 | MIT |
-| ruff | 0.17.0 | MIT |
+| pytest | 9.1.1 | MIT |
+| ruff | 0.17.1 | MIT |
+| pip-tools (lock generation, not installed in images) | 7.6.2 | BSD-3-Clause |
+
+Dev/test versions are pinned in `apps/api/requirements-dev.lock`; both
+lock files carry sha256 hashes and are regenerated with
+`scripts/lock-api-deps.sh`.
 
 ## Node — web runtime (from package-lock.json)
 

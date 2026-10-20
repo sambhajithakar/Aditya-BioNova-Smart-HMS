@@ -10,12 +10,12 @@ import uuid
 
 import psycopg2
 import pytest
-from tests.conftest import APP_PASSWORD, PG_HOST, PG_PORT, _auth
+from tests.conftest import APP_PASSWORD, PG_HOST, PG_PORT, TEST_DB, _auth
 
 
 def _app_conn():
     return psycopg2.connect(
-        host=PG_HOST, port=PG_PORT, user="hms_app", password=APP_PASSWORD, dbname="hms_test"
+        host=PG_HOST, port=PG_PORT, user="hms_app", password=APP_PASSWORD, dbname=TEST_DB
     )
 
 
@@ -195,7 +195,7 @@ def test_audit_events_append_only(org_a):
 
     # --- table owner: trigger raises ---
     admin = psycopg2.connect(
-        host=PG_HOST, port=PG_PORT, user=PG_SUPERUSER, dbname="hms_test"
+        host=PG_HOST, port=PG_PORT, user=PG_SUPERUSER, dbname=TEST_DB
     )
     admin.autocommit = True
     acur = admin.cursor()
