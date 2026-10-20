@@ -7,11 +7,13 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PatientPicker } from "@/components/PatientPicker";
+import { SlotSuggestions } from "@/components/SlotSuggestions";
+import Link from "next/link";
 import { ApiError, Appointment, Branch, PageOf, Patient, api } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { useLang } from "@/lib/lang";
 import { useInFlight } from "@/lib/idempotency";
-import { defaultBranchId, useMe } from "@/lib/me";
+import { defaultBranchId, hasPermission, useMe } from "@/lib/me";
 
 const EMPTY = { patient_id: "", branch_id: "", date: "", time: "", minutes: "30", reason: "" };
 
@@ -140,6 +142,11 @@ function AppointmentsBody() {
                 onChange={(e) => setForm({ ...form, reason: e.target.value })}
               />
             </div>
+            <SlotSuggestions
+              branchId={form.branch_id}
+              date={form.date}
+              onPick={(time, minutes) => setForm((f) => ({ ...f, time, minutes: String(minutes) }))}
+            />
             <button className="primary" type="submit" style={{ alignSelf: "end" }} disabled={busy}>
               {t("createAppointment", lang)}
             </button>
@@ -166,6 +173,11 @@ function AppointmentsBody() {
                   <td>{a.reason || "—"}</td>
                   <td>{a.status}</td>
                   <td>
+                    {a.status === "scheduled" && hasPermission(me, "checkin.manage") && (
+                      <Link href={`/checkin/qr?appointment=${a.id}`} style={{ marginRight: "0.5rem" }}>
+                        {t("checkinQrLink", lang)}
+                      </Link>
+                    )}
                     {(a.status === "scheduled" || a.status === "checked_in") && (
                       <button
                         className="secondary"
