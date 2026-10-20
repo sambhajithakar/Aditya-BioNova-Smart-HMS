@@ -116,6 +116,8 @@ class User(Base):
     is_superadmin: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false")
     )
+    # medical council registration (printed on prescriptions; M7.0)
+    registration_number: Mapped[str | None] = mapped_column(String(60), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=now()
     )
@@ -209,7 +211,7 @@ class RefreshSession(Base):
     id: Mapped[UUID_PK] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    family_id: Mapped[UUID_PK] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    family_id: Mapped[UUID_PK] = mapped_column(UUID(as_uuid=True), nullable=False)
     user_id: Mapped[UUID_PK] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -228,6 +230,7 @@ class RefreshSession(Base):
 
     __table_args__ = (
         Index("ix_auth_sessions_user_org", "user_id", "organization_id"),
+        Index("ix_auth_sessions_family", "family_id"),
     )
 
 
@@ -311,6 +314,7 @@ class Patient(Base):
         UniqueConstraint("organization_id", "uhid", name="uq_patient_org_uhid"),
         Index("ix_patients_org_created", "organization_id", "created_at"),
         Index("ix_patients_org_phone", "organization_id", "phone"),
+        Index("ix_patients_org_name", "organization_id", text("lower(full_name)")),
         CheckConstraint(
             "gender IN ('male','female','other','unknown')", name="ck_patient_gender"
         ),
@@ -371,6 +375,8 @@ class Appointment(Base):
         ),
         Index("ix_appt_org_starts", "organization_id", "starts_at"),
         Index("ix_appt_org_patient", "organization_id", "patient_id"),
+        Index("ix_appt_org_provider_starts", "organization_id",
+              "provider_user_id", "starts_at"),
     )
 
 
@@ -442,6 +448,11 @@ class OpdQueueEntry(Base):
         CheckConstraint("priority IN ('normal','urgent')", name="ck_queue_priority"),
         Index("ix_queue_org_date", "organization_id", "service_date"),
         Index("ix_queue_org_status", "organization_id", "status"),
+        # one ACTIVE entry per patient per service day (0010)
+        Index("uq_queue_one_active", "organization_id", "patient_id",
+              "service_date", unique=True,
+              postgresql_where=text(
+                  "status IN ('waiting', 'called', 'in_consultation')")),
     )
 
 
@@ -546,6 +557,8 @@ class Encounter(Base):
         CheckConstraint("status IN ('open','completed')", name="ck_enc_status"),
         Index("ix_enc_org_patient", "organization_id", "patient_id"),
         Index("ix_enc_org_status", "organization_id", "status"),
+        Index("uq_enc_one_open", "organization_id", "patient_id", unique=True,
+              postgresql_where=text("status = 'open'")),
     )
 
 
@@ -663,7 +676,7 @@ class DrugCatalog(Base):
     id: Mapped[UUID_PK] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    generic_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    generic_name: Mapped[str] = mapped_column(String(200), nullable=False, unique=True)
     brand_hint: Mapped[str] = mapped_column(
         String(200), nullable=False, default="", server_default=""
     )
@@ -791,10 +804,17 @@ class PrescriptionItem(Base):
     seq: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )
+    # structured units the pharmacy may dispense in total (NULL = the item
+    # may be dispensed exactly once, any quantity) — M7.0 / H4
+    dispense_quantity: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     __table_args__ = (
         CheckConstraint(
             "duration_days BETWEEN 1 AND 365", name="ck_rxitem_duration"
+        ),
+        CheckConstraint(
+            "dispense_quantity IS NULL OR dispense_quantity BETWEEN 1 AND 10000",
+            name="ck_rxitem_dispense_qty",
         ),
         CheckConstraint("seq >= 0", name="ck_rxitem_seq"),
         Index("ix_rxitem_org_rx", "organization_id", "prescription_id"),
@@ -871,6 +891,10 @@ class Invoice(Base):
                         "AND total >= 0 AND amount_paid >= 0",
                         name="ck_inv_amounts_nonneg"),
         CheckConstraint("discount <= subtotal", name="ck_inv_discount_bound"),
+        # never over-settled (0010): concurrent/sandbox payments cannot push
+        # amount_paid past the invoice total
+        CheckConstraint("amount_paid >= 0 AND amount_paid <= total",
+                        name="ck_inv_amount_paid_bound"),
         Index("ix_inv_org_patient", "organization_id", "patient_id"),
         Index("ix_inv_org_status", "organization_id", "status"),
     )
@@ -1057,6 +1081,17 @@ class LedgerEntry(Base):
                         name="ck_ledger_direction"),
         CheckConstraint("amount > 0", name="ck_ledger_amount_positive"),
         Index("ix_ledger_org_invoice", "organization_id", "invoice_id", "id"),
+        # double-posting backstops (0006)
+        Index("uq_ledger_charge_per_invoice", "invoice_id", unique=True,
+              postgresql_where=text("entry_type = 'charge'")),
+        Index("uq_ledger_payment_once", "payment_id", unique=True,
+              postgresql_where=text(
+                  "payment_id IS NOT NULL AND entry_type = 'payment'")),
+        Index("uq_ledger_refund_once", "refund_id", unique=True,
+              postgresql_where=text(
+                  "refund_id IS NOT NULL AND entry_type = 'refund'")),
+        Index("uq_ledger_void_per_invoice", "invoice_id", unique=True,
+              postgresql_where=text("entry_type = 'adjustment'")),
         PrimaryKeyConstraint("id"),
     )
 
@@ -1520,6 +1555,56 @@ class LabResult(Base):
         ),
         Index("ix_labresult_org_order", "organization_id", "order_id"),
         Index("ix_labresult_org_status", "organization_id", "status"),
+        # exactly one live result per test per order (amendments supersede)
+        Index("uq_labresult_live_per_test", "order_id", "test_id", unique=True,
+              postgresql_where=text("status <> 'superseded'")),
+    )
+
+
+class LabOrderItem(Base):
+    """One ordered test on a lab order (M7.0 / C2).
+
+    Status: ordered -> resulted (a live result exists) | cancelled (order
+    cancelled). Rows are permanent; test/order are frozen by trigger, and an
+    order can only be released once every non-cancelled item has a live
+    released result (``trg_laborder_release_complete``).
+    """
+
+    __tablename__ = "lab_order_items"
+
+    id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    organization_id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    order_id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("lab_orders.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    test_id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("lab_test_catalog.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="ordered", server_default="ordered"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=now()
+    )
+
+    __table_args__ = (
+        UniqueConstraint("order_id", "test_id", name="uq_laborderitem_test"),
+        CheckConstraint("status IN ('ordered','resulted','cancelled')",
+                        name="ck_laborderitem_status"),
+        Index("ix_laborderitem_org_order", "organization_id", "order_id"),
     )
 
 
@@ -1700,6 +1785,11 @@ class Admission(Base):
         Index("ix_admissions_org_status", "organization_id", "status"),
         Index("ix_admissions_org_patient", "organization_id", "patient_id"),
         Index("ix_admissions_org_bed", "organization_id", "bed_id"),
+        # derived occupancy: one admitted row per bed and per patient (0008)
+        Index("uq_admission_bed_occupied", "bed_id", unique=True,
+              postgresql_where=text("status = 'admitted'")),
+        Index("uq_admission_patient_active", "patient_id", unique=True,
+              postgresql_where=text("status = 'admitted'")),
     )
 
 
