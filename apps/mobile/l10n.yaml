@@ -1,0 +1,8 @@
+# gen-l10n: English is the template; मराठी (mr) and हिंदी (hi) must carry
+# exactly the same keys (enforced by test/l10n_test.dart).
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+nullable-getter: false
+required-resource-attributes: false

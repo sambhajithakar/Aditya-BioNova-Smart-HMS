@@ -123,13 +123,19 @@ class DirectoryCache {
 
   /// Picker label: server patients by UHID + name; device-registered ones
   /// flagged "(pending sync)" until the server has accepted them.
-  String pickerLabel(Map<String, dynamic> p, IdMap idMap) {
+  /// The tags are passed in already translated by the UI.
+  String pickerLabel(
+    Map<String, dynamic> p,
+    IdMap idMap, {
+    String pendingTag = '(pending sync)',
+    String syncedTag = '(synced)',
+  }) {
     final id = p['id'] as String? ?? '';
     if (p['local'] == true) {
       final name = (p['full_name'] as String?) ?? '';
       return idMap.serverIdOf(id) == null
-          ? '$name (pending sync)'
-          : '$name (synced)';
+          ? '$name $pendingTag'
+          : '$name $syncedTag';
     }
     return patientLabel(id);
   }

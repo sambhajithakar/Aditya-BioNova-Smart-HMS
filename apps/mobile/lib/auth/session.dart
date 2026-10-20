@@ -12,6 +12,8 @@ library;
 
 import 'dart:convert';
 
+import 'features.dart';
+
 abstract interface class TokenStore {
   Future<String?> read(String key);
 
@@ -46,6 +48,8 @@ class SessionProfile {
     this.organizationId = '',
     this.organizationName = '',
     this.role = '',
+    this.features,
+    this.edition,
   });
 
   factory SessionProfile.fromJson(Map<String, dynamic> json) => SessionProfile(
@@ -55,6 +59,10 @@ class SessionProfile {
         organizationId: json['organizationId'] as String? ?? '',
         organizationName: json['organizationName'] as String? ?? '',
         role: json['role'] as String? ?? '',
+        features: json['features'] is List
+            ? (json['features'] as List).whereType<String>().toList()
+            : null,
+        edition: json['edition'] as String?,
       );
 
   /// Build from the API's `AuthSessionOut` body (login / MFA verify).
@@ -69,6 +77,8 @@ class SessionProfile {
       organizationId: org is Map ? (org['id'] as String?) ?? '' : '',
       organizationName: org is Map ? (org['name'] as String?) ?? '' : '',
       role: (body['role'] as String?) ?? '',
+      features: ServerFeatures.fromJson(body).keys?.toList(),
+      edition: ServerFeatures.fromJson(body).edition,
     );
   }
 
@@ -79,6 +89,32 @@ class SessionProfile {
   final String organizationName;
   final String role;
 
+  /// Feature keys the server reported (`/auth/me` `features`); null when it
+  /// did not report any — every feature is then treated as enabled.
+  final List<String>? features;
+
+  /// Product edition reported by the server, if any.
+  final String? edition;
+
+  /// The feature set to gate the UI with (works offline after a restart).
+  ServerFeatures get serverFeatures => ServerFeatures(
+        keys: features?.toSet(),
+        edition: edition,
+      );
+
+  /// A copy carrying what `GET /auth/me` just reported.
+  SessionProfile withServerInfo({String? role, ServerFeatures? features}) =>
+      SessionProfile(
+        userId: userId,
+        email: email,
+        fullName: fullName,
+        organizationId: organizationId,
+        organizationName: organizationName,
+        role: role ?? this.role,
+        features: features == null ? this.features : features.keys?.toList(),
+        edition: features == null ? edition : features.edition,
+      );
+
   Map<String, dynamic> toJson() => {
         'userId': userId,
         'email': email,
@@ -86,6 +122,8 @@ class SessionProfile {
         'organizationId': organizationId,
         'organizationName': organizationName,
         'role': role,
+        'features': ?features,
+        'edition': ?edition,
       };
 }
 
@@ -115,6 +153,14 @@ class Session {
       _profile = profile;
       _profileLoaded = true;
     }
+  }
+
+  /// Replace the stored profile (e.g. after `/auth/me` reported a new role
+  /// or feature set) without touching the tokens.
+  Future<void> updateProfile(SessionProfile profile) async {
+    await _store.write(profileKey, jsonEncode(profile.toJson()));
+    _profile = profile;
+    _profileLoaded = true;
   }
 
   /// Persist a rotated token pair (refresh flow) without touching the

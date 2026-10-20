@@ -25,6 +25,14 @@ switched by the role the server reports on `GET /auth/me`.
 | Restart recovery | Outbox, directory cache, id map and Rx drafts are persisted on every change; `AppGraph.open()` restores them at start-up |
 | Signing a prescription | Online-only on purpose: the API's blocking allergy check and the `prescription.sign` permission are server-side. An offline draft can never become a signed prescription |
 
+## Languages, Rural Clinic mode, server features
+
+| Concern | Implementation |
+| --- | --- |
+| UI languages | English, मराठी, हिंदी via `flutter gen-l10n` (`l10n.yaml`, `lib/l10n/app_{en,mr,hi}.arb`, generated `app_localizations*.dart`). Screens use `context.l10n`. Default = device language (English if unsupported); picker on the login and home screens, stored in the local store's `prefs` section (kept across sign-out). Drug names, doses, frequency codes (OD/BD/TDS…), UHIDs and server error details are never translated. `test/l10n_test.dart` enforces identical keys / placeholders and no empty values |
+| Rural Clinic mode | Home ⋮ menu toggle, persisted. ≥ 56 dp touch targets, text ≥ 1.25×, four-step navigation Register → Queue → Fast Rx → Bill (Sync centre in the app bar with a pending badge), one-tap frequency / duration chips on Fast Rx. Same tab widgets, outbox and sync engine — no fork |
+| Server features | `GET /auth/me` `features: [key]` + `edition`. Queue ← `opd_queue`, Rx ← `consultation` (and the prescribing role), Billing ← `billing`, dispense quantity ← `pharmacy`; without `mobile_offline` only the Sync centre remains, with a banner. **No `features` field = everything enabled** (older servers). The last reported set is stored with the profile so an offline start honours it |
+
 ## Layout
 
 ```
@@ -35,6 +43,9 @@ lib/
   api/                   transport (ApiTransport, timeouts) + HmsClient (MFA, refresh)
   auth/session.dart      TokenStore abstraction + session profile
   auth/app_lock.dart     PIN lock (PBKDF2 hash, inactivity, lockout)
+  auth/features.dart     server feature keys / edition (`/auth/me`)
+  settings/app_settings.dart  language + Rural Clinic mode (persisted)
+  l10n/                  ARB catalogues (en, mr, hi) + generated code
   store/local_store.dart LocalStore, MemoryLocalStore, EncryptedFileStore (AES-GCM)
   store/platform_stores.dart  SecureTokenStore, SecureKeyProvider (Keystore)
   data/directory.dart    cached patients / branches / drug catalog
@@ -72,6 +83,9 @@ transfer are disabled (`allowBackup=false` + exclude-everything rules — the
 Keystore-sealed store cannot be decrypted on another device), and cleartext
 traffic is refused outside debug builds.
 
+Full Android build steps, signing-key management and the device QA
+checklist: [`docs/ANDROID_BUILD.md`](../../docs/ANDROID_BUILD.md).
+
 ## Release signing (keys never committed)
 
 `android/app/build.gradle.kts` reads `android/key.properties`; that file and
@@ -97,10 +111,12 @@ flutter build apk --release
 
 ## Not yet done (labelled, not claimed)
 
-- No Android SDK was available while building M7.0: the release APK, the
-  manifest merge and the network security config have NOT been built or
-  run on a device; they are covered by static tests only.
-- i18n (मराठी / हिंदी) for the mobile UI is pending — strings are English.
+- No Android SDK was available (`dl.google.com` is blocked by the build
+  container's egress policy, see `docs/ANDROID_BUILD.md`): the release
+  APK, the manifest merge and the network security config have NOT been
+  built or run on a device; they are covered by static tests only.
+- The mr / hi translations have not yet been reviewed by native-speaking
+  clinic staff; the Android launcher label stays "Aditya BioNova HMS".
 - MFA enrolment, password change and session management are web-only; the
   app only completes an MFA sign-in.
 - On-device/emulator runs: airplane-mode matrix, restart recovery and

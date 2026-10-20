@@ -7,20 +7,53 @@
 /// permission, so the sign button appears only once the server has
 /// accepted the draft (its id arrives through the sync engine's id map).
 /// An offline draft can therefore never become a signed prescription.
+///
+/// Rural Clinic mode adds one-tap chips for the common frequencies (the
+/// standard OD / BD / TDS / QID / HS / SOS codes, with their meaning in the
+/// UI language as a tooltip) and durations, so a dose is the only thing
+/// that still needs typing. The chips only fill the same fields; the draft,
+/// its dedupe key and the sync path are unchanged.
 library;
 
 import 'package:flutter/material.dart';
 
 import '../app_graph.dart';
 import '../data/directory.dart';
+import '../l10n/l10n.dart';
+import '../settings/app_settings.dart';
 import '../sync/outbox.dart';
 import '../util/dates.dart';
 import 'widgets.dart';
 
+/// Frequency codes offered as quick picks (kept untranslated, as written
+/// on prescriptions).
+const List<String> kQuickFrequencies = ['OD', 'BD', 'TDS', 'QID', 'HS', 'SOS'];
+
+/// Durations (days) offered as quick picks.
+const List<int> kQuickDurations = [3, 5, 7, 10, 14, 30];
+
+String frequencyMeaning(AppLocalizations l, String code) => switch (code) {
+      'OD' => l.freqOD,
+      'BD' => l.freqBD,
+      'TDS' => l.freqTDS,
+      'QID' => l.freqQID,
+      'HS' => l.freqHS,
+      'SOS' => l.freqSOS,
+      _ => code,
+    };
+
 class RxTab extends StatefulWidget {
-  const RxTab({super.key, required this.graph});
+  const RxTab({
+    super.key,
+    required this.graph,
+    this.showDispenseQuantity = true,
+  });
 
   final AppGraph graph;
+
+  /// False when the server reports no `pharmacy` feature: there is no
+  /// dispensing to cap, so the optional quantity field is hidden.
+  final bool showDispenseQuantity;
 
   @override
   State<RxTab> createState() => _RxTabState();
@@ -85,14 +118,14 @@ class _RxTabState extends State<RxTab> {
   void _addItem() {
     final drugId = _drugId;
     if (drugId == null) {
-      setState(() => _error = 'No drug catalog cached yet — connect once.');
+      setState(() => _error = context.l10n.rxNoCatalog);
       return;
     }
     final dose = _dose.text.trim();
     final frequency = _frequency.text.trim();
     final duration = int.tryParse(_duration.text.trim()) ?? 0;
     if (dose.isEmpty || frequency.isEmpty || duration < 1) {
-      setState(() => _error = 'Dose, frequency and duration are required.');
+      setState(() => _error = context.l10n.rxRequired);
       return;
     }
     // Optional units to dispense (API: 1..10000). Blank = not specified.
@@ -100,8 +133,7 @@ class _RxTabState extends State<RxTab> {
     final dispenseQty = qtyText.isEmpty ? null : int.tryParse(qtyText);
     if (qtyText.isNotEmpty &&
         (dispenseQty == null || dispenseQty < 1 || dispenseQty > 10000)) {
-      setState(() => _error = 'Quantity to dispense must be 1–10000 units '
-          '(or leave it blank).');
+      setState(() => _error = context.l10n.rxDispenseRange);
       return;
     }
     final drug = widget.graph.directory.drugs.firstWhere(
@@ -129,11 +161,11 @@ class _RxTabState extends State<RxTab> {
     final patientId =
         widget.graph.directory.resolveSelection(_patientId, widget.graph.idMap);
     if (patientId == null) {
-      setState(() => _error = 'Pick a patient first.');
+      setState(() => _error = context.l10n.pickPatientFirst);
       return;
     }
     if (_items.isEmpty) {
-      setState(() => _error = 'Add at least one medicine.');
+      setState(() => _error = context.l10n.rxAddOne);
       return;
     }
 
@@ -173,7 +205,7 @@ class _RxTabState extends State<RxTab> {
     if (op.localRef != localRef) {
       setState(() {
         _error = null;
-        _notice = 'Identical draft already queued — duplicate prevented.';
+        _notice = context.l10n.rxDuplicate;
       });
       return;
     }
@@ -188,8 +220,7 @@ class _RxTabState extends State<RxTab> {
     if (!mounted) return;
     setState(() {
       _error = null;
-      _notice = 'Draft saved on device — pending sync. Sign it after it '
-          'syncs (the allergy check runs on the server).';
+      _notice = context.l10n.rxSaved;
       _items.clear();
       _diagnosis.clear();
     });
@@ -203,7 +234,7 @@ class _RxTabState extends State<RxTab> {
           .request('POST', '/prescriptions/$serverId/sign');
       await widget.graph.drafts.markSigned(localRef);
       if (!mounted) return;
-      setState(() => _notice = 'Prescription signed.');
+      setState(() => _notice = context.l10n.rxSigned);
     } catch (err) {
       if (!mounted) return;
       setState(() => _error = err.toString());
@@ -214,46 +245,53 @@ class _RxTabState extends State<RxTab> {
   Widget build(BuildContext context) {
     final directory = widget.graph.directory;
     final drafts = widget.graph.drafts.drafts;
+    final l = context.l10n;
+    final rural = widget.graph.settings.ruralMode;
+    final itemHeight =
+        rural ? kRuralTouchTarget + 8 : kMinInteractiveDimension;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         Row(
           children: [
-            Text('Fast Rx draft (works offline)',
-                style: Theme.of(context).textTheme.titleMedium),
-            const Spacer(),
+            Expanded(
+              child: Text(l.rxTitle,
+                  style: Theme.of(context).textTheme.titleMedium),
+            ),
             TextButton.icon(
               onPressed: () async {
                 await _refreshCatalog();
                 await _adopt();
               },
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Refresh'),
+              label: Text(l.refresh),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        Text('Patient', style: Theme.of(context).textTheme.labelLarge),
+        Text(l.patient, style: Theme.of(context).textTheme.labelLarge),
         DropdownButton<String>(
           key: const Key('rx-patient'),
           isExpanded: true,
+          itemHeight: itemHeight,
           value: directory.resolveSelection(_patientId, widget.graph.idMap),
           hint: const Text('—'),
           items: [
             for (final p in directory.patients)
               DropdownMenuItem<String>(
                 value: p['id'] as String,
-                child: Text(directory.pickerLabel(p, widget.graph.idMap)),
+                child: Text(directory.pickerLabel(p, widget.graph.idMap,
+                    pendingTag: l.pendingSyncTag, syncedTag: l.syncedTag)),
               ),
           ],
           onChanged: (v) => setState(() => _patientId = v),
         ),
         const SizedBox(height: 12),
-        Text('Medicine (validated catalog)',
-            style: Theme.of(context).textTheme.labelLarge),
+        Text(l.rxMedicine, style: Theme.of(context).textTheme.labelLarge),
         DropdownButton<String>(
           key: const Key('rx-drug'),
           isExpanded: true,
+          itemHeight: itemHeight,
           value: _drugId,
           hint: const Text('—'),
           items: [
@@ -272,7 +310,7 @@ class _RxTabState extends State<RxTab> {
               child: TextField(
                 key: const Key('rx-dose'),
                 controller: _dose,
-                decoration: const InputDecoration(labelText: 'Dose (500 mg)'),
+                decoration: InputDecoration(labelText: l.rxDose),
               ),
             ),
             const SizedBox(width: 8),
@@ -280,37 +318,39 @@ class _RxTabState extends State<RxTab> {
               child: TextField(
                 key: const Key('rx-frequency'),
                 controller: _frequency,
-                decoration: const InputDecoration(labelText: 'Frequency (BD)'),
+                decoration: InputDecoration(labelText: l.rxFrequency),
               ),
             ),
             const SizedBox(width: 8),
             SizedBox(
-              width: 80,
+              width: rural ? 96 : 80,
               child: TextField(
                 key: const Key('rx-duration'),
                 controller: _duration,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Days'),
+                decoration: InputDecoration(labelText: l.rxDays),
               ),
             ),
           ],
         ),
-        TextField(
-          key: const Key('rx-dispense-qty'),
-          controller: _dispenseQty,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Units to dispense (optional)',
-            helperText: 'Pharmacy cannot hand out more than this in total',
+        if (rural) ..._quickPicks(l),
+        if (widget.showDispenseQuantity)
+          TextField(
+            key: const Key('rx-dispense-qty'),
+            controller: _dispenseQty,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: l.rxDispense,
+              helperText: l.rxDispenseHelp,
+            ),
           ),
-        ),
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
             key: const Key('rx-add-item'),
             onPressed: _addItem,
             icon: const Icon(Icons.add, size: 18),
-            label: const Text('Add medicine'),
+            label: Text(l.rxAddItem),
           ),
         ),
         for (final item in _items)
@@ -319,21 +359,27 @@ class _RxTabState extends State<RxTab> {
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.medication_outlined, size: 18),
             title: Text(
-              '${item['drug_name']} — ${item['dose']}, ${item['frequency']}, '
-              '${item['duration_days']} days'
-              '${item['dispense_quantity'] != null ? ' · dispense ${item['dispense_quantity']}' : ''}',
+              l.rxItemLine(
+                    '${item['drug_name']}',
+                    '${item['dose']}',
+                    '${item['frequency']}',
+                    '${item['duration_days']}',
+                  ) +
+                  (item['dispense_quantity'] != null
+                      ? l.rxItemDispense('${item['dispense_quantity']}')
+                      : ''),
             ),
           ),
         TextField(
           key: const Key('rx-diagnosis'),
           controller: _diagnosis,
-          decoration: const InputDecoration(labelText: 'Diagnosis (text)'),
+          decoration: InputDecoration(labelText: l.rxDiagnosis),
         ),
         const SizedBox(height: 12),
         FilledButton(
           key: const Key('rx-save'),
           onPressed: _saveDraft,
-          child: const Text('Save draft (works offline)'),
+          child: Text(l.rxSave),
         ),
         if (_notice != null)
           Padding(
@@ -350,19 +396,54 @@ class _RxTabState extends State<RxTab> {
             ),
           ),
         const SizedBox(height: 20),
-        Text('Drafts on this device',
-            style: Theme.of(context).textTheme.titleSmall),
+        Text(l.rxDrafts, style: Theme.of(context).textTheme.titleSmall),
         for (final draft in drafts) _draftCard(draft),
         if (drafts.isEmpty)
           Text(
-            'No drafts yet — they are kept here with their sync state.',
+            l.rxNoDrafts,
             style: Theme.of(context).textTheme.bodySmall,
           ),
       ],
     );
   }
 
+  /// Rural Clinic mode: one tap fills frequency / days.
+  List<Widget> _quickPicks(AppLocalizations l) => [
+        const SizedBox(height: 8),
+        Text(l.rxQuickFrequency, style: Theme.of(context).textTheme.labelLarge),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            for (final code in kQuickFrequencies)
+              QuickPickChip(
+                key: Key('rx-freq-$code'),
+                label: code,
+                tooltip: frequencyMeaning(l, code),
+                selected: _frequency.text.trim() == code,
+                onSelected: () => setState(() => _frequency.text = code),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(l.rxQuickDuration, style: Theme.of(context).textTheme.labelLarge),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            for (final days in kQuickDurations)
+              QuickPickChip(
+                key: Key('rx-days-$days'),
+                label: l.daysCount(days),
+                selected: _duration.text.trim() == '$days',
+                onSelected: () => setState(() => _duration.text = '$days'),
+              ),
+          ],
+        ),
+      ];
+
   Widget _draftCard(Map<String, dynamic> draft) {
+    final l = context.l10n;
     final localRef = draft['localRef'] as String? ?? '';
     final serverId = draft['serverId'] as String?;
     final signed = draft['signed'] == true;
@@ -390,9 +471,15 @@ class _RxTabState extends State<RxTab> {
             Text(
               [
                 for (final item in (draft['items'] as List<dynamic>? ?? const []))
-                  '${item['drug_name']} ${item['dose']} ${item['frequency']} '
-                  '${item['duration_days']}d'
-                  '${item['dispense_quantity'] != null ? ' ×${item['dispense_quantity']}' : ''}',
+                  l.rxDraftLine(
+                        '${item['drug_name']}',
+                        '${item['dose']}',
+                        '${item['frequency']}',
+                        '${item['duration_days']}',
+                      ) +
+                      (item['dispense_quantity'] != null
+                          ? ' ×${item['dispense_quantity']}'
+                          : ''),
               ].join('\n'),
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -400,18 +487,22 @@ class _RxTabState extends State<RxTab> {
             Row(
               children: [
                 if (signed)
-                  StateChip(label: 'Signed', tone: Theme.of(context).colorScheme.primary)
+                  StateChip(
+                      label: l.stateSigned,
+                      tone: Theme.of(context).colorScheme.primary)
                 else if (conflicted)
-                  const StateChip(
-                      label: 'Conflict — needs you', tone: Color(0xFFB3261E))
+                  StateChip(
+                      label: l.stateConflict, tone: const Color(0xFFB3261E))
                 else if (pending)
-                  const StateChip(
-                      label: 'Saved on device · Pending sync', tone: Color(0xFF0B5D8A))
+                  StateChip(
+                      label: l.stateSavedPending,
+                      tone: const Color(0xFF0B5D8A))
                 else if (discarded)
-                  const StateChip(
-                      label: 'Discarded — not sent', tone: Color(0xFF6B6B6B))
+                  StateChip(
+                      label: l.stateDiscarded, tone: const Color(0xFF6B6B6B))
                 else
-                  const StateChip(label: 'Synced', tone: Color(0xFF1B7F5A)),
+                  StateChip(
+                      label: l.stateSynced, tone: const Color(0xFF1B7F5A)),
                 const Spacer(),
                 if (!signed && !discarded)
                   TextButton(
@@ -420,8 +511,8 @@ class _RxTabState extends State<RxTab> {
                         ? () => _sign(localRef, serverId)
                         : null,
                     child: Text(pending || serverId == null
-                        ? 'Sign (after sync)'
-                        : 'Sign'),
+                        ? l.rxSignAfterSync
+                        : l.rxSign),
                   ),
               ],
             ),

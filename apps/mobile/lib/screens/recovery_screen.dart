@@ -8,6 +8,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../boot.dart';
+import '../l10n/l10n.dart';
 
 class StoreRecoveryScreen extends StatefulWidget {
   const StoreRecoveryScreen({
@@ -39,22 +40,17 @@ class _StoreRecoveryScreenState extends State<StoreRecoveryScreen> {
   Future<void> _confirmReset() async {
     final reset = widget.failure.reset;
     if (reset == null) return;
+    final l = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Reset local data?'),
-        content: const Text(
-          'Everything stored on this device by the app is deleted: '
-          'registrations, queue entries, invoices and prescription drafts '
-          'that have not synced are LOST and cannot be recovered. '
-          'Data already on the server is not affected. You will sign in '
-          'again afterwards.',
-        ),
+        title: Text(l.recoveryResetTitle),
+        content: Text(l.recoveryResetBody),
         actions: [
           TextButton(
             key: const Key('recovery-reset-cancel'),
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l.cancel),
           ),
           FilledButton(
             key: const Key('recovery-reset-confirm'),
@@ -62,7 +58,7 @@ class _StoreRecoveryScreenState extends State<StoreRecoveryScreen> {
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete local data'),
+            child: Text(l.recoveryResetConfirm),
           ),
         ],
       ),
@@ -73,6 +69,7 @@ class _StoreRecoveryScreenState extends State<StoreRecoveryScreen> {
   @override
   Widget build(BuildContext context) {
     final canReset = widget.failure.reset != null;
+    final l = context.l10n;
     return Scaffold(
       body: SafeArea(
         child: ListView(
@@ -82,27 +79,16 @@ class _StoreRecoveryScreenState extends State<StoreRecoveryScreen> {
                 size: 48, color: Theme.of(context).colorScheme.error),
             const SizedBox(height: 12),
             Text(
-              canReset
-                  ? 'Offline data could not be unlocked'
-                  : 'This build cannot start',
+              canReset ? l.recoveryTitle : l.recoveryTitleFatal,
               key: const Key('recovery-title'),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 12),
-            if (canReset)
-              const Text(
-                'The work saved on this device is encrypted with a key kept '
-                'in this phone\'s secure hardware. The key or the data could '
-                'not be read — this happens after restoring the app onto a '
-                'new phone, or if the stored file was damaged.\n\n'
-                'The app will not continue without its offline storage, '
-                'because new work would silently be lost. Try again first; '
-                'if it keeps failing, reset the local data.',
-              ),
+            if (canReset) Text(l.recoveryBody),
             const SizedBox(height: 12),
             Text(
-              'Details: ${widget.failure.error}',
+              l.recoveryDetails('${widget.failure.error}'),
               key: const Key('recovery-details'),
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -110,7 +96,7 @@ class _StoreRecoveryScreenState extends State<StoreRecoveryScreen> {
             FilledButton(
               key: const Key('recovery-retry'),
               onPressed: _busy ? null : () => _run(widget.failure.retry),
-              child: const Text('Try again'),
+              child: Text(l.recoveryRetry),
             ),
             if (canReset) ...[
               const SizedBox(height: 8),
@@ -120,9 +106,7 @@ class _StoreRecoveryScreenState extends State<StoreRecoveryScreen> {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Theme.of(context).colorScheme.error,
                 ),
-                child: const Text(
-                  'Reset local data (unsynced items will be lost)',
-                ),
+                child: Text(l.recoveryReset),
               ),
             ],
           ],

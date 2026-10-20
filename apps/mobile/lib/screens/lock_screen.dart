@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 
 import '../app_graph.dart';
 import '../auth/app_lock.dart';
+import '../l10n/l10n.dart';
 import 'login_screen.dart';
 
 enum LockMode { setPin, unlock }
@@ -67,11 +68,11 @@ class _LockScreenState extends State<LockScreen> {
   Future<void> _setPin() async {
     final pin = _pin.text.trim();
     if (!AppLock.pinPattern.hasMatch(pin)) {
-      setState(() => _error = 'Use 4 to 8 digits.');
+      setState(() => _error = context.l10n.pinRule);
       return;
     }
     if (pin != _confirm.text.trim()) {
-      setState(() => _error = 'The two PINs do not match.');
+      setState(() => _error = context.l10n.pinMismatch);
       return;
     }
     await _lock.setPin(pin);
@@ -90,11 +91,9 @@ class _LockScreenState extends State<LockScreen> {
         final left = await _lock.remainingAttempts();
         if (!mounted) return;
         _pin.clear();
-        setState(() => _error =
-            'Wrong PIN — $left attempt${left == 1 ? '' : 's'} left.');
+        setState(() => _error = context.l10n.pinWrong(left));
       case UnlockResult.lockedOut:
-        _toLogin('Too many wrong PINs. Sign in online again — work saved '
-            'on this device is kept.');
+        _toLogin(context.l10n.lockedOutNotice);
     }
   }
 
@@ -112,6 +111,7 @@ class _LockScreenState extends State<LockScreen> {
   Widget build(BuildContext context) {
     final setting = widget.mode == LockMode.setPin;
     final profile = widget.graph.session.cachedProfile;
+    final l = context.l10n;
     return PopScope(
       canPop: false,
       child: Scaffold(
@@ -127,20 +127,18 @@ class _LockScreenState extends State<LockScreen> {
                       size: 40),
                   const SizedBox(height: 12),
                   Text(
-                    setting ? 'Set an app PIN' : 'Enter your app PIN',
+                    setting ? l.pinSetTitle : l.pinUnlockTitle,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     setting
-                        ? 'Patient data on this device is protected by a PIN. '
-                            'You will need it to open the app, even with no '
-                            'network.'
+                        ? l.pinSetHelp
                         : [
                             if (profile != null && profile.email.isNotEmpty)
                               profile.email,
-                            'Works offline.',
+                            l.worksOffline,
                           ].join(' · '),
                     textAlign: TextAlign.center,
                   ),
@@ -151,7 +149,7 @@ class _LockScreenState extends State<LockScreen> {
                     obscureText: true,
                     keyboardType: TextInputType.number,
                     maxLength: 8,
-                    decoration: const InputDecoration(labelText: 'PIN'),
+                    decoration: InputDecoration(labelText: l.pinLabel),
                     onSubmitted: setting ? null : (_) => _submit(),
                   ),
                   if (setting)
@@ -161,8 +159,7 @@ class _LockScreenState extends State<LockScreen> {
                       obscureText: true,
                       keyboardType: TextInputType.number,
                       maxLength: 8,
-                      decoration:
-                          const InputDecoration(labelText: 'Repeat PIN'),
+                      decoration: InputDecoration(labelText: l.pinRepeat),
                     ),
                   if (_error != null)
                     Padding(
@@ -178,13 +175,13 @@ class _LockScreenState extends State<LockScreen> {
                   FilledButton(
                     key: const Key('pin-submit'),
                     onPressed: _busy ? null : _submit,
-                    child: Text(setting ? 'Save PIN' : 'Unlock'),
+                    child: Text(setting ? l.pinSave : l.pinUnlock),
                   ),
                   if (!setting)
                     TextButton(
                       key: const Key('pin-use-password'),
                       onPressed: _busy ? null : () => _toLogin(null),
-                      child: const Text('Sign in with password instead'),
+                      child: Text(l.pinUsePassword),
                     ),
                 ],
               ),

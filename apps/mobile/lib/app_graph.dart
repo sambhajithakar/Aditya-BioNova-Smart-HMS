@@ -17,6 +17,7 @@ import 'auth/app_lock.dart';
 import 'auth/session.dart';
 import 'data/directory.dart';
 import 'data/rx_drafts.dart';
+import 'settings/app_settings.dart';
 import 'store/local_store.dart';
 import 'sync/engine.dart';
 import 'sync/idmap.dart';
@@ -40,6 +41,7 @@ class AppGraph {
       onUnauthorized: () => sessionExpired.value = true,
     );
     this.appLock = appLock ?? AppLock(session.store);
+    settings = AppSettings(this.store);
     directory = DirectoryCache(this.store)..load();
     drafts = RxDraftBook(this.store)..load();
     idMap = _readIdMap(this.store.doc);
@@ -102,6 +104,9 @@ class AppGraph {
   final Session session;
   final LocalStore store;
   late final AppLock appLock;
+
+  /// Language + Rural Clinic mode (kept across sign-out; no PHI).
+  late final AppSettings settings;
   late final DirectoryCache directory;
   late final RxDraftBook drafts;
   late final IdMap idMap;

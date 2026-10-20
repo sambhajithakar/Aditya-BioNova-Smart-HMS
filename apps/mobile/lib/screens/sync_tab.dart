@@ -17,7 +17,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../app_graph.dart';
-import '../sync/conflict.dart';
+import '../l10n/l10n.dart';
 import '../sync/outbox.dart';
 import 'widgets.dart';
 
@@ -94,7 +94,7 @@ class _SyncTabState extends State<SyncTab> {
           TextButton(
             key: const Key('confirm-cancel'),
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(ctx.l10n.cancel),
           ),
           FilledButton(
             key: const Key('confirm-ok'),
@@ -112,28 +112,27 @@ class _SyncTabState extends State<SyncTab> {
   }
 
   Future<void> _registerAnyway(OutboxOp op) async {
-    final name = op.payload['full_name'] ?? 'this patient';
+    final l = context.l10n;
+    final name = '${op.payload['full_name'] ?? l.thisPatient}';
     final ok = await _confirm(
-      title: 'Register as a NEW patient?',
-      body: 'The server found existing patient(s) that look like $name. '
-          'Only continue if you have checked this is a different person — '
-          'a duplicate record splits the patient\'s history.',
-      action: 'Register anyway',
+      title: l.registerAnywayTitle,
+      body: l.registerAnywayBody(name),
+      action: l.registerAnywayAction,
     );
     if (!ok) return;
     graph.outbox.reissue(op, {...op.payload, 'allow_duplicates': true});
-    setState(() => _notice = 'Will register $name as a new patient on the '
-        'next sync.');
+    if (!mounted) return;
+    setState(() => _notice = context.l10n.registerAnywayNotice(name));
   }
 
   Future<void> _claim(OutboxOp op) async {
     final me = (await graph.session.profile())?.userId;
     if (me == null || !mounted) return;
+    final l = context.l10n;
     final ok = await _confirm(
-      title: 'Send under your account?',
-      body: 'This change was saved before the app recorded who made it. '
-          'Send it only if you made it.',
-      action: 'Send as me',
+      title: l.claimTitle,
+      body: l.claimBody,
+      action: l.claimAction,
     );
     if (!ok) return;
     op.userId = me;
@@ -144,16 +143,14 @@ class _SyncTabState extends State<SyncTab> {
   Future<void> _discard(OutboxOp op) async {
     final outbox = graph.outbox;
     final dependents = outbox.dependentsOf(op);
+    final l = context.l10n;
+    final entity = entityLabel(l, op.entity);
     if (dependents.isNotEmpty) {
-      final what = dependents.map((d) => d.entity.replaceAll('_', ' ')).join(', ');
+      final what = dependents.map((d) => entityLabel(l, d.entity)).join(', ');
       final ok = await _confirm(
-        title: 'Discard ${op.entity} and ${dependents.length} more?',
-        body: '${dependents.length} queued change'
-            '${dependents.length == 1 ? '' : 's'} ($what) '
-            'refer${dependents.length == 1 ? 's' : ''} to this '
-            '${op.entity} and can never be sent without it. '
-            'They will be discarded too.',
-        action: 'Discard all',
+        title: l.discardTitle(entity, dependents.length),
+        body: l.discardBody(dependents.length, what, entity),
+        action: l.discardAll,
         destructive: true,
       );
       if (!ok) return;
@@ -175,9 +172,8 @@ class _SyncTabState extends State<SyncTab> {
     ]);
     if (!mounted) return;
     setState(() => _notice = dependents.isEmpty
-        ? 'Discarded: ${op.entity}.'
-        : 'Discarded: ${op.entity} and ${dependents.length} dependent '
-            'change${dependents.length == 1 ? '' : 's'}.');
+        ? l.discardedOne(entity)
+        : l.discardedMany(entity, dependents.length));
   }
 
   String _when(DateTime at) {
@@ -188,17 +184,18 @@ class _SyncTabState extends State<SyncTab> {
 
   List<Widget> _resolutions(OutboxOp op) {
     final reason = op.conflictReason;
+    final l = context.l10n;
     final discard = TextButton(
       key: Key('conflict-discard-${op.id}'),
       onPressed: () => _discard(op),
-      child: const Text('Discard (server wins here)'),
+      child: Text(l.conflictDiscard),
     );
     if (reason == ConflictReason.duplicatePatient) {
       return [
         TextButton(
           key: Key('conflict-register-anyway-${op.id}'),
           onPressed: () => _registerAnyway(op),
-          child: const Text('Keep local (register anyway)'),
+          child: Text(l.conflictRegisterAnyway),
         ),
         discard,
       ];
@@ -209,7 +206,7 @@ class _SyncTabState extends State<SyncTab> {
           TextButton(
             key: Key('conflict-claim-${op.id}'),
             onPressed: () => _claim(op),
-            child: const Text('Keep local (send as me)'),
+            child: Text(l.conflictClaim),
           ),
         discard,
       ];
@@ -221,7 +218,7 @@ class _SyncTabState extends State<SyncTab> {
           graph.outbox.resolveConflict(op, keepLocal: true);
           setState(() {});
         },
-        child: const Text('Keep local (re-send)'),
+        child: Text(l.conflictKeep),
       ),
       discard,
     ];
@@ -234,39 +231,43 @@ class _SyncTabState extends State<SyncTab> {
     final conflicted =
         outbox.ops.where((o) => o.status == OpStatus.conflicted).toList();
     final nextRetry = outbox.nextRetryAt;
+    final l = context.l10n;
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text('Sync centre', style: Theme.of(context).textTheme.titleMedium),
+        Text(l.syncTitle, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         Text(
           key: const Key('sync-counts'),
-          'pending: ${outbox.count(OpStatus.pending)} · '
-          'failed: ${outbox.count(OpStatus.failed)} · '
-          'conflicted: ${outbox.count(OpStatus.conflicted)}',
+          l.syncCounts(
+            outbox.count(OpStatus.pending),
+            outbox.count(OpStatus.failed),
+            outbox.count(OpStatus.conflicted),
+          ),
           style: Theme.of(context).textTheme.bodySmall,
         ),
         if (nextRetry != null)
           Text(
             key: const Key('sync-next-retry'),
-            'Automatic retry from ${_when(nextRetry)}',
+            l.syncNextRetry(_when(nextRetry)),
             style: Theme.of(context).textTheme.bodySmall,
           ),
         const SizedBox(height: 12),
-        Row(
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: [
             FilledButton(
               key: const Key('sync-run'),
               onPressed: _busy ? null : () => _sync(),
-              child: Text(_busy ? 'Syncing…' : 'Sync now'),
+              child: Text(_busy ? l.opSyncing : l.syncNow),
             ),
-            const SizedBox(width: 8),
             OutlinedButton(
               key: const Key('sync-retry'),
               onPressed:
                   outbox.count(OpStatus.failed) == 0 ? null : _retryFailed,
-              child: const Text('Retry failed now'),
+              child: Text(l.syncRetryFailed),
             ),
           ],
         ),
@@ -275,10 +276,13 @@ class _SyncTabState extends State<SyncTab> {
             padding: const EdgeInsets.only(top: 8),
             child: Text(
               key: const Key('sync-result'),
-              'pushed ${result.pushed} · conflicts '
-              '${result.conflicts.length} · failed ${result.failed}'
-              '${result.deferred > 0 ? ' · waiting ${result.deferred}' : ''}'
-              '${result.stoppedUnauthorized ? ' · stopped (sign in again)' : ''}',
+              l.syncResult(
+                    result.pushed,
+                    result.conflicts.length,
+                    result.failed,
+                  ) +
+                  (result.deferred > 0 ? l.syncWaiting(result.deferred) : '') +
+                  (result.stoppedUnauthorized ? l.syncStopped : ''),
             ),
           ),
         if (result != null && result.synced.isNotEmpty)
@@ -291,7 +295,7 @@ class _SyncTabState extends State<SyncTab> {
                 for (final entity in result.synced)
                   StateChip(
                     key: Key('synced-$entity'),
-                    label: 'Synced · $entity',
+                    label: l.syncedEntity(entityLabel(l, entity)),
                     tone: const Color(0xFF1B7F5A),
                   ),
               ],
@@ -317,7 +321,7 @@ class _SyncTabState extends State<SyncTab> {
               : Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    'Could not save to device storage: $err',
+                    context.l10n.syncPersistError(err),
                     key: const Key('sync-persist-error'),
                     style:
                         TextStyle(color: Theme.of(context).colorScheme.error),
@@ -325,8 +329,7 @@ class _SyncTabState extends State<SyncTab> {
                 ),
         ),
         const SizedBox(height: 16),
-        Text('Queued on this device',
-            style: Theme.of(context).textTheme.titleSmall),
+        Text(l.syncQueued, style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 4),
         for (final op in outbox.ops)
           Card(
@@ -337,7 +340,7 @@ class _SyncTabState extends State<SyncTab> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${op.entity} · ${op.method} ${op.path}',
+                    '${entityLabel(l, op.entity)} · ${op.method} ${op.path}',
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                   const SizedBox(height: 6),
@@ -356,13 +359,13 @@ class _SyncTabState extends State<SyncTab> {
           ),
         if (outbox.ops.isEmpty)
           Text(
-            'Nothing queued — every change has reached the server.',
+            l.syncNothingQueued,
             style: Theme.of(context).textTheme.bodySmall,
           ),
         const SizedBox(height: 16),
         if (conflicted.isEmpty)
           Text(
-            'No conflicts — local and server agree.',
+            l.syncNoConflicts,
             style: Theme.of(context).textTheme.bodySmall,
           ),
         for (final op in conflicted)
@@ -373,7 +376,7 @@ class _SyncTabState extends State<SyncTab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${op.entity} · ${op.method} ${op.path}',
+                  Text('${entityLabel(l, op.entity)} · ${op.method} ${op.path}',
                       style: Theme.of(context).textTheme.titleSmall),
                   Text(op.lastError,
                       style: Theme.of(context).textTheme.bodySmall),
@@ -387,12 +390,3 @@ class _SyncTabState extends State<SyncTab> {
     );
   }
 }
-
-/// Exported so the shell can classify conflict kinds for tooltips.
-String conflictLabel(ConflictKind kind) => switch (kind) {
-      ConflictKind.versionMismatch => 'The record changed on the server',
-      ConflictKind.rejectedByPolicy => 'The server refused this change',
-      ConflictKind.authRequired => 'Sign in again to continue',
-      ConflictKind.duplicatePatient => 'Possible duplicate registration',
-      ConflictKind.wrongUser => 'Created by another user on this device',
-    };
