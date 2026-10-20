@@ -30,7 +30,7 @@ router = APIRouter(prefix="/ai", tags=["ai"])
 AI_FEATURES = [k for k in FEATURES if k.startswith("ai_")]
 # features with a working implementation; the others are entitlement switches
 # for roadmap phases (docs/AI_ARCHITECTURE.md §11)
-IMPLEMENTED_AI_FEATURES = {"ai_copilot"}
+IMPLEMENTED_AI_FEATURES = {"ai_copilot", "ai_forecast", "ai_rag", "ai_agents", "ai_scribe"}
 
 
 def _mock() -> MockProvider:

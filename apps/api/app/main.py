@@ -22,6 +22,11 @@ from .config import get_settings
 from .entitlements import enforce_writable, require_feature
 from .routers import (
     ai,
+    ai_agents,
+    ai_forecast,
+    ai_governance,
+    ai_knowledge,
+    ai_scribe,
     audit,
     appointments,
     auth,
@@ -219,6 +224,17 @@ def create_app() -> FastAPI:
     # AI: questions are reads, so they keep working on a read-only subscription
     app.include_router(ai.router, prefix=BASE_PREFIX, dependencies=[
         Depends(require_feature("ai_copilot", writes_need_writable=False))])
+    # AI-1 (docs/AI_ARCHITECTURE.md §3, §5-§7): each module behind its own edition feature
+    app.include_router(ai_governance.router, prefix=BASE_PREFIX, dependencies=[
+        Depends(require_feature("ai_copilot", writes_need_writable=False))])
+    app.include_router(ai_forecast.router, prefix=BASE_PREFIX,
+                       dependencies=[Depends(require_feature("ai_forecast"))])
+    app.include_router(ai_knowledge.router, prefix=BASE_PREFIX,
+                       dependencies=[Depends(require_feature("ai_rag"))])
+    app.include_router(ai_agents.router, prefix=BASE_PREFIX,
+                       dependencies=[Depends(require_feature("ai_agents"))])
+    app.include_router(ai_scribe.router, prefix=BASE_PREFIX,
+                       dependencies=[Depends(require_feature("ai_scribe"))])
     if settings.is_dev:
         app.include_router(dev.router, prefix=BASE_PREFIX)
     return app

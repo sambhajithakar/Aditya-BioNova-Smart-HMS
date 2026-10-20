@@ -195,6 +195,10 @@ describe("feature-gated navigation", () => {
       expenses: "expenses",
       reports: "reports_basic",
       copilot: "ai_copilot",
+      aiForecasts: "ai_forecast",
+      aiKnowledge: "ai_rag",
+      aiAgents: "ai_agents",
+      aiScribe: "ai_scribe",
     });
     for (const f of Object.values(map)) expect(FEATURE_KEYS).toContain(f);
   });
