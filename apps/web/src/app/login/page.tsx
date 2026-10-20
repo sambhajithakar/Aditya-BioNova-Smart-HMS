@@ -7,7 +7,7 @@
  * refresh cookie and returns only the access token (kept in memory).
  */
 import Link from "next/link";
-import { FormEvent, Suspense, useEffect, useState } from "react";
+import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MfaChallenge, login, verifyMfa } from "@/lib/api";
 import { useLang } from "@/lib/lang";
@@ -27,11 +27,6 @@ function LoginForm() {
   const [busy, setBusy] = useState(false);
 
   const done = () => router.replace(safeNext(search.get("next")));
-  // Perf: fetch the post-login page's payload + code while the user types.
-  const nextPath = safeNext(search.get("next"));
-  useEffect(() => {
-    router.prefetch(nextPath);
-  }, [router, nextPath]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
