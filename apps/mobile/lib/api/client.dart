@@ -13,6 +13,7 @@
 /// * 429 surfaces as [ApiException] with `retryAfter`.
 library;
 
+import '../auth/revocation.dart';
 import '../auth/session.dart';
 import 'transport.dart';
 
@@ -58,6 +59,7 @@ class HmsClient {
     required this.transport,
     required this.session,
     this.onUnauthorized,
+    this.onSessionEnded,
   });
 
   final ApiTransport transport;
@@ -66,7 +68,16 @@ class HmsClient {
   /// Called when the session is dead (401 and the refresh was rejected).
   void Function()? onUnauthorized;
 
+  /// Called once per refused refresh with how the session ended — plain
+  /// expiry, or revoked server-side (see `auth/revocation.dart`).
+  void Function(SessionEnd end)? onSessionEnded;
+
   Future<RefreshOutcome>? _refreshing;
+  String? _lastAccessDenial;
+
+  /// Record the `detail` of a 401 on an authenticated call (the sync engine
+  /// reports its own 401s here too) — it tells revocation from expiry.
+  void noteAccessDenied(String detail) => _lastAccessDenial = detail;
 
   /// Raw call that returns the [ApiResponse] instead of throwing, so the
   /// sync engine can distinguish 409 (conflict) from 5xx (retry later).
@@ -78,6 +89,7 @@ class HmsClient {
   }) async {
     var res = await _sendAuthed(method, path, body, extraHeaders);
     if (res.status == 401) {
+      noteAccessDenied(res.detail);
       final outcome = await refresh();
       if (outcome == RefreshOutcome.refreshed) {
         res = await _sendAuthed(method, path, body, extraHeaders);
@@ -139,12 +151,21 @@ class HmsClient {
         return RefreshOutcome.unavailable;
       }
       await session.rotate(accessToken: access, refreshToken: rotated);
+      _lastAccessDenial = null;
       return RefreshOutcome.refreshed;
     }
     if (res.retryable) return RefreshOutcome.unavailable;
     // 401/403/422: the refresh token is dead. Keep the profile (and the
-    // outbox) so the same user can sign in again.
+    // outbox) so the same user can sign in again — unless the session was
+    // revoked, which the graph handles through [onSessionEnded].
+    final end = classifySessionEnd(
+      lastAccessDenial: _lastAccessDenial,
+      refreshStatus: res.status,
+      refreshDetail: res.detail,
+    );
+    _lastAccessDenial = null;
     await session.expire();
+    onSessionEnded?.call(end);
     return RefreshOutcome.rejected;
   }
 
@@ -271,4 +292,81 @@ class HmsClient {
     }
     return json;
   }
+
+  /// `GET /patients?q=` — server-side search (online only).
+  Future<Map<String, dynamic>> searchPatients(String q,
+          {int limit = 50, int offset = 0}) =>
+      requestMap('GET',
+          '/patients?q=${Uri.encodeQueryComponent(q)}&limit=$limit&offset=$offset');
+
+  Future<Map<String, dynamic>> getPatient(String id) =>
+      requestMap('GET', '/patients/$id');
+
+  /// Merge-by-review: only the fields the user ticked, sent online after
+  /// the server record was re-read on screen.
+  Future<Map<String, dynamic>> patchPatient(
+          String id, Map<String, dynamic> fields) =>
+      requestMap('PATCH', '/patients/$id', body: fields);
+
+  /// `GET /reports/summary?from=&to=` (needs `report.read`).
+  Future<Map<String, dynamic>> reportSummary(String from, String to) =>
+      requestMap('GET', '/reports/summary?from=$from&to=$to');
+
+  Future<Map<String, dynamic>> listAppointments(String fromDate, String toDate,
+          {int limit = 100}) =>
+      requestMap('GET',
+          '/appointments?from_date=$fromDate&to_date=$toDate&limit=$limit');
+
+  Future<Map<String, dynamic>> listQueue(String serviceDate,
+          {int limit = 100}) =>
+      requestMap('GET', '/opd/queue?service_date=$serviceDate&limit=$limit');
+
+  Future<Map<String, dynamic>> getPrescription(String id) =>
+      requestMap('GET', '/prescriptions/$id');
+
+  Future<Map<String, dynamic>> listInvoices({int limit = 20}) =>
+      requestMap('GET', '/billing/invoices?limit=$limit');
+
+  Future<Map<String, dynamic>> getInvoice(String id) =>
+      requestMap('GET', '/billing/invoices/$id');
+
+  /// Online-only, server-verified: never queued in the outbox.
+  Future<Map<String, dynamic>> recordPayment({
+    required String invoiceId,
+    required double amount,
+    required String method,
+    required String idempotencyKey,
+  }) async {
+    final json = await request(
+      'POST',
+      '/billing/invoices/$invoiceId/payments',
+      body: {'amount': amount, 'method': method, 'gateway': 'manual'},
+      extraHeaders: {'Idempotency-Key': idempotencyKey},
+    );
+    return json is Map<String, dynamic> ? json : const {};
+  }
+
+  Future<Map<String, dynamic>> completeEncounter(String id) =>
+      requestMap('POST', '/encounters/$id/complete');
+
+  Future<Map<String, dynamic>> listInventoryItems({int limit = 200}) =>
+      requestMap('GET', '/inventory/items?limit=$limit');
+
+  /// Online-only stock adjustment from a reviewed count draft.
+  Future<Object?> postStockAdjustment({
+    required String itemId,
+    required int quantity,
+    required String reason,
+    required String idempotencyKey,
+  }) =>
+      request(
+        'POST',
+        '/inventory/items/$itemId/movements',
+        body: {
+          'movement_type': 'adjustment',
+          'quantity': quantity,
+          'reason': reason,
+        },
+        extraHeaders: {'Idempotency-Key': idempotencyKey},
+      );
 }

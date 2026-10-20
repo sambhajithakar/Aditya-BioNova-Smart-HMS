@@ -40,6 +40,9 @@ String entityLabel(AppLocalizations l, String entity) => switch (entity) {
       'queue_entry' => l.entityQueueEntry,
       'invoice' => l.entityInvoice,
       'prescription' => l.entityPrescription,
+      'encounter' => l.entityEncounter,
+      'appointment' => l.entityAppointment,
+      'check_in' => l.entityCheckIn,
       _ => entity.replaceAll('_', ' '),
     };
 

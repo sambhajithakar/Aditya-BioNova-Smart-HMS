@@ -46,7 +46,12 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     final known = widget.graph.session.cachedProfile;
-    if (known != null) _email.text = known.email;
+    if (known != null) {
+      _email.text = known.email;
+    } else {
+      // After a revocation only the quarantine remembers who it belongs to.
+      _email.text = widget.graph.quarantine.info?.email ?? '';
+    }
   }
 
   @override

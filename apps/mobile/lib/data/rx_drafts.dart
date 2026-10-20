@@ -86,6 +86,23 @@ class RxDraftBook {
     if (changed) await save();
   }
 
+  /// Drafts the server has not accepted yet (quarantined on revocation).
+  List<Map<String, dynamic>> get unsynced => [
+        for (final d in drafts)
+          if (d['serverId'] == null && d['discarded'] != true) d,
+      ];
+
+  /// Put quarantined drafts back (same user signed in again).
+  Future<void> restore(List<Map<String, dynamic>> items) async {
+    final known = {for (final d in drafts) d['localRef']};
+    drafts = [
+      for (final d in items)
+        if (!known.contains(d['localRef'])) d,
+      ...drafts,
+    ];
+    await save();
+  }
+
   Future<void> markSigned(String localRef) async {
     for (final draft in drafts) {
       if (draft['localRef'] == localRef) draft['signed'] = true;

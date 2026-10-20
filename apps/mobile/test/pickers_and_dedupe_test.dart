@@ -114,7 +114,7 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    final graph = await boot(server());
+    final graph = await boot(server(role: 'owner'));
     await tester.pumpWidget(MaterialApp(home: HomeScreen(graph: graph)));
     await tester.pumpAndSettle(); // queue tab auto-refreshes on open
 

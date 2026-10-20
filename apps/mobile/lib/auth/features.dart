@@ -13,6 +13,11 @@ abstract final class FeatureKeys {
   static const billing = 'billing';
   static const pharmacy = 'pharmacy';
   static const mobileOffline = 'mobile_offline';
+
+  /// QR check-in at the clinic desk. OPT-IN: shown only when the server
+  /// explicitly reports it (the check-in endpoint is new — an older server
+  /// would answer 404).
+  static const qrCheckin = 'qr_checkin';
 }
 
 class ServerFeatures {
@@ -26,9 +31,16 @@ class ServerFeatures {
   factory ServerFeatures.fromJson(Map<String, dynamic> body) {
     final raw = body['features'];
     final edition = body['edition'];
+    // The API sends {code, name}; older builds sent a plain string.
+    final String? label = switch (edition) {
+      final String s when s.isNotEmpty => s,
+      {'name': final String name} when name.isNotEmpty => name,
+      {'code': final String code} when code.isNotEmpty => code,
+      _ => null,
+    };
     return ServerFeatures(
       keys: raw is List ? raw.whereType<String>().toSet() : null,
-      edition: edition is String && edition.isNotEmpty ? edition : null,
+      edition: label,
     );
   }
 
@@ -39,4 +51,7 @@ class ServerFeatures {
   final String? edition;
 
   bool has(String key) => keys == null || keys!.contains(key);
+
+  /// True only when the server explicitly reported [key] (opt-in features).
+  bool hasExplicit(String key) => keys != null && keys!.contains(key);
 }

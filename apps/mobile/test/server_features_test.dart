@@ -119,7 +119,7 @@ void main() {
       (tester) async {
     final graph = await bootGraph(meSays({'role': 'doctor'}));
     await pumpHome(tester, graph);
-    expect(navLabels(tester), ['Queue', 'Register', 'Rx', 'Billing', 'Sync']);
+    expect(navLabels(tester), ['Queue', 'Consult', 'Rx', 'Patients', 'Sync']);
     expect(find.byKey(const Key('mobile-not-enabled')), findsNothing);
   });
 
@@ -131,7 +131,7 @@ void main() {
       'edition': 'clinic_pro',
     }));
     await pumpHome(tester, graph);
-    expect(navLabels(tester), ['Queue', 'Register', 'Rx', 'Billing', 'Sync']);
+    expect(navLabels(tester), ['Queue', 'Consult', 'Rx', 'Patients', 'Sync']);
 
     await tester.tap(find.byKey(const Key('settings-menu')));
     await tester.pumpAndSettle();
@@ -140,11 +140,11 @@ void main() {
 
   testWidgets('no billing feature: Billing tab hidden', (tester) async {
     final graph = await bootGraph(meSays({
-      'role': 'doctor',
+      'role': 'receptionist',
       'features': ['opd_queue', 'consultation', 'pharmacy', 'mobile_offline'],
     }));
     await pumpHome(tester, graph);
-    expect(navLabels(tester), ['Queue', 'Register', 'Rx', 'Sync']);
+    expect(navLabels(tester), ['Queue', 'Register', 'Appointments', 'Sync']);
     expect(find.byKey(const Key('billing-add')), findsNothing);
   });
 
@@ -155,7 +155,7 @@ void main() {
       'features': ['billing', 'mobile_offline'],
     }));
     await pumpHome(tester, graph);
-    expect(navLabels(tester), ['Register', 'Billing', 'Sync']);
+    expect(navLabels(tester), ['Patients', 'Sync']);
     expect(find.byKey(const Key('rx-save')), findsNothing);
     expect(find.byKey(const Key('queue-add')), findsNothing);
   });
@@ -209,7 +209,7 @@ void main() {
       store: store,
     );
     await pumpHome(tester, online);
-    expect(navLabels(tester), ['Queue', 'Register', 'Sync']);
+    expect(navLabels(tester), ['Queue', 'Patients', 'Sync']);
     final stored = await online.session.profile();
     expect(stored!.features, ['opd_queue', 'mobile_offline']);
     expect(stored.edition, 'basic');
@@ -223,7 +223,7 @@ void main() {
       store: store,
     );
     await pumpHome(tester, offline);
-    expect(navLabels(tester), ['Queue', 'Register', 'Sync']);
+    expect(navLabels(tester), ['Queue', 'Patients', 'Sync']);
     expect(find.text('HMS · doctor'), findsOneWidget);
   });
 

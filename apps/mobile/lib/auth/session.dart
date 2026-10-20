@@ -13,6 +13,7 @@ library;
 import 'dart:convert';
 
 import 'features.dart';
+import 'roles.dart';
 
 abstract interface class TokenStore {
   Future<String?> read(String key);
@@ -50,6 +51,7 @@ class SessionProfile {
     this.role = '',
     this.features,
     this.edition,
+    this.permissions,
   });
 
   factory SessionProfile.fromJson(Map<String, dynamic> json) => SessionProfile(
@@ -63,6 +65,9 @@ class SessionProfile {
             ? (json['features'] as List).whereType<String>().toList()
             : null,
         edition: json['edition'] as String?,
+        permissions: json['permissions'] is List
+            ? (json['permissions'] as List).whereType<String>().toList()
+            : null,
       );
 
   /// Build from the API's `AuthSessionOut` body (login / MFA verify).
@@ -79,6 +84,7 @@ class SessionProfile {
       role: (body['role'] as String?) ?? '',
       features: ServerFeatures.fromJson(body).keys?.toList(),
       edition: ServerFeatures.fromJson(body).edition,
+      permissions: Permissions.fromJson(body).keys?.toList(),
     );
   }
 
@@ -96,6 +102,13 @@ class SessionProfile {
   /// Product edition reported by the server, if any.
   final String? edition;
 
+  /// Permission keys from `/auth/me` (null: not reported).
+  final List<String>? permissions;
+
+  Permissions get serverPermissions => permissions == null
+      ? Permissions.unknown
+      : Permissions(permissions!.toSet());
+
   /// The feature set to gate the UI with (works offline after a restart).
   ServerFeatures get serverFeatures => ServerFeatures(
         keys: features?.toSet(),
@@ -103,7 +116,11 @@ class SessionProfile {
       );
 
   /// A copy carrying what `GET /auth/me` just reported.
-  SessionProfile withServerInfo({String? role, ServerFeatures? features}) =>
+  SessionProfile withServerInfo({
+    String? role,
+    ServerFeatures? features,
+    Permissions? permissions,
+  }) =>
       SessionProfile(
         userId: userId,
         email: email,
@@ -113,6 +130,8 @@ class SessionProfile {
         role: role ?? this.role,
         features: features == null ? this.features : features.keys?.toList(),
         edition: features == null ? edition : features.edition,
+        permissions:
+            permissions == null ? this.permissions : permissions.keys?.toList(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -124,6 +143,7 @@ class SessionProfile {
         'role': role,
         'features': ?features,
         'edition': ?edition,
+        'permissions': ?permissions,
       };
 }
 

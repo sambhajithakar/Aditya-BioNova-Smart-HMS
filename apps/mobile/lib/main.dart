@@ -275,7 +275,13 @@ class _StartScreenState extends State<StartScreen> {
             onDone: (ctx) => openHome(ctx, widget.graph),
           );
         }
-        return LoginScreen(graph: widget.graph);
+        return LoginScreen(
+          graph: widget.graph,
+          // Cold start after a remote sign-out: say why.
+          notice: widget.graph.deviceRevoked.value
+              ? context.l10n.deviceSignedOutByAdmin
+              : null,
+        );
       },
     );
   }

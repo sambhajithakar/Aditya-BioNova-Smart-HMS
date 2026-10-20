@@ -104,7 +104,7 @@ void main() {
     });
     final graph = await bootGraph(store: store);
     await pumpHome(tester, graph);
-    expect(navLabels(tester), ['Queue', 'Register', 'Rx', 'Billing', 'Sync']);
+    expect(navLabels(tester), ['Queue', 'Consult', 'Rx', 'Patients', 'Sync']);
     expect(find.byKey(const Key('rural-sync')), findsNothing);
 
     await tester.tap(find.byKey(const Key('settings-menu')));
@@ -134,7 +134,7 @@ void main() {
     await tester.tap(find.byKey(const Key('rural-toggle')));
     await tester.pumpAndSettle();
     expect(graph.settings.ruralMode, isFalse);
-    expect(navLabels(tester), ['Queue', 'Register', 'Rx', 'Billing', 'Sync']);
+    expect(navLabels(tester), ['Queue', 'Consult', 'Rx', 'Patients', 'Sync']);
   });
 
   testWidgets('large touch targets and larger text on every step',
