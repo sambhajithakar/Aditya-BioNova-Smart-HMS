@@ -252,6 +252,12 @@ jobs:
         run: |
           git diff --exit-code packages/contracts/openapi.json \
             || { echo "packages/contracts/openapi.json is stale — regenerate via scripts/generate-contracts.sh"; exit 1; }
+      - name: Generate API_DOCUMENTATION.md from the snapshot
+        run: python scripts/generate_api_docs.py
+      - name: Ensure API documentation is committed
+        run: |
+          git diff --exit-code API_DOCUMENTATION.md \
+            || { echo "API_DOCUMENTATION.md is stale — regenerate via python3 scripts/generate_api_docs.py"; exit 1; }
 
   docker:
     name: Docker (lint + build + compose smoke, no push)
