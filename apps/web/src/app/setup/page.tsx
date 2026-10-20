@@ -101,10 +101,12 @@ function StepFrame({
 function IdentityStep({ onSaved, busy, act, setError }: StepProps) {
   const { t } = useLang();
   const [f, setF] = useState({ name: "", address_line1: "", city: "", phone: "", registration_number: "", gstin: "" });
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     api
       .get<OrganizationProfile>("/organization")
-      .then((o) =>
+      .then((o) => {
+        setLoaded(true);
         setF({
           name: o.name ?? "",
           address_line1: o.address_line1 ?? "",
@@ -112,11 +114,11 @@ function IdentityStep({ onSaved, busy, act, setError }: StepProps) {
           phone: o.phone ?? "",
           registration_number: o.registration_number ?? "",
           gstin: o.gstin ?? "",
-        }),
-      )
-      .catch(() => undefined);
+        });
+      })
+      .catch(() => setLoaded(true));
   }, []);
-  const set = (k: keyof typeof f, v: string) => setF({ ...f, [k]: v });
+  const set = (k: keyof typeof f, v: string) => setF((prev) => ({ ...prev, [k]: v }));
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const gstin = normalizeGstin(f.gstin);
@@ -126,7 +128,10 @@ function IdentityStep({ onSaved, busy, act, setError }: StepProps) {
     }
     void act(async () => {
       const body: Record<string, string | null> = {};
-      for (const [k, v] of Object.entries({ ...f, gstin })) body[k] = v.trim() === "" && k !== "name" ? null : v.trim();
+      for (const [k, v] of Object.entries({ ...f, gstin })) {
+        if (k === "name" && v.trim() === "") continue; // never clear the clinic name
+        body[k] = v.trim() === "" ? null : v.trim();
+      }
       await api.patch("/organization", body);
       notifyMeChanged();
       await onSaved();
@@ -139,6 +144,7 @@ function IdentityStep({ onSaved, busy, act, setError }: StepProps) {
       {hint && <span className="muted" style={{ fontWeight: 400, fontSize: "0.85rem" }}>{hint}</span>}
     </label>
   );
+  if (!loaded) return <p className="muted">{t("loading")}</p>;
   return (
     <StepFrame title={t("wizStep_identity")} intro={t("wizIdentityIntro")} onSubmit={submit} busy={busy}>
       <div className="grid two">
@@ -320,6 +326,7 @@ function WorkingHoursStep({ onSaved, busy, act, setError }: StepProps) {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [branchId, setBranchId] = useState("");
   const [days, setDays] = useState<Record<number, WorkingSession | null>>({});
+  const [branchesLoaded, setBranchesLoaded] = useState(false);
   useEffect(() => {
     api
       .get<Branch[]>("/branches")
@@ -328,7 +335,8 @@ function WorkingHoursStep({ onSaved, busy, act, setError }: StepProps) {
         setBranches(active);
         if (active[0]) setBranchId(active[0].id);
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => setBranchesLoaded(true));
   }, []);
   useEffect(() => {
     if (!branchId) return;
@@ -377,6 +385,7 @@ function WorkingHoursStep({ onSaved, busy, act, setError }: StepProps) {
       />
     </label>
   );
+  if (!branchesLoaded || (branches.length > 0 && Object.keys(days).length === 0)) return <p className="muted">{t("loading")}</p>;
   return (
     <StepFrame title={t("wizStep_working_hours")} intro={t("wizHoursIntro")} onSubmit={submit} busy={busy}>
       {branches.length > 1 && (
