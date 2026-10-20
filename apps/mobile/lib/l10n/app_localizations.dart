@@ -1269,6 +1269,1020 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Created by another user on this device'**
   String get conflictWrongUser;
+
+  /// No description provided for @statusOnline.
+  ///
+  /// In en, this message translates to:
+  /// **'Online'**
+  String get statusOnline;
+
+  /// No description provided for @statusOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get statusOffline;
+
+  /// No description provided for @statusSavedOnDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on device'**
+  String get statusSavedOnDevice;
+
+  /// No description provided for @statusPendingSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending sync'**
+  String get statusPendingSync;
+
+  /// No description provided for @statusSyncing.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing'**
+  String get statusSyncing;
+
+  /// No description provided for @statusSynced.
+  ///
+  /// In en, this message translates to:
+  /// **'Synced'**
+  String get statusSynced;
+
+  /// No description provided for @statusConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflict'**
+  String get statusConflict;
+
+  /// No description provided for @statusActionRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Action required'**
+  String get statusActionRequired;
+
+  /// No description provided for @statusCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{status}: {count}'**
+  String statusCount(String status, int count);
+
+  /// No description provided for @globalToSync.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} to sync'**
+  String globalToSync(int count);
+
+  /// No description provided for @globalConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} in conflict'**
+  String globalConflicts(int count);
+
+  /// No description provided for @globalNeedAction.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} need action'**
+  String globalNeedAction(int count);
+
+  /// No description provided for @globalOfflineSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline · {count} saved on device'**
+  String globalOfflineSaved(int count);
+
+  /// No description provided for @globalAllSynced.
+  ///
+  /// In en, this message translates to:
+  /// **'All synced'**
+  String get globalAllSynced;
+
+  /// No description provided for @needsConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs connection — will not be finalised offline'**
+  String get needsConnection;
+
+  /// No description provided for @needsConnectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs connection'**
+  String get needsConnectionTitle;
+
+  /// No description provided for @needsConnectionReports.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports are calculated by the server and are not stored on this device.'**
+  String get needsConnectionReports;
+
+  /// No description provided for @errNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'No connection — it will be retried automatically.'**
+  String get errNetwork;
+
+  /// No description provided for @errServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Server problem — it will be retried automatically.'**
+  String get errServer;
+
+  /// No description provided for @errBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Server busy — it will be retried a little later.'**
+  String get errBusy;
+
+  /// No description provided for @errForbidden.
+  ///
+  /// In en, this message translates to:
+  /// **'Not permitted for your account: {detail}'**
+  String errForbidden(String detail);
+
+  /// No description provided for @errInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'The server did not accept the data: {detail}'**
+  String errInvalid(String detail);
+
+  /// No description provided for @errMaxAttempts.
+  ///
+  /// In en, this message translates to:
+  /// **'Tried {count} times without success — automatic retries stopped. Tap Retry now.'**
+  String errMaxAttempts(int count);
+
+  /// No description provided for @retryNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry now'**
+  String get retryNow;
+
+  /// No description provided for @waitingFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the {entity} to sync first'**
+  String waitingFor(String entity);
+
+  /// No description provided for @blockedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked: the {entity} it depends on needs your action'**
+  String blockedBy(String entity);
+
+  /// No description provided for @orphanedExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'It refers to a record that was discarded — it can never be sent as it is.'**
+  String get orphanedExplain;
+
+  /// No description provided for @syncAttention.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs your attention'**
+  String get syncAttention;
+
+  /// No description provided for @storageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage on this device'**
+  String get storageTitle;
+
+  /// No description provided for @storageUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'About {kb} KB encrypted · {patients} cached patients · {queued} queued changes'**
+  String storageUsage(int kb, int patients, int queued);
+
+  /// No description provided for @clearCacheAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear cached patient data'**
+  String get clearCacheAction;
+
+  /// No description provided for @clearCacheTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear cached patients?'**
+  String get clearCacheTitle;
+
+  /// No description provided for @clearCacheBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Patients downloaded from the server are removed from this device. Patients registered here and not yet synced are kept. They download again next time you are online.'**
+  String get clearCacheBody;
+
+  /// No description provided for @clearCacheDone.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} cached patients removed from this device.'**
+  String clearCacheDone(int count);
+
+  /// No description provided for @deviceSignedOutByAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'This device was signed out by an administrator. Patient data was removed from it; unsynced work is sealed on the device and comes back when the same user signs in again.'**
+  String get deviceSignedOutByAdmin;
+
+  /// No description provided for @quarantineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} unsynced items from a signed-out user are sealed on this device'**
+  String quarantineTitle(int count);
+
+  /// No description provided for @quarantineBody.
+  ///
+  /// In en, this message translates to:
+  /// **'They cannot be viewed. They sync when that user signs in again on this device.'**
+  String get quarantineBody;
+
+  /// No description provided for @quarantineDiscardAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard sealed items'**
+  String get quarantineDiscardAction;
+
+  /// No description provided for @quarantineDiscardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard {count} sealed items?'**
+  String quarantineDiscardTitle(int count);
+
+  /// No description provided for @quarantineDiscardBody.
+  ///
+  /// In en, this message translates to:
+  /// **'They were never sent to the server and cannot be recovered after this.'**
+  String get quarantineDiscardBody;
+
+  /// No description provided for @quarantineDiscarded.
+  ///
+  /// In en, this message translates to:
+  /// **'Sealed items discarded.'**
+  String get quarantineDiscarded;
+
+  /// No description provided for @conflictReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Review'**
+  String get conflictReview;
+
+  /// No description provided for @conflictMine.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on this device'**
+  String get conflictMine;
+
+  /// No description provided for @conflictServer.
+  ///
+  /// In en, this message translates to:
+  /// **'On the server'**
+  String get conflictServer;
+
+  /// No description provided for @conflictSendMine.
+  ///
+  /// In en, this message translates to:
+  /// **'Send mine again'**
+  String get conflictSendMine;
+
+  /// No description provided for @conflictSendMineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send your version again?'**
+  String get conflictSendMineTitle;
+
+  /// No description provided for @conflictSendMineBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The server record changed after you saved this. Sending again does not overwrite silently — the server checks it again and may refuse it.'**
+  String get conflictSendMineBody;
+
+  /// No description provided for @conflictSentAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued to send again.'**
+  String get conflictSentAgain;
+
+  /// No description provided for @useServerVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the server version'**
+  String get useServerVersion;
+
+  /// No description provided for @versionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed on the server'**
+  String get versionTitle;
+
+  /// No description provided for @versionExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'Someone changed this record on the server after you saved your change. Compare and choose — nothing is overwritten automatically.'**
+  String get versionExplain;
+
+  /// No description provided for @dupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Possible duplicate patient'**
+  String get dupTitle;
+
+  /// No description provided for @dupExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'The server already has a similar patient. Choose: keep yours as a new patient, use the existing record, or merge by reviewing each field.'**
+  String get dupExplain;
+
+  /// No description provided for @dupMatchedOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Matched on: {fields}'**
+  String dupMatchedOn(String fields);
+
+  /// No description provided for @keepMineNew.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep mine as a new patient'**
+  String get keepMineNew;
+
+  /// No description provided for @useServerAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this record'**
+  String get useServerAction;
+
+  /// No description provided for @useServerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use {patient}?'**
+  String useServerTitle(String patient);
+
+  /// No description provided for @useServerBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your registration will not be sent. {count} queued changes for this patient will be linked to the existing record instead.'**
+  String useServerBody(int count);
+
+  /// No description provided for @useServerDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Linked to {patient}.'**
+  String useServerDone(String patient);
+
+  /// No description provided for @mergeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge by review'**
+  String get mergeAction;
+
+  /// No description provided for @mergeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge by review'**
+  String get mergeTitle;
+
+  /// No description provided for @mergeExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'The server record was just read again. Tick only the fields to copy from your registration; nothing is selected for you.'**
+  String get mergeExplain;
+
+  /// No description provided for @mergeNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'No differing fields — the existing record will be used.'**
+  String get mergeNothing;
+
+  /// No description provided for @mergeFieldLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Server: {server} → Mine: {mine}'**
+  String mergeFieldLine(String server, String mine);
+
+  /// No description provided for @mergeApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy {count} fields and use the record'**
+  String mergeApply(int count);
+
+  /// No description provided for @mergeDone.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} fields copied to {uhid}.'**
+  String mergeDone(int count, String uhid);
+
+  /// No description provided for @fieldDob.
+  ///
+  /// In en, this message translates to:
+  /// **'Date of birth'**
+  String get fieldDob;
+
+  /// No description provided for @fieldAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get fieldAddress;
+
+  /// No description provided for @fieldBloodGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Blood group'**
+  String get fieldBloodGroup;
+
+  /// No description provided for @detailRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Request'**
+  String get detailRequest;
+
+  /// No description provided for @detailState.
+  ///
+  /// In en, this message translates to:
+  /// **'State'**
+  String get detailState;
+
+  /// No description provided for @detailCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved at'**
+  String get detailCreated;
+
+  /// No description provided for @detailAttempts.
+  ///
+  /// In en, this message translates to:
+  /// **'Attempts'**
+  String get detailAttempts;
+
+  /// No description provided for @detailNextRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Next retry'**
+  String get detailNextRetry;
+
+  /// No description provided for @detailKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Idempotency key'**
+  String get detailKey;
+
+  /// No description provided for @detailHttp.
+  ///
+  /// In en, this message translates to:
+  /// **'Server answer'**
+  String get detailHttp;
+
+  /// No description provided for @detailError.
+  ///
+  /// In en, this message translates to:
+  /// **'Last problem'**
+  String get detailError;
+
+  /// No description provided for @detailDepends.
+  ///
+  /// In en, this message translates to:
+  /// **'Depends on'**
+  String get detailDepends;
+
+  /// No description provided for @detailNoLongerQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'This change is no longer in the queue.'**
+  String get detailNoLongerQueued;
+
+  /// No description provided for @tabOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get tabOverview;
+
+  /// No description provided for @tabConsult.
+  ///
+  /// In en, this message translates to:
+  /// **'Consult'**
+  String get tabConsult;
+
+  /// No description provided for @tabPatients.
+  ///
+  /// In en, this message translates to:
+  /// **'Patients'**
+  String get tabPatients;
+
+  /// No description provided for @tabAppointments.
+  ///
+  /// In en, this message translates to:
+  /// **'Appointments'**
+  String get tabAppointments;
+
+  /// No description provided for @tabStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock'**
+  String get tabStock;
+
+  /// No description provided for @noTabsForRole.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is enabled for your role on mobile. Ask your administrator.'**
+  String get noTabsForRole;
+
+  /// No description provided for @patientsSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search name, UHID or phone'**
+  String get patientsSearch;
+
+  /// No description provided for @patientsSearchServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Search the server'**
+  String get patientsSearchServer;
+
+  /// No description provided for @patientsCachedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} patients on this device (only ones you have opened online; encrypted)'**
+  String patientsCachedNote(int count);
+
+  /// No description provided for @consultTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Consultation note (draft — works offline)'**
+  String get consultTitle;
+
+  /// No description provided for @consultComplaint.
+  ///
+  /// In en, this message translates to:
+  /// **'Chief complaint'**
+  String get consultComplaint;
+
+  /// No description provided for @consultHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get consultHistory;
+
+  /// No description provided for @consultExam.
+  ///
+  /// In en, this message translates to:
+  /// **'Examination'**
+  String get consultExam;
+
+  /// No description provided for @consultSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save note draft'**
+  String get consultSave;
+
+  /// No description provided for @consultUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Update draft'**
+  String get consultUpdate;
+
+  /// No description provided for @consultEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get consultEdit;
+
+  /// No description provided for @consultSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Note draft saved on device — pending sync.'**
+  String get consultSaved;
+
+  /// No description provided for @consultDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'A note draft for this patient today is already queued (duplicate prevented).'**
+  String get consultDuplicate;
+
+  /// No description provided for @consultComplaintRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the chief complaint.'**
+  String get consultComplaintRequired;
+
+  /// No description provided for @consultNoBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'No branch on this device yet — open Queue once while online.'**
+  String get consultNoBranch;
+
+  /// No description provided for @consultAlreadySent.
+  ///
+  /// In en, this message translates to:
+  /// **'This draft was already sent — it can no longer be edited on the device.'**
+  String get consultAlreadySent;
+
+  /// No description provided for @consultDrafts.
+  ///
+  /// In en, this message translates to:
+  /// **'Note drafts'**
+  String get consultDrafts;
+
+  /// No description provided for @consultNoDrafts.
+  ///
+  /// In en, this message translates to:
+  /// **'No note drafts on this device.'**
+  String get consultNoDrafts;
+
+  /// No description provided for @consultComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete consultation'**
+  String get consultComplete;
+
+  /// No description provided for @consultCompleteAfterSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete (after sync)'**
+  String get consultCompleteAfterSync;
+
+  /// No description provided for @consultCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Consultation completed on the server.'**
+  String get consultCompleted;
+
+  /// No description provided for @appointmentsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Book appointment (works offline)'**
+  String get appointmentsTitle;
+
+  /// No description provided for @appointmentDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Day: {day}'**
+  String appointmentDay(String day);
+
+  /// No description provided for @appointmentReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason'**
+  String get appointmentReason;
+
+  /// No description provided for @appointmentSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save appointment draft'**
+  String get appointmentSave;
+
+  /// No description provided for @appointmentSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Appointment saved on device — pending sync. The server checks the slot when it syncs.'**
+  String get appointmentSaved;
+
+  /// No description provided for @appointmentDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'This appointment is already queued (duplicate prevented).'**
+  String get appointmentDuplicate;
+
+  /// No description provided for @appointmentDrafts.
+  ///
+  /// In en, this message translates to:
+  /// **'Appointment drafts'**
+  String get appointmentDrafts;
+
+  /// No description provided for @appointmentsToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s appointments (server)'**
+  String get appointmentsToday;
+
+  /// No description provided for @appointmentsNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No appointments today.'**
+  String get appointmentsNone;
+
+  /// No description provided for @queueToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s queue (server)'**
+  String get queueToday;
+
+  /// No description provided for @queueTodayShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Show'**
+  String get queueTodayShow;
+
+  /// No description provided for @checkInScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan check-in QR'**
+  String get checkInScan;
+
+  /// No description provided for @checkInSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Check-in saved on device — pending sync.'**
+  String get checkInSaved;
+
+  /// No description provided for @checkInDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'This code was already scanned today (duplicate prevented).'**
+  String get checkInDuplicate;
+
+  /// No description provided for @checkInInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'This is not a clinic check-in code.'**
+  String get checkInInvalid;
+
+  /// No description provided for @scanCheckInTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan check-in code'**
+  String get scanCheckInTitle;
+
+  /// No description provided for @scanBatchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan medicine pack'**
+  String get scanBatchTitle;
+
+  /// No description provided for @scanCheckInHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Point the camera at the QR code at the desk or on the slip.'**
+  String get scanCheckInHelp;
+
+  /// No description provided for @scanBatchHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Point the camera at the barcode on the strip or box (batch and expiry are read from it).'**
+  String get scanBatchHelp;
+
+  /// No description provided for @scanTypeCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Type the code'**
+  String get scanTypeCode;
+
+  /// No description provided for @scanUse.
+  ///
+  /// In en, this message translates to:
+  /// **'Use'**
+  String get scanUse;
+
+  /// No description provided for @rxDraftPdf.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft PDF'**
+  String get rxDraftPdf;
+
+  /// No description provided for @rxDraftPdfDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft preview created (watermarked — not valid until signed online).'**
+  String get rxDraftPdfDone;
+
+  /// No description provided for @rxPrintSigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Print signed Rx'**
+  String get rxPrintSigned;
+
+  /// No description provided for @billingRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent invoices (server)'**
+  String get billingRecent;
+
+  /// No description provided for @billingRecentShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Show'**
+  String get billingRecentShow;
+
+  /// No description provided for @invoiceAmounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Total {total} · paid {paid} · {status}'**
+  String invoiceAmounts(String total, String paid, String status);
+
+  /// No description provided for @invoiceReceipt.
+  ///
+  /// In en, this message translates to:
+  /// **'Receipt PDF'**
+  String get invoiceReceipt;
+
+  /// No description provided for @paymentConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm payment'**
+  String get paymentConfirm;
+
+  /// No description provided for @paymentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment for {invoice}'**
+  String paymentTitle(String invoice);
+
+  /// No description provided for @paymentAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount received'**
+  String get paymentAmount;
+
+  /// No description provided for @paymentServerNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded by the server now. It is never saved offline.'**
+  String get paymentServerNote;
+
+  /// No description provided for @paymentRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment recorded by the server.'**
+  String get paymentRecorded;
+
+  /// No description provided for @reportsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s summary'**
+  String get reportsTitle;
+
+  /// No description provided for @reportsToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today (from the server)'**
+  String get reportsToday;
+
+  /// No description provided for @reportsCollections.
+  ///
+  /// In en, this message translates to:
+  /// **'Collections'**
+  String get reportsCollections;
+
+  /// No description provided for @reportsRefunds.
+  ///
+  /// In en, this message translates to:
+  /// **'Refunds'**
+  String get reportsRefunds;
+
+  /// No description provided for @reportsNet.
+  ///
+  /// In en, this message translates to:
+  /// **'Net'**
+  String get reportsNet;
+
+  /// No description provided for @reportsAppointments.
+  ///
+  /// In en, this message translates to:
+  /// **'Appointments'**
+  String get reportsAppointments;
+
+  /// No description provided for @reportsAdmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Admitted now'**
+  String get reportsAdmitted;
+
+  /// No description provided for @reportsLowStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Low-stock items'**
+  String get reportsLowStock;
+
+  /// No description provided for @reportsServerNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculated by the server from its ledger; nothing is stored on this device.'**
+  String get reportsServerNote;
+
+  /// No description provided for @reportsForbidden.
+  ///
+  /// In en, this message translates to:
+  /// **'Your role cannot view reports.'**
+  String get reportsForbidden;
+
+  /// No description provided for @syncHealthTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync health of this device'**
+  String get syncHealthTitle;
+
+  /// No description provided for @stockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock count (draft — works offline)'**
+  String get stockTitle;
+
+  /// No description provided for @stockScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan batch barcode'**
+  String get stockScan;
+
+  /// No description provided for @stockPickItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick an item'**
+  String get stockPickItem;
+
+  /// No description provided for @stockCounted.
+  ///
+  /// In en, this message translates to:
+  /// **'Counted quantity'**
+  String get stockCounted;
+
+  /// No description provided for @stockSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save count draft'**
+  String get stockSave;
+
+  /// No description provided for @stockSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Count saved on device. Post it online after review.'**
+  String get stockSaved;
+
+  /// No description provided for @stockQtyInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a whole number (0 or more).'**
+  String get stockQtyInvalid;
+
+  /// No description provided for @stockNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No inventory item matches {code}. Pick the item by hand.'**
+  String stockNoMatch(String code);
+
+  /// No description provided for @stockScanned.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch {batch} · expiry {expiry}'**
+  String stockScanned(String batch, String expiry);
+
+  /// No description provided for @stockDrafts.
+  ///
+  /// In en, this message translates to:
+  /// **'Count drafts'**
+  String get stockDrafts;
+
+  /// No description provided for @stockBatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch {batch}'**
+  String stockBatch(String batch);
+
+  /// No description provided for @stockExpiry.
+  ///
+  /// In en, this message translates to:
+  /// **'Expiry {expiry}'**
+  String stockExpiry(String expiry);
+
+  /// No description provided for @stockPostAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Post adjustment'**
+  String get stockPostAction;
+
+  /// No description provided for @stockPostTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust {item}?'**
+  String stockPostTitle(String item);
+
+  /// No description provided for @stockPostBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Server on hand: {onHand}. Counted: {counted}. Adjustment: {delta}.'**
+  String stockPostBody(int onHand, int counted, int delta);
+
+  /// No description provided for @stockPosted.
+  ///
+  /// In en, this message translates to:
+  /// **'Posted'**
+  String get stockPosted;
+
+  /// No description provided for @stockNoDifference.
+  ///
+  /// In en, this message translates to:
+  /// **'No difference from the server — nothing to post.'**
+  String get stockNoDifference;
+
+  /// No description provided for @entityEncounter.
+  ///
+  /// In en, this message translates to:
+  /// **'consultation note'**
+  String get entityEncounter;
+
+  /// No description provided for @entityAppointment.
+  ///
+  /// In en, this message translates to:
+  /// **'appointment'**
+  String get entityAppointment;
+
+  /// No description provided for @entityCheckIn.
+  ///
+  /// In en, this message translates to:
+  /// **'check-in'**
+  String get entityCheckIn;
 }
 
 class _AppLocalizationsDelegate

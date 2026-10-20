@@ -718,4 +718,596 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get conflictWrongUser => 'इस डिवाइस पर किसी अन्य उपयोगकर्ता ने बनाया';
+
+  @override
+  String get statusOnline => 'ऑनलाइन';
+
+  @override
+  String get statusOffline => 'ऑफ़लाइन';
+
+  @override
+  String get statusSavedOnDevice => 'डिवाइस पर सहेजा';
+
+  @override
+  String get statusPendingSync => 'सिंक लंबित';
+
+  @override
+  String get statusSyncing => 'सिंक हो रहा है';
+
+  @override
+  String get statusSynced => 'सिंक हो गया';
+
+  @override
+  String get statusConflict => 'टकराव';
+
+  @override
+  String get statusActionRequired => 'कार्रवाई ज़रूरी';
+
+  @override
+  String statusCount(String status, int count) {
+    return '$status: $count';
+  }
+
+  @override
+  String globalToSync(int count) {
+    return 'सिंक करने हैं: $count';
+  }
+
+  @override
+  String globalConflicts(int count) {
+    return 'टकराव: $count';
+  }
+
+  @override
+  String globalNeedAction(int count) {
+    return 'कार्रवाई ज़रूरी: $count';
+  }
+
+  @override
+  String globalOfflineSaved(int count) {
+    return 'ऑफ़लाइन · डिवाइस पर $count सहेजे';
+  }
+
+  @override
+  String get globalAllSynced => 'सब सिंक हो गया';
+
+  @override
+  String get needsConnection => 'इंटरनेट चाहिए — ऑफ़लाइन अंतिम नहीं किया जाएगा';
+
+  @override
+  String get needsConnectionTitle => 'इंटरनेट चाहिए';
+
+  @override
+  String get needsConnectionReports =>
+      'रिपोर्ट सर्वर बनाता है; वे इस डिवाइस पर नहीं रखी जातीं.';
+
+  @override
+  String get errNetwork => 'इंटरनेट नहीं — अपने आप फिर से कोशिश होगी.';
+
+  @override
+  String get errServer => 'सर्वर में समस्या — अपने आप फिर से कोशिश होगी.';
+
+  @override
+  String get errBusy => 'सर्वर व्यस्त — थोड़ी देर बाद फिर कोशिश होगी.';
+
+  @override
+  String errForbidden(String detail) {
+    return 'आपके खाते को अनुमति नहीं: $detail';
+  }
+
+  @override
+  String errInvalid(String detail) {
+    return 'सर्वर ने जानकारी स्वीकार नहीं की: $detail';
+  }
+
+  @override
+  String errMaxAttempts(int count) {
+    return '$count बार कोशिश नाकाम — अपने आप कोशिश रुकी. अभी फिर कोशिश करें दबाएँ.';
+  }
+
+  @override
+  String get retryNow => 'अभी फिर कोशिश करें';
+
+  @override
+  String waitingFor(String entity) {
+    return 'पहले $entity के सिंक होने का इंतज़ार';
+  }
+
+  @override
+  String blockedBy(String entity) {
+    return 'रुका हुआ: जिस $entity पर निर्भर है उस पर आपकी कार्रवाई चाहिए';
+  }
+
+  @override
+  String get orphanedExplain =>
+      'यह रद्द किए गए रिकॉर्ड पर निर्भर है — जैसा है वैसा भेजा नहीं जा सकता.';
+
+  @override
+  String get syncAttention => 'आपका ध्यान चाहिए';
+
+  @override
+  String get storageTitle => 'इस डिवाइस पर स्टोरेज';
+
+  @override
+  String storageUsage(int kb, int patients, int queued) {
+    return 'लगभग $kb KB एन्क्रिप्टेड · $patients कैश मरीज़ · $queued कतार में बदलाव';
+  }
+
+  @override
+  String get clearCacheAction => 'कैश की गई मरीज़ जानकारी हटाएँ';
+
+  @override
+  String get clearCacheTitle => 'कैश मरीज़ हटाएँ?';
+
+  @override
+  String get clearCacheBody =>
+      'सर्वर से आए मरीज़ इस डिवाइस से हटा दिए जाएँगे. यहाँ दर्ज और अभी सिंक न हुए मरीज़ रहेंगे. अगली बार ऑनलाइन होने पर वे फिर आएँगे.';
+
+  @override
+  String clearCacheDone(int count) {
+    return '$count कैश मरीज़ इस डिवाइस से हटाए गए.';
+  }
+
+  @override
+  String get deviceSignedOutByAdmin =>
+      'व्यवस्थापक ने इस डिवाइस को साइन आउट कर दिया. मरीज़ों की जानकारी हटा दी गई; सिंक न हुआ काम डिवाइस पर सुरक्षित बंद है और वही उपयोगकर्ता दोबारा साइन इन करने पर वापस आएगा.';
+
+  @override
+  String quarantineTitle(int count) {
+    return 'साइन आउट हुए उपयोगकर्ता के $count सिंक न हुए बदलाव इस डिवाइस पर बंद हैं';
+  }
+
+  @override
+  String get quarantineBody =>
+      'इन्हें देखा नहीं जा सकता. वही उपयोगकर्ता इस डिवाइस पर दोबारा साइन इन करे तो ये सिंक होंगे.';
+
+  @override
+  String get quarantineDiscardAction => 'बंद बदलाव रद्द करें';
+
+  @override
+  String quarantineDiscardTitle(int count) {
+    return '$count बंद बदलाव रद्द करें?';
+  }
+
+  @override
+  String get quarantineDiscardBody =>
+      'ये कभी सर्वर को नहीं भेजे गए और इसके बाद वापस नहीं मिलेंगे.';
+
+  @override
+  String get quarantineDiscarded => 'बंद बदलाव रद्द किए गए.';
+
+  @override
+  String get conflictReview => 'जाँचें';
+
+  @override
+  String get conflictMine => 'इस डिवाइस पर सहेजा';
+
+  @override
+  String get conflictServer => 'सर्वर पर';
+
+  @override
+  String get conflictSendMine => 'मेरा फिर से भेजें';
+
+  @override
+  String get conflictSendMineTitle => 'अपना संस्करण फिर से भेजें?';
+
+  @override
+  String get conflictSendMineBody =>
+      'आपके सहेजने के बाद सर्वर का रिकॉर्ड बदल गया. फिर से भेजने पर चुपचाप कुछ नहीं बदलता — सर्वर फिर जाँचता है और मना कर सकता है.';
+
+  @override
+  String get conflictSentAgain => 'फिर से भेजने के लिए कतार में.';
+
+  @override
+  String get useServerVersion => 'सर्वर का संस्करण इस्तेमाल करें';
+
+  @override
+  String get versionTitle => 'सर्वर पर बदला गया';
+
+  @override
+  String get versionExplain =>
+      'आपके बदलाव सहेजने के बाद किसी ने सर्वर पर यह रिकॉर्ड बदला. तुलना करके चुनें — कुछ भी अपने आप नहीं बदला जाता.';
+
+  @override
+  String get dupTitle => 'संभावित दोहरा मरीज़';
+
+  @override
+  String get dupExplain =>
+      'सर्वर पर पहले से ऐसा मरीज़ है. चुनें: अपना नया मरीज़ रखें, मौजूदा रिकॉर्ड इस्तेमाल करें, या हर जानकारी जाँचकर मिलाएँ.';
+
+  @override
+  String dupMatchedOn(String fields) {
+    return 'मिलान: $fields';
+  }
+
+  @override
+  String get keepMineNew => 'मेरा नया मरीज़ रखें';
+
+  @override
+  String get useServerAction => 'यह रिकॉर्ड इस्तेमाल करें';
+
+  @override
+  String useServerTitle(String patient) {
+    return '$patient इस्तेमाल करें?';
+  }
+
+  @override
+  String useServerBody(int count) {
+    return 'आपका पंजीकरण नहीं भेजा जाएगा. इस मरीज़ के $count कतार वाले बदलाव मौजूदा रिकॉर्ड से जोड़े जाएँगे.';
+  }
+
+  @override
+  String useServerDone(String patient) {
+    return '$patient से जोड़ा गया.';
+  }
+
+  @override
+  String get mergeAction => 'जाँचकर मिलाएँ';
+
+  @override
+  String get mergeTitle => 'जाँचकर मिलाएँ';
+
+  @override
+  String get mergeExplain =>
+      'सर्वर का रिकॉर्ड अभी फिर से पढ़ा गया. अपने पंजीकरण से लेने वाली जानकारी पर ही निशान लगाएँ; आपके लिए कुछ पहले से चुना नहीं गया.';
+
+  @override
+  String get mergeNothing =>
+      'कोई अलग जानकारी नहीं — मौजूदा रिकॉर्ड इस्तेमाल होगा.';
+
+  @override
+  String mergeFieldLine(String server, String mine) {
+    return 'सर्वर: $server → मेरा: $mine';
+  }
+
+  @override
+  String mergeApply(int count) {
+    return '$count जानकारी लें और रिकॉर्ड इस्तेमाल करें';
+  }
+
+  @override
+  String mergeDone(int count, String uhid) {
+    return '$count जानकारी $uhid में ली गई.';
+  }
+
+  @override
+  String get fieldDob => 'जन्म तिथि';
+
+  @override
+  String get fieldAddress => 'पता';
+
+  @override
+  String get fieldBloodGroup => 'ब्लड ग्रुप';
+
+  @override
+  String get detailRequest => 'अनुरोध';
+
+  @override
+  String get detailState => 'स्थिति';
+
+  @override
+  String get detailCreated => 'सहेजने का समय';
+
+  @override
+  String get detailAttempts => 'कोशिशें';
+
+  @override
+  String get detailNextRetry => 'अगली कोशिश';
+
+  @override
+  String get detailKey => 'आइडेम्पोटेंसी की';
+
+  @override
+  String get detailHttp => 'सर्वर का जवाब';
+
+  @override
+  String get detailError => 'आख़िरी समस्या';
+
+  @override
+  String get detailDepends => 'इस पर निर्भर';
+
+  @override
+  String get detailNoLongerQueued => 'यह बदलाव अब कतार में नहीं है.';
+
+  @override
+  String get tabOverview => 'सारांश';
+
+  @override
+  String get tabConsult => 'परामर्श';
+
+  @override
+  String get tabPatients => 'मरीज़';
+
+  @override
+  String get tabAppointments => 'अपॉइंटमेंट';
+
+  @override
+  String get tabStock => 'स्टॉक';
+
+  @override
+  String get noTabsForRole =>
+      'मोबाइल पर आपकी भूमिका के लिए कुछ चालू नहीं है. व्यवस्थापक से पूछें.';
+
+  @override
+  String get patientsSearch => 'नाम, UHID या फ़ोन खोजें';
+
+  @override
+  String get patientsSearchServer => 'सर्वर पर खोजें';
+
+  @override
+  String patientsCachedNote(int count) {
+    return 'इस डिवाइस पर $count मरीज़ (केवल आपने ऑनलाइन देखे; एन्क्रिप्टेड)';
+  }
+
+  @override
+  String get consultTitle => 'परामर्श नोट (ड्राफ़्ट — ऑफ़लाइन भी चलता है)';
+
+  @override
+  String get consultComplaint => 'मुख्य शिकायत';
+
+  @override
+  String get consultHistory => 'इतिहास';
+
+  @override
+  String get consultExam => 'जाँच';
+
+  @override
+  String get consultSave => 'नोट ड्राफ़्ट सहेजें';
+
+  @override
+  String get consultUpdate => 'ड्राफ़्ट अपडेट करें';
+
+  @override
+  String get consultEdit => 'बदलें';
+
+  @override
+  String get consultSaved => 'नोट ड्राफ़्ट डिवाइस पर सहेजा — सिंक लंबित.';
+
+  @override
+  String get consultDuplicate =>
+      'इस मरीज़ का आज का नोट ड्राफ़्ट पहले से कतार में है (duplicate prevented).';
+
+  @override
+  String get consultComplaintRequired => 'मुख्य शिकायत लिखें.';
+
+  @override
+  String get consultNoBranch =>
+      'इस डिवाइस पर अभी शाखा नहीं — ऑनलाइन रहते एक बार कतार खोलें.';
+
+  @override
+  String get consultAlreadySent =>
+      'यह ड्राफ़्ट पहले ही भेजा गया — अब डिवाइस पर बदला नहीं जा सकता.';
+
+  @override
+  String get consultDrafts => 'नोट ड्राफ़्ट';
+
+  @override
+  String get consultNoDrafts => 'इस डिवाइस पर नोट ड्राफ़्ट नहीं.';
+
+  @override
+  String get consultComplete => 'परामर्श पूरा करें';
+
+  @override
+  String get consultCompleteAfterSync => 'पूरा करें (सिंक के बाद)';
+
+  @override
+  String get consultCompleted => 'परामर्श सर्वर पर पूरा हुआ.';
+
+  @override
+  String get appointmentsTitle => 'अपॉइंटमेंट बुक करें (ऑफ़लाइन भी चलता है)';
+
+  @override
+  String appointmentDay(String day) {
+    return 'दिन: $day';
+  }
+
+  @override
+  String get appointmentReason => 'कारण';
+
+  @override
+  String get appointmentSave => 'अपॉइंटमेंट ड्राफ़्ट सहेजें';
+
+  @override
+  String get appointmentSaved =>
+      'अपॉइंटमेंट डिवाइस पर सहेजा — सिंक लंबित. सिंक होने पर सर्वर समय जाँचता है.';
+
+  @override
+  String get appointmentDuplicate =>
+      'यह अपॉइंटमेंट पहले से कतार में है (duplicate prevented).';
+
+  @override
+  String get appointmentDrafts => 'अपॉइंटमेंट ड्राफ़्ट';
+
+  @override
+  String get appointmentsToday => 'आज के अपॉइंटमेंट (सर्वर)';
+
+  @override
+  String get appointmentsNone => 'आज कोई अपॉइंटमेंट नहीं.';
+
+  @override
+  String get queueToday => 'आज की कतार (सर्वर)';
+
+  @override
+  String get queueTodayShow => 'दिखाएँ';
+
+  @override
+  String get checkInScan => 'चेक-इन QR स्कैन करें';
+
+  @override
+  String get checkInSaved => 'चेक-इन डिवाइस पर सहेजा — सिंक लंबित.';
+
+  @override
+  String get checkInDuplicate =>
+      'यह कोड आज पहले ही स्कैन हुआ (duplicate prevented).';
+
+  @override
+  String get checkInInvalid => 'यह क्लिनिक का चेक-इन कोड नहीं है.';
+
+  @override
+  String get scanCheckInTitle => 'चेक-इन कोड स्कैन करें';
+
+  @override
+  String get scanBatchTitle => 'दवा पैक स्कैन करें';
+
+  @override
+  String get scanCheckInHelp => 'कैमरा डेस्क या पर्ची पर QR की ओर करें.';
+
+  @override
+  String get scanBatchHelp =>
+      'कैमरा पत्ते या डिब्बे के बारकोड की ओर करें (बैच और एक्सपायरी उससे पढ़ी जाती है).';
+
+  @override
+  String get scanTypeCode => 'कोड टाइप करें';
+
+  @override
+  String get scanUse => 'इस्तेमाल करें';
+
+  @override
+  String get rxDraftPdf => 'ड्राफ़्ट PDF';
+
+  @override
+  String get rxDraftPdfDone =>
+      'ड्राफ़्ट प्रीव्यू बना (वॉटरमार्क — ऑनलाइन साइन होने तक मान्य नहीं).';
+
+  @override
+  String get rxPrintSigned => 'साइन किया Rx प्रिंट करें';
+
+  @override
+  String get billingRecent => 'हाल के बिल (सर्वर)';
+
+  @override
+  String get billingRecentShow => 'दिखाएँ';
+
+  @override
+  String invoiceAmounts(String total, String paid, String status) {
+    return 'कुल $total · भुगतान $paid · $status';
+  }
+
+  @override
+  String get invoiceReceipt => 'रसीद PDF';
+
+  @override
+  String get paymentConfirm => 'भुगतान पक्का करें';
+
+  @override
+  String paymentTitle(String invoice) {
+    return '$invoice के लिए भुगतान';
+  }
+
+  @override
+  String get paymentAmount => 'प्राप्त राशि';
+
+  @override
+  String get paymentServerNote =>
+      'सर्वर अभी दर्ज करता है. यह कभी ऑफ़लाइन सहेजा नहीं जाता.';
+
+  @override
+  String get paymentRecorded => 'सर्वर ने भुगतान दर्ज किया.';
+
+  @override
+  String get reportsTitle => 'आज का सारांश';
+
+  @override
+  String get reportsToday => 'आज (सर्वर से)';
+
+  @override
+  String get reportsCollections => 'वसूली';
+
+  @override
+  String get reportsRefunds => 'रिफ़ंड';
+
+  @override
+  String get reportsNet => 'शुद्ध';
+
+  @override
+  String get reportsAppointments => 'अपॉइंटमेंट';
+
+  @override
+  String get reportsAdmitted => 'अभी भर्ती';
+
+  @override
+  String get reportsLowStock => 'कम स्टॉक';
+
+  @override
+  String get reportsServerNote =>
+      'सर्वर ने अपने बहीखाते से गिना; इस डिवाइस पर कुछ नहीं रखा जाता.';
+
+  @override
+  String get reportsForbidden => 'आपकी भूमिका रिपोर्ट नहीं देख सकती.';
+
+  @override
+  String get syncHealthTitle => 'इस डिवाइस की सिंक स्थिति';
+
+  @override
+  String get stockTitle => 'स्टॉक गिनती (ड्राफ़्ट — ऑफ़लाइन भी चलता है)';
+
+  @override
+  String get stockScan => 'बैच बारकोड स्कैन करें';
+
+  @override
+  String get stockPickItem => 'वस्तु चुनें';
+
+  @override
+  String get stockCounted => 'गिनी गई मात्रा';
+
+  @override
+  String get stockSave => 'गिनती ड्राफ़्ट सहेजें';
+
+  @override
+  String get stockSaved => 'गिनती डिवाइस पर सहेजी. जाँचकर ऑनलाइन दर्ज करें.';
+
+  @override
+  String get stockQtyInvalid => 'पूरी संख्या लिखें (0 या अधिक).';
+
+  @override
+  String stockNoMatch(String code) {
+    return '$code से मेल खाती वस्तु नहीं. हाथ से चुनें.';
+  }
+
+  @override
+  String stockScanned(String batch, String expiry) {
+    return 'बैच $batch · एक्सपायरी $expiry';
+  }
+
+  @override
+  String get stockDrafts => 'गिनती ड्राफ़्ट';
+
+  @override
+  String stockBatch(String batch) {
+    return 'बैच $batch';
+  }
+
+  @override
+  String stockExpiry(String expiry) {
+    return 'एक्सपायरी $expiry';
+  }
+
+  @override
+  String get stockPostAction => 'समायोजन दर्ज करें';
+
+  @override
+  String stockPostTitle(String item) {
+    return '$item में समायोजन करें?';
+  }
+
+  @override
+  String stockPostBody(int onHand, int counted, int delta) {
+    return 'सर्वर पर स्टॉक: $onHand. गिना: $counted. समायोजन: $delta.';
+  }
+
+  @override
+  String get stockPosted => 'दर्ज किया';
+
+  @override
+  String get stockNoDifference =>
+      'सर्वर से कोई अंतर नहीं — दर्ज करने को कुछ नहीं.';
+
+  @override
+  String get entityEncounter => 'परामर्श नोट';
+
+  @override
+  String get entityAppointment => 'अपॉइंटमेंट';
+
+  @override
+  String get entityCheckIn => 'चेक-इन';
 }

@@ -172,8 +172,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('रांग'), findsOneWidget); // Queue
-      expect(find.text('नोंदणी'), findsOneWidget); // Register
-      expect(find.text('बिलिंग'), findsOneWidget);
+      expect(find.text('सल्ला'), findsOneWidget); // Consult (doctor interface)
+      expect(find.text('रुग्ण'), findsWidgets); // Patients
       expect(find.text('सिंक'), findsOneWidget);
       expect(find.text('रांगेत जोडा (ऑफलाइनही चालते)'), findsOneWidget);
       expect(find.textContaining('P0001 Aarti Patil'), findsWidgets,

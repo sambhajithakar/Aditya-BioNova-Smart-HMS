@@ -23,6 +23,8 @@ import '../l10n/l10n.dart';
 import '../settings/app_settings.dart';
 import '../sync/outbox.dart';
 import '../util/dates.dart';
+import '../pdf/documents.dart';
+import 'sync_widgets.dart';
 import 'widgets.dart';
 
 /// Frequency codes offered as quick picks (kept untranslated, as written
@@ -79,10 +81,12 @@ class _RxTabState extends State<RxTab> {
     final drugs = widget.graph.directory.drugs;
     _drugId = drugs.isNotEmpty ? drugs.first['id'] as String? : null;
     _adopt();
+    widget.graph.network.addListener(_networkChanged);
   }
 
   @override
   void dispose() {
+    widget.graph.network.removeListener(_networkChanged);
     _diagnosis.dispose();
     _dose.dispose();
     _frequency.dispose();
@@ -239,6 +243,39 @@ class _RxTabState extends State<RxTab> {
       if (!mounted) return;
       setState(() => _error = err.toString());
     }
+  }
+
+  String get _clinic =>
+      widget.graph.session.cachedProfile?.organizationName ?? '';
+
+  /// DRAFT preview — watermarked, generated on the device.
+  Future<void> _previewPdf(Map<String, dynamic> draft) async {
+    try {
+      final bytes = await buildRxDraftPdf(
+        draft: draft,
+        clinicName: _clinic,
+        prescriber: widget.graph.session.cachedProfile?.fullName ?? '',
+      );
+      await widget.graph.pdfOutput.share(bytes, 'rx-draft.pdf');
+      if (mounted) setState(() => _notice = context.l10n.rxDraftPdfDone);
+    } catch (err) {
+      if (mounted) setState(() => _error = err.toString());
+    }
+  }
+
+  /// Signed prescription — built ONLY from the server's record.
+  Future<void> _printSigned(String serverId) async {
+    try {
+      final rx = await widget.graph.client.getPrescription(serverId);
+      final bytes = await buildSignedRxPdf(serverRx: rx, clinicName: _clinic);
+      await widget.graph.pdfOutput.share(bytes, 'rx-$serverId.pdf');
+    } catch (err) {
+      if (mounted) setState(() => _error = err.toString());
+    }
+  }
+
+  void _networkChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -454,6 +491,7 @@ class _RxTabState extends State<RxTab> {
     // never sent and must not read "Synced".
     final synced = op == null && serverId != null;
     final discarded = draft['discarded'] == true || (op == null && !synced);
+    final offline = widget.graph.network.value.isOffline;
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
@@ -507,7 +545,7 @@ class _RxTabState extends State<RxTab> {
                 if (!signed && !discarded)
                   TextButton(
                     key: Key('rx-sign-$localRef'),
-                    onPressed: (serverId != null && !pending)
+                    onPressed: (serverId != null && !pending && !offline)
                         ? () => _sign(localRef, serverId)
                         : null,
                     child: Text(pending || serverId == null
@@ -516,6 +554,32 @@ class _RxTabState extends State<RxTab> {
                   ),
               ],
             ),
+            if (!signed && !discarded && offline)
+              Text(
+                l.needsConnection,
+                key: Key('rx-sign-offline-$localRef'),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: Theme.of(context).colorScheme.error),
+              ),
+            Wrap(children: [
+              if (!signed && !discarded)
+                TextButton.icon(
+                  key: Key('rx-pdf-$localRef'),
+                  onPressed: () => _previewPdf(draft),
+                  icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                  label: Text(l.rxDraftPdf),
+                ),
+              if (signed && serverId != null)
+                OnlineOnlyButton(
+                  key: Key('rx-print-$localRef'),
+                  network: widget.graph.network,
+                  icon: Icons.print_outlined,
+                  label: l.rxPrintSigned,
+                  onPressed: () => _printSigned(serverId),
+                ),
+            ]),
           ],
         ),
       ),

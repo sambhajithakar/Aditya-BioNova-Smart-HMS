@@ -14,6 +14,9 @@ import '../l10n/l10n.dart';
 import '../settings/app_settings.dart';
 import '../sync/outbox.dart';
 import '../util/dates.dart';
+import '../data/directory.dart';
+import '../pdf/documents.dart';
+import 'sync_widgets.dart';
 
 const List<String> _itemTypes = [
   'consultation',
@@ -120,6 +123,141 @@ class _BillingTabState extends State<BillingTab> {
     });
   }
 
+  List<Map<String, dynamic>>? _recent;
+  bool _recentOffline = false;
+
+  /// Server invoices (online only — totals are the server's).
+  Future<void> _loadRecent() async {
+    try {
+      final page = await widget.graph.client.listInvoices();
+      if (!mounted) return;
+      setState(() {
+        _recent = DirectoryCache.listOf(page['items']);
+        _recentOffline = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _recentOffline = true);
+    }
+  }
+
+  Future<void> _receipt(String id) async {
+    try {
+      final inv = await widget.graph.client.getInvoice(id);
+      final bytes = await buildReceiptPdf(
+        serverInvoice: inv,
+        clinicName:
+            widget.graph.session.cachedProfile?.organizationName ?? '',
+      );
+      await widget.graph.pdfOutput
+          .share(bytes, 'invoice-${inv['invoice_number']}.pdf');
+    } catch (err) {
+      if (mounted) setState(() => _error = err.toString());
+    }
+  }
+
+  /// Confirm a payment: ONLINE, server-verified, explicit confirmation,
+  /// one Idempotency-Key per confirmation (a double tap cannot charge
+  /// twice). Never queued offline.
+  Future<void> _confirmPayment(Map<String, dynamic> inv) async {
+    final l = context.l10n;
+    final due = ((inv['total'] as num? ?? 0) - (inv['amount_paid'] as num? ?? 0))
+        .toDouble();
+    final amount = TextEditingController(text: due.toStringAsFixed(2));
+    var method = 'cash';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: Text(l.paymentTitle('${inv['invoice_number']}')),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(
+              key: const Key('payment-amount'),
+              controller: amount,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(labelText: l.paymentAmount),
+            ),
+            DropdownButton<String>(
+              key: const Key('payment-method'),
+              value: method,
+              isExpanded: true,
+              items: [
+                for (final m in const ['cash', 'upi', 'card', 'insurance', 'other'])
+                  DropdownMenuItem(value: m, child: Text(m.toUpperCase())),
+              ],
+              onChanged: (v) => setLocal(() => method = v ?? 'cash'),
+            ),
+            Text(l.paymentServerNote),
+          ]),
+          actions: [
+            TextButton(
+                key: const Key('confirm-cancel'),
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(l.cancel)),
+            FilledButton(
+                key: const Key('confirm-ok'),
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text(l.paymentConfirm)),
+          ],
+        ),
+      ),
+    );
+    final value = double.tryParse(amount.text.trim());
+    amount.dispose();
+    if (ok != true || value == null || value <= 0) return;
+    try {
+      await widget.graph.client.recordPayment(
+        invoiceId: '${inv['id']}',
+        amount: value,
+        method: method,
+        idempotencyKey: Outbox.newId(),
+      );
+      if (!mounted) return;
+      setState(() => _notice = l.paymentRecorded);
+      await _loadRecent();
+    } catch (err) {
+      if (mounted) setState(() => _error = err.toString());
+    }
+  }
+
+  Widget _invoiceTile(Map<String, dynamic> inv) {
+    final l = context.l10n;
+    final id = '${inv['id']}';
+    final paid = inv['status'] == 'paid';
+    return Card(
+      key: Key('invoice-$id'),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${inv['invoice_number'] ?? ''} · '
+                '${widget.graph.directory.patientLabel('${inv['patient_id']}')}'),
+            Text(l.invoiceAmounts('${inv['total']}', '${inv['amount_paid']}',
+                '${inv['status']}')),
+            Wrap(children: [
+              OnlineOnlyButton(
+                key: Key('invoice-receipt-$id'),
+                network: widget.graph.network,
+                icon: Icons.picture_as_pdf_outlined,
+                label: l.invoiceReceipt,
+                onPressed: () => _receipt(id),
+              ),
+              if (!paid)
+                OnlineOnlyButton(
+                  key: Key('invoice-pay-$id'),
+                  network: widget.graph.network,
+                  icon: Icons.payments_outlined,
+                  label: l.paymentConfirm,
+                  onPressed: () => _confirmPayment(inv),
+                ),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final directory = widget.graph.directory;
@@ -223,6 +361,21 @@ class _BillingTabState extends State<BillingTab> {
           key: const Key('billing-outbox-counts'),
           style: Theme.of(context).textTheme.bodySmall,
         ),
+        const SizedBox(height: 16),
+        Row(children: [
+          Expanded(
+            child: Text(l.billingRecent,
+                style: Theme.of(context).textTheme.titleSmall),
+          ),
+          TextButton(
+            key: const Key('billing-recent-load'),
+            onPressed: _loadRecent,
+            child: Text(_recent == null ? l.billingRecentShow : l.refresh),
+          ),
+        ]),
+        if (_recentOffline) const NeedsConnectionPanel(),
+        if (_recent != null && !_recentOffline)
+          for (final inv in _recent!) _invoiceTile(inv),
       ],
     );
   }

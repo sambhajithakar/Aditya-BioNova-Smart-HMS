@@ -12,11 +12,26 @@ import '../store/local_store.dart';
 import '../sync/idmap.dart';
 
 class DirectoryCache {
-  DirectoryCache(this.store);
+  DirectoryCache(this.store, {DateTime Function()? clock})
+      : _clock = clock ?? (() => DateTime.now().toUtc());
 
   static const String section = 'directory';
 
+  /// Bounded PHI cache (low-cost phones, least data at rest): at most this
+  /// many SERVER patients — only ones this user already fetched online —
+  /// newest first. Patients registered on this device and not yet synced
+  /// are never evicted (they are unsynced work, not cache).
+  static const int maxCachedPatients = 1000;
+
+  /// Cached server patients older than this are dropped at start-up; the
+  /// next online refresh fetches them again.
+  static const Duration patientTtl = Duration(days: 7);
+
   final LocalStore store;
+  final DateTime Function() _clock;
+
+  /// When the server patient list was last refreshed.
+  DateTime? patientsFetchedAt;
 
   List<Map<String, dynamic>> patients = <Map<String, dynamic>>[];
   List<Map<String, dynamic>> branches = <Map<String, dynamic>>[];
@@ -44,6 +59,14 @@ class DirectoryCache {
         localRefs.add(p['id'] as String);
       }
     }
+    // Pre-M8 caches carry no timestamp: start their TTL now.
+    patientsFetchedAt = raw['fetchedAt'] is String
+        ? DateTime.tryParse(raw['fetchedAt'] as String)
+        : null;
+    patientsFetchedAt ??= _clock();
+    if (_clock().difference(patientsFetchedAt!) > patientTtl) {
+      patients = [for (final p in patients) if (p['local'] == true) p];
+    }
   }
 
   Future<void> save() => store.saveSection(section, {
@@ -51,7 +74,65 @@ class DirectoryCache {
         'branches': branches,
         'drugs': drugs,
         'localRefs': localRefs.toList(),
+        'fetchedAt': patientsFetchedAt?.toIso8601String(),
       });
+
+  /// Server patients currently cached (excludes device registrations).
+  int get cachedServerPatients =>
+      patients.where((p) => p['local'] != true).length;
+
+  /// "Clear cached patient data": drop every cached SERVER patient; keep
+  /// this device's unsynced registrations (they are work, not cache).
+  Future<int> clearCachedPatients() async {
+    final before = cachedServerPatients;
+    patients = [for (final p in patients) if (p['local'] == true) p];
+    await save();
+    return before;
+  }
+
+  /// Add patients fetched by an online search to the bounded cache.
+  Future<void> rememberFetched(List<Map<String, dynamic>> items) async {
+    final ids = {for (final p in items) p['id']};
+    final local = [for (final p in patients) if (p['local'] == true) p];
+    final rest = [
+      for (final p in patients)
+        if (p['local'] != true && !ids.contains(p['id'])) p,
+    ];
+    patients = [...local, ..._bounded([...items, ...rest])];
+    await save();
+  }
+
+  static List<Map<String, dynamic>> _bounded(List<Map<String, dynamic>> l) =>
+      l.length <= maxCachedPatients ? l : l.sublist(0, maxCachedPatients);
+
+  /// Local search of the cache (name, UHID or phone; case-insensitive).
+  List<Map<String, dynamic>> search(String query) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return patients;
+    return [
+      for (final p in patients)
+        if (((p['full_name'] as String?) ?? '').toLowerCase().contains(q) ||
+            ((p['uhid'] as String?) ?? '').toLowerCase().contains(q) ||
+            ((p['phone'] as String?) ?? '').contains(q))
+          p,
+    ];
+  }
+
+  /// Device registrations not yet synced — moved to the quarantine when
+  /// the device is revoked.
+  List<Map<String, dynamic>> get localPatients =>
+      [for (final p in patients) if (p['local'] == true) p];
+
+  /// Put quarantined registrations back (the same user signed in again).
+  Future<void> restoreLocalPatients(List<Map<String, dynamic>> items) async {
+    for (final p in items.reversed) {
+      final id = p['id'];
+      if (id is! String || patientById(id) != null) continue;
+      localRefs.add(id);
+      patients = [p, ...patients];
+    }
+    await save();
+  }
 
   /// Forget everything (sign-out / local reset).
   Future<void> clear() async {
@@ -59,6 +140,7 @@ class DirectoryCache {
     branches = <Map<String, dynamic>>[];
     drugs = <Map<String, dynamic>>[];
     localRefs.clear();
+    patientsFetchedAt = null;
     await store.saveSection(section, null);
   }
 
@@ -80,7 +162,8 @@ class DirectoryCache {
       if (resolved != null && serverIds.contains(resolved)) continue;
       keep.add(p);
     }
-    patients = [...keep, ...items];
+    patients = [...keep, ..._bounded(items)];
+    patientsFetchedAt = _clock();
     await save();
   }
 

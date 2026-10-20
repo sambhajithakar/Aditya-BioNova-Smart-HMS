@@ -16,11 +16,17 @@ import '../l10n/l10n.dart';
 import '../settings/app_settings.dart';
 import '../sync/outbox.dart';
 import '../util/dates.dart';
+import '../scan/checkin.dart';
+import '../scan/scanner.dart';
+import 'sync_widgets.dart';
 
 class QueueTab extends StatefulWidget {
-  const QueueTab({super.key, required this.graph});
+  const QueueTab({super.key, required this.graph, this.checkIn = false});
 
   final AppGraph graph;
+
+  /// Show "Scan check-in QR" (server reported opd_queue + checkin.manage).
+  final bool checkIn;
 
   @override
   State<QueueTab> createState() => _QueueTabState();
@@ -43,6 +49,47 @@ class _QueueTabState extends State<QueueTab> {
         ? _directory.branches.first['id'] as String?
         : null;
     _refresh();
+  }
+
+  List<Map<String, dynamic>>? _today;
+  bool _todayOffline = false;
+
+  /// Today's server queue — fetched only when asked (data / battery).
+  Future<void> _loadToday() async {
+    try {
+      final page = await widget.graph.client.listQueue(localDay());
+      if (!mounted) return;
+      setState(() {
+        _today = DirectoryCache.listOf(page['items']);
+        _todayOffline = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _todayOffline = true);
+    }
+  }
+
+  /// Scan the desk QR (opaque token, no PHI) → queued check-in request.
+  Future<void> _scanCheckIn() async {
+    final l = context.l10n;
+    final raw =
+        await widget.graph.scanner.scan(context, ScanPurpose.checkIn);
+    if (raw == null || !mounted) return;
+    final token = CheckInToken.parse(raw);
+    if (token == null) {
+      setState(() {
+        _notice = null;
+        _error = l.checkInInvalid;
+      });
+      return;
+    }
+    final before = widget.graph.outbox.total;
+    widget.graph.checkIn.enqueue(token, branchId: _branchId);
+    final duplicate = widget.graph.outbox.total == before;
+    widget.graph.scheduler.requestSync();
+    setState(() {
+      _error = null;
+      _notice = duplicate ? l.checkInDuplicate : l.checkInSaved;
+    });
   }
 
   /// Best-effort network refresh; the cache already covers the offline case.
@@ -171,6 +218,13 @@ class _QueueTabState extends State<QueueTab> {
           onPressed: _addToQueue,
           child: Text(l.queueAdd),
         ),
+        if (widget.checkIn)
+          OutlinedButton.icon(
+            key: const Key('queue-scan-checkin'),
+            onPressed: _scanCheckIn,
+            icon: const Icon(Icons.qr_code_scanner),
+            label: Text(l.checkInScan),
+          ),
         const SizedBox(height: 8),
         Text(
           key: const Key('outbox-counts'),
@@ -203,6 +257,28 @@ class _QueueTabState extends State<QueueTab> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
+        const SizedBox(height: 16),
+        Row(children: [
+          Expanded(
+            child: Text(l.queueToday,
+                style: Theme.of(context).textTheme.titleSmall),
+          ),
+          TextButton(
+            key: const Key('queue-today-load'),
+            onPressed: _loadToday,
+            child: Text(_today == null ? l.queueTodayShow : l.refresh),
+          ),
+        ]),
+        if (_todayOffline) const NeedsConnectionPanel(),
+        if (_today != null && !_todayOffline)
+          for (final e in _today!)
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Text('#${e['token_number'] ?? ''}'),
+              title: Text(_directory.patientLabel('${e['patient_id']}')),
+              subtitle: Text('${e['status'] ?? ''}'),
+            ),
       ],
     );
   }

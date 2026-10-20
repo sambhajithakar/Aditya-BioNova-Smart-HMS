@@ -71,4 +71,48 @@ class IdMap {
   /// True when [payload] still contains an unresolved local reference.
   static bool hasUnresolved(Map<String, dynamic> payload, IdMap ids) =>
       ids.substitute(payload) == null;
+
+  static final RegExp _pathRef = RegExp(r'\$ref:([^/?#]+)');
+
+  /// Every local ref mentioned in [value]: a JSON payload (deep) or a path
+  /// such as `/encounters/$ref:abc/vitals`.
+  static Set<String> refsIn(Object? value) {
+    final out = <String>{};
+    void walk(Object? v) {
+      if (v is String) {
+        if (v.startsWith(prefix)) {
+          out.add(v.substring(prefix.length));
+        } else if (v.contains(prefix)) {
+          for (final m in _pathRef.allMatches(v)) {
+            out.add(m.group(1)!);
+          }
+        }
+      } else if (v is Map) {
+        v.values.forEach(walk);
+      } else if (v is List) {
+        v.forEach(walk);
+      }
+    }
+
+    walk(value);
+    return out;
+  }
+
+  /// [path] with `$ref:<local>` segments replaced by server ids; null when
+  /// one is still unresolved.
+  String? substitutePath(String path) {
+    if (!path.contains(prefix)) return path;
+    var unresolved = false;
+    final out = path.replaceAllMapped(_pathRef, (m) {
+      final server = _ids[m.group(1)!];
+      if (server == null) {
+        unresolved = true;
+        return m.group(0)!;
+      }
+      return server;
+    });
+    return unresolved ? null : out;
+  }
+
+  int get length => _ids.length;
 }
