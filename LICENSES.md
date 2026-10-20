@@ -57,7 +57,8 @@ lock files carry sha256 hashes and are regenerated with
 
 ## System / infrastructure
 - PostgreSQL 16 (database): PostgreSQL Licence ✅
-- Docker images (`postgres:16-alpine`, `python:3.12-slim`, `node:22-alpine`): upstream licences ✅
+- Docker images (`postgres:16.15-alpine`, `python:3.12.15-slim`, `node:22.23.3-alpine`, pinned by digest): upstream licences ✅
+- CI tooling (not shipped): gitleaks (MIT), hadolint (GPL-3.0, run as a separate binary in CI only), pip-audit (Apache-2.0)
 
 ## Competitor-research provenance
 No competitor source code, graphics or interface designs were copied.
