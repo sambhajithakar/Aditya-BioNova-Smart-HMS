@@ -268,6 +268,7 @@ function SubscriptionBody() {
             <label className="field">
               {t("plan")}
               <select
+                aria-label={t("plan")}
                 value={req.plan_code}
                 onChange={(e) => setReq({ ...req, plan_code: e.target.value })}
                 required
@@ -283,6 +284,7 @@ function SubscriptionBody() {
             <label className="field">
               {t("billingCycle")}
               <select
+                aria-label={t("billingCycle")}
                 value={req.billing_cycle}
                 onChange={(e) => setReq({ ...req, billing_cycle: e.target.value })}
               >

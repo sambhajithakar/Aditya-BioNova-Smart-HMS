@@ -149,7 +149,7 @@ test("subscription page shows the plan, usage and plan comparison", async ({ pag
 
   await page.getByLabel("Plan", { exact: true }).selectOption({ index: 1 });
   await page.getByRole("button", { name: "Send request" }).click();
-  await expect(page.locator("p.notice")).toContainText("Request sent");
+  await expect(page.getByText(/Request sent/)).toBeVisible();
 });
 
 test("support ticket create, then reply", async ({ page, request }) => {

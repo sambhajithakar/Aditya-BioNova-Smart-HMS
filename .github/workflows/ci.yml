@@ -168,6 +168,9 @@ jobs:
       # every E2E test registers its own clinic from one IP; throttling itself
       # is covered by the API suite (test_m7_security.py)
       RL_REGISTER_PER_IP: "10000"
+      # synthetic demo platform admin without TOTP — development-only setting
+      # (the API refuses it in any other ENVIRONMENT)
+      PLATFORM_MFA_REQUIRED: "false"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -191,6 +194,7 @@ jobs:
           ./scripts/setup_local_db.sh
           export JWT_SECRET="$(openssl rand -hex 32)"
           cd apps/api && alembic upgrade head
+          python ../../scripts/seed_demo.py   # synthetic tenants + platform admin
           nohup uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/api.log 2>&1 &
           for _ in $(seq 1 30); do curl -sf http://127.0.0.1:8000/api/v1/health/ready && break; sleep 1; done
       - name: Build and start web
@@ -208,6 +212,8 @@ jobs:
         env:
           E2E_BASE_URL: http://localhost:3000
           E2E_API_URL: http://127.0.0.1:8000
+          E2E_PLATFORM_EMAIL: platform@aditya-bionova.example.com
+          E2E_PLATFORM_PASSWORD: Demo-Sunrise-2026!  # synthetic demo account
         run: npx playwright test
       - name: Server logs on failure
         if: failure()
