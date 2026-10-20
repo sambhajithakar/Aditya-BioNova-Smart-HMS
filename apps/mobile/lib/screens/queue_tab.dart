@@ -10,10 +10,10 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../app_graph.dart';
 import '../data/directory.dart';
-import '../main.dart';
-import '../sync/idmap.dart';
 import '../sync/outbox.dart';
+import '../util/dates.dart';
 
 class QueueTab extends StatefulWidget {
   const QueueTab({super.key, required this.graph});
@@ -36,9 +36,7 @@ class _QueueTabState extends State<QueueTab> {
   @override
   void initState() {
     super.initState();
-    _patientId = _directory.patients.isNotEmpty
-        ? _directory.patients.first['id'] as String?
-        : null;
+    _patientId = _directory.resolveSelection(null, widget.graph.idMap);
     _branchId = _directory.branches.isNotEmpty
         ? _directory.branches.first['id'] as String?
         : null;
@@ -53,11 +51,13 @@ class _QueueTabState extends State<QueueTab> {
       final branches = await widget.graph.client.listBranches();
       final items = DirectoryCache.listOf(patients['items']);
       if (!mounted) return;
-      await _directory.replacePatients(items);
+      // Merge, never replace: unsynced offline registrations stay (H24).
+      await _directory.replacePatients(items, idMap: widget.graph.idMap);
       await _directory.replaceBranches(DirectoryCache.listOf(branches));
       if (!mounted) return;
       setState(() {
-        _patientId ??= items.isNotEmpty ? items.first['id'] as String? : null;
+        _patientId =
+            _directory.resolveSelection(_patientId, widget.graph.idMap);
         _branchId ??= _directory.branches.isNotEmpty
             ? _directory.branches.first['id'] as String?
             : null;
@@ -72,23 +72,19 @@ class _QueueTabState extends State<QueueTab> {
   }
 
   /// Server id for a directory entry: resolved id when its registration has
-  /// synced, the `$ref:` placeholder otherwise.
-  String _patientRef(String id) {
-    final entry = _directory.patientById(id);
-    if (entry == null || entry['local'] != true) return id;
-    return widget.graph.idMap.serverIdOf(id) ?? IdMap.placeholder(id);
-  }
+  /// synced, the `$ref:` placeholder otherwise — never a raw device id.
+  String _patientRef(String id) => _directory.refFor(id, widget.graph.idMap);
 
   void _addToQueue() {
     final outbox = widget.graph.outbox;
-    final patientId = _patientId;
+    final patientId =
+        widget.graph.directory.resolveSelection(_patientId, widget.graph.idMap);
     final branchId = _branchId;
     if (patientId == null || branchId == null) {
       setState(() => _error = 'Pick a patient and a branch (need one sync).');
       return;
     }
-    final today = DateTime.now().toUtc().toIso8601String().split('T').first;
-    final dedupeKey = 'queue:$patientId:$today';
+    final dedupeKey = 'queue:$patientId:${localDay()}';
     final alreadyQueued = outbox.openOpFor(dedupeKey) != null;
     outbox.enqueue(
       entity: 'queue_entry',
@@ -100,6 +96,7 @@ class _QueueTabState extends State<QueueTab> {
       },
       dedupeKey: dedupeKey,
     );
+    widget.graph.scheduler.requestSync();
     setState(() {
       _error = null;
       _notice = alreadyQueued
@@ -132,17 +129,13 @@ class _QueueTabState extends State<QueueTab> {
         DropdownButton<String>(
           key: const Key('queue-patient'),
           isExpanded: true,
-          value: _patientId,
+          value: _directory.resolveSelection(_patientId, widget.graph.idMap),
           hint: const Text('—'),
           items: [
             for (final p in _directory.patients)
               DropdownMenuItem<String>(
                 value: p['id'] as String,
-                child: Text(
-                  p['local'] == true
-                      ? '${p['full_name'] ?? ''} (pending sync)'
-                      : _directory.patientLabel(p['id'] as String),
-                ),
+                child: Text(_directory.pickerLabel(p, widget.graph.idMap)),
               ),
           ],
           onChanged: (v) => setState(() => _patientId = v),

@@ -31,6 +31,8 @@ class IdMap {
     _ids[localRef] = serverId;
   }
 
+  void clear() => _ids.clear();
+
   Map<String, dynamic> toJson() => {'ids': _ids};
 
   factory IdMap.fromJson(Map<String, dynamic> json) {

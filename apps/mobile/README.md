@@ -1,4 +1,4 @@
-# Aditya BioNova Smart HMS — mobile app (M4)
+# Aditya BioNova Smart HMS — mobile app (M4, hardened in M7.0)
 
 Offline-first Android app for doctors and field staff, sharing the same
 FastAPI backend as the web app. One binary serves both roles: the **Staff
@@ -10,11 +10,17 @@ switched by the role the server reports on `GET /auth/me`.
 | Concern | Implementation |
 | --- | --- |
 | Local storage | One AES-256-GCM sealed file (`EncryptedFileStore`) holding named sections; the AES key lives in the Android Keystore (`flutter_secure_storage`), never in the file |
-| Session | Keystore-backed token store (`SecureTokenStore`) |
+| Session | Keystore-backed token store (`SecureTokenStore`) holding the token pair and the signed-in user's profile. A 401 triggers ONE refresh-token rotation (`POST /auth/refresh`, single-flight, new pair persisted) before the user is asked to sign in again; the outbox is never touched by an expiry |
+| Sign-in | `POST /auth/login`; an MFA account answers `mfa_required` → 6-digit TOTP or recovery code → `POST /auth/mfa/verify`. 429 shows "Try again in N minutes" from `Retry-After` |
+| Offline start + app lock | After the first online sign-in the user sets a 4–8 digit PIN (stored only as a salted PBKDF2-HMAC-SHA256 hash in the Keystore-backed store). With a stored session the app opens at the PIN lock and reaches Home **with no network**; the PIN is asked again after 5 min in the background. 5 wrong PINs erase the PIN and the stored session (online sign-in required; queued work kept) |
+| Store cannot be unlocked | Fail closed: a recovery screen explains it and offers "Try again" or "Reset local data (unsynced items will be lost)" with an explicit confirmation. There is no memory-only fallback |
+| Sign-out | Warns when unsynced changes exist and needs explicit confirmation; then revokes the server session (best effort) and wipes outbox, directory cache, id map, Rx drafts, tokens, profile and PIN |
+| Per-user ops | Every op records the user who created it; the engine never pushes an op under another user's session (parked as a "created by another user" conflict, released when that user signs in again) |
 | Mutations | Every change is an `OutboxOp` with a client-generated UUID used as the server `Idempotency-Key` — a replay can never double-apply |
-| Duplicate prevention | One open op per `dedupeKey` (same patient into today's queue twice stays ONE op), plus the server's idempotency store as the backstop |
-| Offline-created entities | A patient registered offline gets a device id; later ops refer to it as `$ref:<local>` and the sync engine swaps in the server id before pushing. A reference that has not synced yet DEFERS the dependent op instead of pushing a bogus id |
-| Conflicts | 409/412 → parked as `conflicted`, resolved by a human ("Keep local (re-send)" / "Discard"). **No last-write-wins on clinical data.** |
+| Duplicate prevention | One open op per `dedupeKey` (same patient into today's queue twice stays ONE op; invoice keys include line type, quantity and price; Rx keys include the whole regimen; "today" is the device-local day), plus the server's idempotency store as the backstop |
+| Retries | 20 s request timeout; network errors, 408, 429 and 5xx keep the op as "not sent yet" with exponential backoff + jitter (2 s … 15 min, `Retry-After` honoured) and an automatic retry timer; resume / unlock / sign-in trigger a sync. Ops interrupted mid-push by a crash are re-queued at start-up. The `Idempotency-Key` never changes across retries |
+| Offline-created entities | A patient registered offline gets a device id; later ops refer to it as `$ref:<local>` and the sync engine swaps in the server id before pushing. A reference that has not synced yet DEFERS the dependent op instead of pushing a bogus id. Directory refreshes merge (never replace) so unsynced registrations stay in every picker, labelled "pending sync"; a raw device id is never sent as `patient_id` |
+| Conflicts | 409/412 and other 4xx (not 408/429) → parked as `conflicted`, resolved by a human. A duplicate-patient 409 offers "register anyway" (re-sent with `allow_duplicates: true` under a new key, after confirmation). Discarding a registration also discards the ops that depend on it, after a warning; a discarded Rx draft shows "Discarded — not sent". **No last-write-wins on clinical data.** |
 | Explicit sync states | Saved on device · Pending sync / Syncing… / Synced / Conflict — shown per queued item in the Sync centre |
 | Restart recovery | Outbox, directory cache, id map and Rx drafts are persisted on every change; `AppGraph.open()` restores them at start-up |
 | Signing a prescription | Online-only on purpose: the API's blocking allergy check and the `prescription.sign` permission are server-side. An offline draft can never become a signed prescription |
@@ -23,20 +29,27 @@ switched by the role the server reports on `GET /auth/me`.
 
 ```
 lib/
-  main.dart              AppGraph (session + store + outbox + engine) & app entry
-  api/                   transport (ApiTransport) + HmsClient
-  auth/session.dart      TokenStore abstraction (memory on tests, Keystore on device)
+  main.dart              app entry, lifecycle (lock / sync on resume), start routing
+  app_graph.dart         AppGraph (session + store + outbox + engine + lock)
+  boot.dart              open the sealed store or fail closed (recovery)
+  api/                   transport (ApiTransport, timeouts) + HmsClient (MFA, refresh)
+  auth/session.dart      TokenStore abstraction + session profile
+  auth/app_lock.dart     PIN lock (PBKDF2 hash, inactivity, lockout)
   store/local_store.dart LocalStore, MemoryLocalStore, EncryptedFileStore (AES-GCM)
   store/platform_stores.dart  SecureTokenStore, SecureKeyProvider (Keystore)
   data/directory.dart    cached patients / branches / drug catalog
   data/rx_drafts.dart    prescription drafts written on this device
   sync/outbox.dart       offline queue (dedupe, statuses, serialize/restore)
   sync/idmap.dart        local → server id substitution
-  sync/engine.dart       push, classify, park conflicts, persist
+  sync/engine.dart       push, classify, refresh-on-401, park conflicts, persist
+  sync/scheduler.dart    automatic retry timer + resume trigger
   sync/conflict.dart     conflict model (no silent resolution)
-  screens/               shell + Queue / Register / Rx / Billing / Sync tabs
-test/                    40 tests: outbox, engine, id map, encrypted store,
-                         restart recovery, and the offline workflow slices
+  screens/               login/MFA, PIN, recovery, shell + Queue / Register /
+                         Rx / Billing / Sync tabs
+test/                    flutter test: outbox, engine, refresh/retry, id map,
+                         encrypted store, recovery, app lock, sign-out
+                         isolation, pickers/dedupe, conflicts, Android
+                         manifest guards, and the offline workflow slices
 ```
 
 ## Running
@@ -46,9 +59,18 @@ flutter pub get
 flutter analyze
 flutter test
 
-# against a local API (the Android emulator reaches the host via 10.0.2.2)
+# against a local API (the Android emulator reaches the host via 10.0.2.2;
+# cleartext HTTP is allowed in DEBUG builds only)
 flutter run --dart-define=API_BASE=http://10.0.2.2:8000
+
+# release builds are HTTPS-only (network security config + a start-up check)
+flutter build apk --release --dart-define=API_BASE=https://api.example.in
 ```
+
+Android manifest: `INTERNET` is declared for release, backup / device
+transfer are disabled (`allowBackup=false` + exclude-everything rules — the
+Keystore-sealed store cannot be decrypted on another device), and cleartext
+traffic is refused outside debug builds.
 
 ## Release signing (keys never committed)
 
@@ -75,6 +97,12 @@ flutter build apk --release
 
 ## Not yet done (labelled, not claimed)
 
+- No Android SDK was available while building M7.0: the release APK, the
+  manifest merge and the network security config have NOT been built or
+  run on a device; they are covered by static tests only.
+- i18n (मराठी / हिंदी) for the mobile UI is pending — strings are English.
+- MFA enrolment, password change and session management are web-only; the
+  app only completes an MFA sign-in.
 - On-device/emulator runs: airplane-mode matrix, restart recovery and
   duplicate prevention have been proven in the Dart test harness against a
   fake transport, **not** yet on entry-level physical hardware (M4 device QA).

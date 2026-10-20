@@ -14,8 +14,9 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../main.dart';
+import '../app_graph.dart';
 import '../sync/outbox.dart';
+import '../util/dates.dart';
 
 const List<String> _genders = ['female', 'male', 'other', 'unknown'];
 
@@ -75,7 +76,7 @@ class _RegisterTabState extends State<RegisterTab> {
     }
 
     final localRef = Outbox.newId();
-    final today = DateTime.now().toUtc().toIso8601String().split('T').first;
+    final today = localDay();
     final op = widget.graph.outbox.enqueue(
       entity: 'patient',
       method: 'POST',
@@ -108,6 +109,7 @@ class _RegisterTabState extends State<RegisterTab> {
       gender: _gender,
       phone: phone,
     );
+    widget.graph.scheduler.requestSync();
     if (!mounted) return;
     setState(() {
       _error = null;
