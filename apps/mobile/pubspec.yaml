@@ -30,6 +30,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # UI translations (English / मराठी / हिंदी) via gen-l10n — see l10n.yaml.
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
 
   # HTTP client for the API transport (wrapped behind ApiTransport so tests
   # inject fakes and the sync core stays pure Dart).
@@ -66,6 +70,9 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # Generates lib/l10n/app_localizations*.dart from lib/l10n/*.arb.
+  generate: true
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -1,0 +1,517 @@
+{
+  "@@locale": "en",
+  "appTitle": "Aditya BioNova Smart HMS",
+  "@appTitle": {
+    "description": "Product name — not translated"
+  },
+  "appSubtitle": "Doctor & field staff app",
+  "languageMenu": "Language",
+  "languageDevice": "Device language",
+  "@languageDevice": {
+    "description": "Follow the phone language setting"
+  },
+  "settingsMenu": "Settings",
+  "refresh": "Refresh",
+  "cancel": "Cancel",
+  "back": "Back",
+  "patient": "Patient",
+  "branch": "Branch",
+  "@branch": {
+    "description": "Clinic branch"
+  },
+  "pickPatientFirst": "Pick a patient first.",
+  "outboxCounts": "Outbox — pending: {pending}, failed: {failed}, conflicted: {conflicted}",
+  "@outboxCounts": {
+    "description": "Counts of changes waiting on the device",
+    "placeholders": {
+      "pending": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      },
+      "conflicted": {
+        "type": "int"
+      }
+    }
+  },
+  "outboxCountsShort": "Outbox — pending: {pending}, conflicted: {conflicted}",
+  "@outboxCountsShort": {
+    "placeholders": {
+      "pending": {
+        "type": "int"
+      },
+      "conflicted": {
+        "type": "int"
+      }
+    }
+  },
+  "pendingSyncTag": "(pending sync)",
+  "@pendingSyncTag": {
+    "description": "Suffix after a patient registered offline"
+  },
+  "syncedTag": "(synced)",
+  "loginEmail": "Email",
+  "loginPassword": "Password",
+  "loginSlug": "Clinic slug (optional)",
+  "@loginSlug": {
+    "description": "Organisation slug"
+  },
+  "loginSubmit": "Sign in",
+  "loginSigningIn": "Signing in…",
+  "loginMfaTitle": "Two-step verification",
+  "loginMfaHelp": "Enter the 6-digit code from your authenticator app, or one of your recovery codes (xxxx-xxxx).",
+  "loginMfaCode": "Code",
+  "loginVerify": "Verify",
+  "loginVerifying": "Verifying…",
+  "loginMfaMissing": "Enter the code from your authenticator app.",
+  "loginMfaRejected": "That code was not accepted. Check the time on your phone or use a recovery code.",
+  "loginUnreachable": "Could not reach the server. Check the connection and try again.",
+  "rateLimitedWait": "Too many attempts. Please wait and try again.",
+  "rateLimitedSeconds": "Too many attempts. Try again in {seconds} seconds.",
+  "@rateLimitedSeconds": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "rateLimitedMinutes": "Too many attempts. Try again in {minutes, plural, =1{1 minute} other{{minutes} minutes}}.",
+  "@rateLimitedMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionExpiredNotice": "Your sign-in has expired. Work saved on this device is kept and syncs after you sign in.",
+  "lockedOutNotice": "Too many wrong PINs. Sign in online again — work saved on this device is kept.",
+  "pinSetTitle": "Set an app PIN",
+  "pinUnlockTitle": "Enter your app PIN",
+  "pinSetHelp": "Patient data on this device is protected by a PIN. You will need it to open the app, even with no network.",
+  "worksOffline": "Works offline.",
+  "pinLabel": "PIN",
+  "pinRepeat": "Repeat PIN",
+  "pinSave": "Save PIN",
+  "pinUnlock": "Unlock",
+  "pinUsePassword": "Sign in with password instead",
+  "pinRule": "Use 4 to 8 digits.",
+  "pinMismatch": "The two PINs do not match.",
+  "pinWrong": "Wrong PIN — {left, plural, =1{1 attempt} other{{left} attempts}} left.",
+  "@pinWrong": {
+    "placeholders": {
+      "left": {
+        "type": "int"
+      }
+    }
+  },
+  "recoveryTitle": "Offline data could not be unlocked",
+  "recoveryTitleFatal": "This build cannot start",
+  "recoveryBody": "The work saved on this device is encrypted with a key kept in this phone's secure hardware. The key or the data could not be read — this happens after restoring the app onto a new phone, or if the stored file was damaged.\n\nThe app will not continue without its offline storage, because new work would silently be lost. Try again first; if it keeps failing, reset the local data.",
+  "recoveryDetails": "Details: {details}",
+  "@recoveryDetails": {
+    "placeholders": {
+      "details": {
+        "type": "String"
+      }
+    }
+  },
+  "recoveryRetry": "Try again",
+  "recoveryReset": "Reset local data (unsynced items will be lost)",
+  "recoveryResetTitle": "Reset local data?",
+  "recoveryResetBody": "Everything stored on this device by the app is deleted: registrations, queue entries, invoices and prescription drafts that have not synced are LOST and cannot be recovered. Data already on the server is not affected. You will sign in again afterwards.",
+  "recoveryResetConfirm": "Delete local data",
+  "homeTitle": "HMS · {role}",
+  "@homeTitle": {
+    "description": "Role as reported by the server (not translated)",
+    "placeholders": {
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "signOut": "Sign out",
+  "signOutTitle": "Sign out of this device?",
+  "signOutTitleUnsynced": "Unsynced changes will be lost",
+  "signOutBody": "The cached patient list, drafts and your PIN are removed from this device.",
+  "signOutBodyUnsynced": "{count, plural, =1{1 change saved on this device has NOT reached the server yet.} other{{count} changes saved on this device have NOT reached the server yet.}} Signing out deletes them, together with the cached patient list and drafts. Sync first if you can.",
+  "@signOutBodyUnsynced": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "signOutDelete": "Delete and sign out",
+  "sessionExpiredBanner": "Signed out by the server. You can keep working offline; sign in again to sync.",
+  "tabQueue": "Queue",
+  "@tabQueue": {
+    "description": "OPD queue tab"
+  },
+  "tabRegister": "Register",
+  "@tabRegister": {
+    "description": "Patient registration tab"
+  },
+  "tabRx": "Rx",
+  "@tabRx": {
+    "description": "Prescription tab — Rx is understood by clinicians"
+  },
+  "tabFastRx": "Fast Rx",
+  "tabBilling": "Billing",
+  "tabBill": "Bill",
+  "tabSync": "Sync",
+  "ruralMode": "Rural clinic mode",
+  "ruralModeHelp": "Large buttons, bigger text, four steps",
+  "editionLabel": "Edition: {edition}",
+  "@editionLabel": {
+    "description": "Product edition reported by the server",
+    "placeholders": {
+      "edition": {
+        "type": "String"
+      }
+    }
+  },
+  "mobileNotEnabled": "The mobile app is not part of your clinic's plan. Changes already saved on this device can still be synced from the Sync tab. Contact your administrator.",
+  "queueTitle": "Offline queue entry",
+  "queuePickBoth": "Pick a patient and a branch (need one sync).",
+  "queueDuplicate": "Already queued for today — duplicate prevented.",
+  "queueSaved": "Saved on device — pending sync ({count} in the outbox).",
+  "@queueSaved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "queueAdd": "Add to queue (works offline)",
+  "loadingPatients": "Loading patients…",
+  "noPatientsCached": "No patients cached yet — connect once to pull the directory, after which queue entries work offline.",
+  "registerTitle": "Register patient (works offline)",
+  "registerName": "Full name",
+  "registerGender": "Gender",
+  "genderFemale": "Female",
+  "genderMale": "Male",
+  "genderOther": "Other",
+  "genderUnknown": "Unknown",
+  "registerPhone": "Phone (optional)",
+  "registerDobUnknown": "Date of birth — not known (estimated)",
+  "registerDob": "Date of birth — {date}",
+  "@registerDob": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "pick": "Pick",
+  "registerAllergies": "Known allergies (write what the family reports)",
+  "registerAdd": "Register (works offline)",
+  "registerNameRequired": "Enter the patient’s full name.",
+  "registerLooksDuplicate": "Looks like an existing patient — duplicate prevented (pick them from the list, or edit the details to register anyway).",
+  "registerDuplicateQueued": "Identical registration already queued — duplicate prevented.",
+  "registerSaved": "Saved on device — pending sync. Assigned to today’s queue as soon as it syncs.",
+  "billingTitle": "Raise invoice (works offline)",
+  "billingLineType": "Line type",
+  "@billingLineType": {
+    "description": "Invoice line type"
+  },
+  "itemConsultation": "Consultation",
+  "itemProcedure": "Procedure",
+  "itemPharmacy": "Pharmacy",
+  "itemLab": "Lab",
+  "itemOther": "Other",
+  "billingDescription": "Description",
+  "billingQuantity": "Quantity",
+  "billingUnitPrice": "Unit price",
+  "billingAdd": "Save invoice (works offline)",
+  "billingDescribe": "Describe the line being billed.",
+  "billingQtyPrice": "Quantity and unit price are required.",
+  "billingDuplicate": "Identical invoice already queued — duplicate prevented.",
+  "billingSaved": "Invoice saved on device — pending sync. Totals and the invoice number are computed by the server.",
+  "rxTitle": "Fast Rx draft (works offline)",
+  "rxMedicine": "Medicine (validated catalog)",
+  "rxDose": "Dose (500 mg)",
+  "@rxDose": {
+    "description": "Example dose stays in mg"
+  },
+  "rxFrequency": "Frequency (BD)",
+  "@rxFrequency": {
+    "description": "BD/TDS abbreviations are kept as written on Indian prescriptions"
+  },
+  "rxDays": "Days",
+  "rxDispense": "Units to dispense (optional)",
+  "rxDispenseHelp": "Pharmacy cannot hand out more than this in total",
+  "rxAddItem": "Add medicine",
+  "rxItemLine": "{drug} — {dose}, {frequency}, {days} days",
+  "@rxItemLine": {
+    "description": "Drug name and dose are never translated",
+    "placeholders": {
+      "drug": {
+        "type": "String"
+      },
+      "dose": {
+        "type": "String"
+      },
+      "frequency": {
+        "type": "String"
+      },
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "rxItemDispense": " · dispense {quantity}",
+  "@rxItemDispense": {
+    "placeholders": {
+      "quantity": {
+        "type": "String"
+      }
+    }
+  },
+  "rxDiagnosis": "Diagnosis (text)",
+  "rxSave": "Save draft (works offline)",
+  "rxDrafts": "Drafts on this device",
+  "rxNoDrafts": "No drafts yet — they are kept here with their sync state.",
+  "rxNoCatalog": "No drug catalog cached yet — connect once.",
+  "rxRequired": "Dose, frequency and duration are required.",
+  "rxDispenseRange": "Quantity to dispense must be 1–10000 units (or leave it blank).",
+  "rxAddOne": "Add at least one medicine.",
+  "rxDuplicate": "Identical draft already queued — duplicate prevented.",
+  "rxSaved": "Draft saved on device — pending sync. Sign it after it syncs (the allergy check runs on the server).",
+  "rxSigned": "Prescription signed.",
+  "rxSign": "Sign",
+  "rxSignAfterSync": "Sign (after sync)",
+  "rxDraftLine": "{drug} {dose} {frequency} {days}d",
+  "@rxDraftLine": {
+    "placeholders": {
+      "drug": {
+        "type": "String"
+      },
+      "dose": {
+        "type": "String"
+      },
+      "frequency": {
+        "type": "String"
+      },
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "rxQuickFrequency": "Tap a frequency",
+  "rxQuickDuration": "Tap the number of days",
+  "freqOD": "once a day",
+  "@freqOD": {
+    "description": "OD"
+  },
+  "freqBD": "twice a day",
+  "@freqBD": {
+    "description": "BD"
+  },
+  "freqTDS": "three times a day",
+  "@freqTDS": {
+    "description": "TDS"
+  },
+  "freqQID": "four times a day",
+  "@freqQID": {
+    "description": "QID"
+  },
+  "freqHS": "at bedtime",
+  "@freqHS": {
+    "description": "HS"
+  },
+  "freqSOS": "only when needed",
+  "@freqSOS": {
+    "description": "SOS"
+  },
+  "daysCount": "{days, plural, =1{1 day} other{{days} days}}",
+  "@daysCount": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "stateSigned": "Signed",
+  "stateConflict": "Conflict — needs you",
+  "stateSavedPending": "Saved on device · Pending sync",
+  "stateDiscarded": "Discarded — not sent",
+  "stateSynced": "Synced",
+  "opPending": "Pending sync",
+  "opPendingRetry": "Pending sync · retry {attempt}",
+  "@opPendingRetry": {
+    "placeholders": {
+      "attempt": {
+        "type": "int"
+      }
+    }
+  },
+  "opSyncing": "Syncing…",
+  "opFailed": "Not sent yet — retries automatically",
+  "opFailedAttempt": "Not sent yet — retries automatically (attempt {attempt})",
+  "@opFailedAttempt": {
+    "placeholders": {
+      "attempt": {
+        "type": "int"
+      }
+    }
+  },
+  "savedOnDevice": "Saved on device · {state}",
+  "@savedOnDevice": {
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "syncTitle": "Sync centre",
+  "syncCounts": "pending: {pending} · failed: {failed} · conflicted: {conflicted}",
+  "@syncCounts": {
+    "placeholders": {
+      "pending": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      },
+      "conflicted": {
+        "type": "int"
+      }
+    }
+  },
+  "syncNextRetry": "Automatic retry from {time}",
+  "@syncNextRetry": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNow": "Sync now",
+  "syncRetryFailed": "Retry failed now",
+  "syncResult": "pushed {pushed} · conflicts {conflicts} · failed {failed}",
+  "@syncResult": {
+    "placeholders": {
+      "pushed": {
+        "type": "int"
+      },
+      "conflicts": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
+    }
+  },
+  "syncWaiting": " · waiting {count}",
+  "@syncWaiting": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncStopped": " · stopped (sign in again)",
+  "syncedEntity": "Synced · {entity}",
+  "@syncedEntity": {
+    "placeholders": {
+      "entity": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPersistError": "Could not save to device storage: {error}",
+  "@syncPersistError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "syncQueued": "Queued on this device",
+  "syncNothingQueued": "Nothing queued — every change has reached the server.",
+  "syncNoConflicts": "No conflicts — local and server agree.",
+  "conflictDiscard": "Discard (server wins here)",
+  "conflictRegisterAnyway": "Keep local (register anyway)",
+  "conflictClaim": "Keep local (send as me)",
+  "conflictKeep": "Keep local (re-send)",
+  "registerAnywayTitle": "Register as a NEW patient?",
+  "registerAnywayBody": "The server found existing patient(s) that look like {name}. Only continue if you have checked this is a different person — a duplicate record splits the patient's history.",
+  "@registerAnywayBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "registerAnywayAction": "Register anyway",
+  "registerAnywayNotice": "Will register {name} as a new patient on the next sync.",
+  "@registerAnywayNotice": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "thisPatient": "this patient",
+  "claimTitle": "Send under your account?",
+  "claimBody": "This change was saved before the app recorded who made it. Send it only if you made it.",
+  "claimAction": "Send as me",
+  "discardTitle": "Discard {entity} and {count} more?",
+  "@discardTitle": {
+    "placeholders": {
+      "entity": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "discardBody": "{count, plural, =1{1 queued change ({what}) refers to this {entity} and can never be sent without it. It will be discarded too.} other{{count} queued changes ({what}) refer to this {entity} and can never be sent without it. They will be discarded too.}}",
+  "@discardBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "what": {
+        "type": "String"
+      },
+      "entity": {
+        "type": "String"
+      }
+    }
+  },
+  "discardAll": "Discard all",
+  "discardedOne": "Discarded: {entity}.",
+  "@discardedOne": {
+    "placeholders": {
+      "entity": {
+        "type": "String"
+      }
+    }
+  },
+  "discardedMany": "Discarded: {entity} and {count, plural, =1{1 dependent change} other{{count} dependent changes}}.",
+  "@discardedMany": {
+    "placeholders": {
+      "entity": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "entityPatient": "patient",
+  "@entityPatient": {
+    "description": "Kind of queued change"
+  },
+  "entityQueueEntry": "queue entry",
+  "entityInvoice": "invoice",
+  "entityPrescription": "prescription",
+  "conflictVersion": "The record changed on the server",
+  "conflictPolicy": "The server refused this change",
+  "conflictAuth": "Sign in again to continue",
+  "conflictDuplicate": "Possible duplicate registration",
+  "conflictWrongUser": "Created by another user on this device"
+}
