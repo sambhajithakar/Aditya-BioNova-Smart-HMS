@@ -219,6 +219,12 @@ def create_app() -> FastAPI:
     # AI: questions are reads, so they keep working on a read-only subscription
     app.include_router(ai.router, prefix=BASE_PREFIX, dependencies=[
         Depends(require_feature("ai_copilot", writes_need_writable=False))])
+    # Communications v2 + follow-up CRM: channels are gated per message
+    # (comms_email/sms/whatsapp) inside the router; follow-ups ride on appointments.
+    from .routers import comms, follow_ups
+    app.include_router(comms.router, prefix=BASE_PREFIX, dependencies=[Depends(enforce_writable)])
+    app.include_router(follow_ups.router, prefix=BASE_PREFIX,
+                       dependencies=[Depends(require_feature("appointments"))])
     if settings.is_dev:
         app.include_router(dev.router, prefix=BASE_PREFIX)
     return app
