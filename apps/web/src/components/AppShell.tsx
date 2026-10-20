@@ -12,32 +12,39 @@
  * RBAC (S5): nav items the member's permissions don't allow are hidden, and a
  * page whose permission is missing renders a "not permitted" notice instead
  * of firing requests that would 403.
+ *
+ * M7.1: nav items whose feature is not in the tenant's edition are hidden
+ * too (and such a page renders a "not in your plan" notice); a slim banner
+ * shows trial / past-due / read-only / suspended subscriptions; a member who
+ * must enrol MFA (me.mfa_enrollment_required, or any API 403
+ * "mfa_enrollment_required") is sent to /settings/security.
  */
 import Link from "next/link";
 import { ReactNode, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Me, api, logout } from "@/lib/api";
-import { onAuthFailure } from "@/lib/session";
+import { onAuthFailure, onMeChanged, onMfaEnrollmentRequired } from "@/lib/session";
 import { LANGS } from "@/lib/i18n";
 import { useLang } from "@/lib/lang";
 import { MeContext, hasPermission } from "@/lib/me";
+import { NAV, navLabel } from "@/lib/nav";
+import {
+  MFA_SETUP_PATH,
+  hasFeature,
+  mfaRedirectTarget,
+  subscriptionBanner,
+  visibleNav,
+} from "@/lib/saas";
 
-export const NAV: { key: string; href: string; perm?: string }[] = [
-  { key: "dashboard", href: "/dashboard" },
-  { key: "patients", href: "/patients", perm: "patient.read" },
-  { key: "appointments", href: "/appointments", perm: "appointment.read" },
-  { key: "queue", href: "/queue", perm: "queue.read" },
-  { key: "consultation", href: "/consultation", perm: "encounter.read" },
-  { key: "billing", href: "/billing", perm: "billing.read" },
-  { key: "pharmacy", href: "/pharmacy", perm: "pharmacy.read" },
-  { key: "lab", href: "/lab", perm: "lab.read" },
-  { key: "ipd", href: "/ipd", perm: "bed.read" },
-  { key: "inventory", href: "/inventory", perm: "inventory.read" },
-  { key: "expenses", href: "/expenses", perm: "expense.read" },
-  { key: "reports", href: "/reports", perm: "report.read" },
-  { key: "members", href: "/settings/members", perm: "member.read" },
-  { key: "security", href: "/settings/security" },
-];
+export { NAV };
+
+const BANNER_KEY: Record<string, string> = {
+  trialing: "bannerTrialing",
+  past_due: "bannerPastDue",
+  read_only: "bannerReadOnly",
+  suspended: "bannerSuspended",
+  cancelled: "bannerCancelled",
+};
 
 export function AppShell({
   children,
@@ -51,23 +58,43 @@ export function AppShell({
   const { lang, setLang, t } = useLang();
   const [me, setMe] = useState<Me | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const [mfaForced, setMfaForced] = useState(false);
 
   useEffect(() => {
     const goLogin = () =>
       router.replace(`/login?next=${encodeURIComponent(pathname || "/dashboard")}`);
     const off = onAuthFailure(goLogin);
+    const offMfa = onMfaEnrollmentRequired(() => {
+      setMfaForced(true);
+      if (pathname !== MFA_SETUP_PATH) router.replace(`${MFA_SETUP_PATH}?mfa=required`);
+    });
+    if (typeof window !== "undefined" && /[?&]mfa=required\b/.test(window.location.search)) {
+      setMfaForced(true);
+    }
     let cancelled = false;
-    api
-      .get<Me>("/auth/me")
-      .then((m) => {
-        if (!cancelled) setMe(m);
-      })
-      .catch(() => {
-        if (!cancelled) goLogin();
-      });
+    const loadMe = (initial: boolean) =>
+      api
+        .get<Me>("/auth/me")
+        .then((m) => {
+          if (cancelled) return;
+          const target = mfaRedirectTarget(m, pathname);
+          if (target) {
+            router.replace(target);
+            return;
+          }
+          if (!m.mfa_enrollment_required) setMfaForced(false);
+          setMe(m);
+        })
+        .catch(() => {
+          if (!cancelled && initial) goLogin();
+        });
+    void loadMe(true);
+    const offMe = onMeChanged(() => void loadMe(false));
     return () => {
       cancelled = true;
       off();
+      offMfa();
+      offMe();
     };
   }, [router, pathname]);
 
@@ -80,8 +107,14 @@ export function AppShell({
     }
   }
 
-  const pagePerm = NAV.find((n) => n.key === active)?.perm;
-  const allowed = hasPermission(me, pagePerm);
+  const page = NAV.find((n) => n.key === active);
+  const allowed = hasPermission(me, page?.perm);
+  const entitled = hasFeature(me, page?.feature);
+  const mfaRequired = !!me?.mfa_enrollment_required || mfaForced;
+  const nav = mfaRequired
+    ? NAV.filter((n) => n.key === "security")
+    : visibleNav(NAV, me);
+  const banner = subscriptionBanner(me);
 
   return (
     <MeContext.Provider value={me}>
@@ -91,9 +124,22 @@ export function AppShell({
           <span className="context">
             {me.organization.name} <span className="muted-on-dark">/</span>{" "}
             {me.user.full_name} <span className="muted-on-dark">({me.role})</span>
+            {me.edition && (
+              <>
+                {" "}
+                <span className="edition-pill" data-testid="edition">
+                  {me.edition.name}
+                </span>
+              </>
+            )}
           </span>
         )}
         <span className="spacer" />
+        {me?.is_platform_admin && !mfaRequired && (
+          <Link className="header-link" href="/platform" data-testid="platform-link">
+            {t("platformConsole")}
+          </Link>
+        )}
         <span className="lang-switch" role="group" aria-label="Language">
           {LANGS.map((l) => (
             <button
@@ -118,17 +164,35 @@ export function AppShell({
       </header>
 
       <nav className="layout-nav" aria-label="Modules">
-        {NAV.filter((item) => hasPermission(me, item.perm)).map((item) => (
+        {nav.map((item) => (
           <Link
             key={item.key}
             href={item.href}
             className={item.key === active ? "active" : undefined}
             aria-current={item.key === active ? "page" : undefined}
           >
-            {t(item.key)}
+            {t(navLabel(item))}
           </Link>
         ))}
       </nav>
+
+      {mfaRequired && (
+        <div className="shell-banner danger" role="alert" data-testid="mfa-required-banner">
+          <strong>{t("mfaRequiredTitle")}.</strong> {t("mfaRequiredBody")}
+        </div>
+      )}
+      {!mfaRequired && banner && (
+        <div
+          className={`shell-banner ${banner === "trialing" ? "" : "warn"}`}
+          role="status"
+          data-testid="subscription-banner"
+        >
+          {t(BANNER_KEY[banner])}{" "}
+          {hasPermission(me, "subscription.read") && (
+            <Link href="/settings/subscription">{t("viewSubscription")}</Link>
+          )}
+        </div>
+      )}
 
       {!me ? (
         <main className="page">
@@ -136,14 +200,23 @@ export function AppShell({
             {t("loading")}
           </p>
         </main>
-      ) : allowed ? (
-        children
-      ) : (
+      ) : !allowed ? (
         <main className="page">
           <p className="error" role="alert">
             {t("notPermitted")}
           </p>
         </main>
+      ) : !entitled ? (
+        <main className="page">
+          <p className="notice" role="alert" data-testid="feature-not-in-plan">
+            {t("featureNotInPlan")}{" "}
+            {hasPermission(me, "subscription.read") && (
+              <Link href="/settings/subscription">{t("upgradeHint")}</Link>
+            )}
+          </p>
+        </main>
+      ) : (
+        children
       )}
     </MeContext.Provider>
   );

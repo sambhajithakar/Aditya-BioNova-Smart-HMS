@@ -80,6 +80,33 @@ export function notifyAuthFailure(): void {
   for (const l of authFailureListeners) l();
 }
 
+// M7.1: the API answers 403 {"detail": "mfa_enrollment_required"} to members
+// whose role is under the organisation's MFA policy until they enrol. The
+// shell listens and sends them to /settings/security.
+const mfaEnrollmentListeners = new Set<() => void>();
+
+export function onMfaEnrollmentRequired(listener: () => void): () => void {
+  mfaEnrollmentListeners.add(listener);
+  return () => mfaEnrollmentListeners.delete(listener);
+}
+
+export function notifyMfaEnrollmentRequired(): void {
+  for (const l of mfaEnrollmentListeners) l();
+}
+
+// Something that /auth/me reports changed (e.g. MFA was just enabled, the
+// org profile or MFA policy was saved): the shell re-reads /auth/me.
+const meChangedListeners = new Set<() => void>();
+
+export function onMeChanged(listener: () => void): () => void {
+  meChangedListeners.add(listener);
+  return () => meChangedListeners.delete(listener);
+}
+
+export function notifyMeChanged(): void {
+  for (const l of meChangedListeners) l();
+}
+
 async function refreshOnce(): Promise<boolean> {
   try {
     const res = await doFetch("/api/session/refresh", {

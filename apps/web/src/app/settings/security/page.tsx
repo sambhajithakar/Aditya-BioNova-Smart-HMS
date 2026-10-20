@@ -10,6 +10,7 @@ import { AppShell } from "@/components/AppShell";
 import { ApiError, Me, MfaStatus, SessionInfo, TotpSetup, api } from "@/lib/api";
 import { useLang } from "@/lib/lang";
 import { useInFlight } from "@/lib/idempotency";
+import { notifyMeChanged } from "@/lib/session";
 import { PASSWORD_MAX, PASSWORD_MIN, passwordProblem } from "@/lib/password";
 
 
@@ -83,6 +84,8 @@ function SecurityBody() {
       setEnableCode("");
       setNotice(t("mfaEnabled"));
       await load();
+      // M7.1: lifts the MFA-enrolment gate in the shell without a reload.
+      notifyMeChanged();
     });
   };
 
