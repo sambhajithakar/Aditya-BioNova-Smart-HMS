@@ -34,6 +34,9 @@ EXPORT_TABLES = [
     "admissions", "admission_transfers", "nursing_records", "inventory_items",
     "inventory_movements", "expenses", "subscriptions", "subscription_events",
     "support_tickets", "support_ticket_messages", "audit_events",
+    # 0015: clinic setup, check-in history (token_hash excluded) and printers
+    "org_settings", "branch_working_hours", "fee_schedule", "checkin_tokens",
+    "printer_profiles",
 ]
 _EXCLUDED_COLUMNS = {"token_hash"}
 

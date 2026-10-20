@@ -45,6 +45,7 @@ from .routers import (
     subscription,
     support,
 )
+from .routers import appointment_slots, checkin, printers, setup
 
 logger = logging.getLogger("hms.api")
 
@@ -206,7 +207,13 @@ def create_app() -> FastAPI:
     # need a writable subscription (reads always work — records stay accessible).
     app.include_router(patients.router, prefix=BASE_PREFIX,
                        dependencies=[Depends(enforce_writable)])
+    # Smart Setup / printers: configuration reads always work, writes need a
+    # writable subscription
+    for r in (setup.router, printers.router):
+        app.include_router(r, prefix=BASE_PREFIX, dependencies=[Depends(enforce_writable)])
     gated = [
+        # slots BEFORE appointments: /appointments/slots vs /appointments/{id}
+        (appointment_slots.router, "appointments"), (checkin.router, "opd_queue"),
         (appointments.router, "appointments"), (opd_queue.router, "opd_queue"),
         (encounters.router, "consultation"), (prescriptions.router, "consultation"),
         (billing.router, "billing"), (pharmacy.router, "pharmacy"),
