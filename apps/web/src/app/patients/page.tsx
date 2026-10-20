@@ -7,6 +7,7 @@
  */
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { PatientCommsPanel } from "@/components/PatientComms";
 import { ApiError, DuplicateCandidate, PageOf, Patient, api } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { useLang } from "@/lib/lang";
@@ -278,6 +279,7 @@ function PatientsBody() {
             </p>
           </section>
         )}
+        {selected && <PatientCommsPanel key={selected.id} patientId={selected.id} />}
       </main>
     </>
   );

@@ -65,7 +65,7 @@
 
 ## Migrations
 
-Database at Alembic head **0013** (catalog read from PostgreSQL 16). Files in `apps/api/alembic/versions/`.
+Database at Alembic head **0014** (catalog read from PostgreSQL 16). Files in `apps/api/alembic/versions/`.
 
 | Revision | Down | File | Summary |
 |---|---|---|---|
@@ -82,6 +82,7 @@ Database at Alembic head **0013** (catalog read from PostgreSQL 16). Files in `a
 | 0011 | 0010 | `0011_m71_tenancy_saas.py` | M7.1: tenant administration, commercial editions, platform console, support. |
 | 0012 | 0011 | `0012_ai_gateway.py` | AI-0: AI gateway governance — tenant opt-in, AI request audit, credit ledger. |
 | 0013 | 0012 | `0013_saas_billing.py` | M7.2: SaaS subscription billing — orders, payments, webhooks, invoices, refunds and AI credit packs (Razorpay sandbox / local payment simulator). |
+| 0014 | 0013 | `0014_comms_followups.py` | Communications framework v2 + clinician-directed follow-up CRM. |
 
 ## Application role
 
@@ -103,7 +104,13 @@ Database at Alembic head **0013** (catalog read from PostgreSQL 16). Files in `a
 | [auth_sessions](#auth_sessions) | **no** | 0 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [beds](#beds) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [branches](#branches) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
+| [comms_consent_events](#comms_consent_events) | yes | 1 | 1 | SELECT, INSERT |
+| [comms_consents](#comms_consents) | yes | 1 | 0 | SELECT, INSERT, UPDATE |
+| [comms_delivery_log](#comms_delivery_log) | yes | 1 | 1 | SELECT, INSERT |
 | [comms_messages](#comms_messages) | **no** | 0 | 0 | SELECT, INSERT |
+| [comms_patient_preferences](#comms_patient_preferences) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
+| [comms_templates](#comms_templates) | yes | 1 | 0 | SELECT, INSERT, UPDATE |
+| [comms_tenant_settings](#comms_tenant_settings) | yes | 1 | 0 | SELECT, INSERT, UPDATE |
 | [dispense_items](#dispense_items) | yes | 1 | 1 | SELECT, INSERT |
 | [dispenses](#dispenses) | yes | 1 | 1 | SELECT, INSERT |
 | [drug_catalog](#drug_catalog) | **no** | 0 | 0 | SELECT |
@@ -111,6 +118,7 @@ Database at Alembic head **0013** (catalog read from PostgreSQL 16). Files in `a
 | [encounter_vitals](#encounter_vitals) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [encounters](#encounters) | yes | 1 | 2 | SELECT, INSERT, UPDATE, DELETE |
 | [expenses](#expenses) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
+| [follow_ups](#follow_ups) | yes | 1 | 0 | SELECT, INSERT, UPDATE |
 | [idempotency_keys](#idempotency_keys) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [inventory_items](#inventory_items) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [inventory_movements](#inventory_movements) | yes | 1 | 2 | SELECT, INSERT |
@@ -645,6 +653,147 @@ Database at Alembic head **0013** (catalog read from PostgreSQL 16). Files in `a
   - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
   - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
 
+### comms_consent_events
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | bigint | no | `identity BY DEFAULT` |
+| `organization_id` | uuid | no |  |
+| `patient_id` | uuid | no |  |
+| `channel` | character varying(20) | no |  |
+| `status` | character varying(12) | no |  |
+| `source` | character varying(30) | no |  |
+| `actor_user_id` | uuid | yes |  |
+| `recorded_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `comms_consent_events_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `comms_consent_events_actor_user_id_fkey`: `FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL`
+- `comms_consent_events_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `comms_consent_events_patient_id_fkey`: `FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE`
+
+**Check constraints**
+
+- `ck_commsconsentev_channel`: `CHECK (channel::text = ANY (ARRAY['email'::character varying, 'sms'::character varying, 'whatsapp'::character varying]::text[]))`
+- `ck_commsconsentev_status`: `CHECK (status::text = ANY (ARRAY['opted_in'::character varying, 'opted_out'::character varying]::text[]))`
+
+**Indexes**
+
+- `ix_commsconsentev_patient`: `btree (organization_id, patient_id, id)`
+
+**RLS policies**
+
+- `comms_consent_events_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
+**Triggers**
+
+- `trg_comms_consent_events_append_only`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `forbid_comms_log_mutation()`
+
+### comms_consents
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `organization_id` | uuid | no |  |
+| `patient_id` | uuid | no |  |
+| `channel` | character varying(20) | no |  |
+| `status` | character varying(12) | no |  |
+| `source` | character varying(30) | no |  |
+| `actor_user_id` | uuid | yes |  |
+| `recorded_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `pk_comms_consents`: `PRIMARY KEY (organization_id, patient_id, channel)`
+
+**Foreign keys**
+
+- `comms_consents_actor_user_id_fkey`: `FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL`
+- `comms_consents_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `comms_consents_patient_id_fkey`: `FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE`
+
+**Check constraints**
+
+- `ck_commsconsent_channel`: `CHECK (channel::text = ANY (ARRAY['email'::character varying, 'sms'::character varying, 'whatsapp'::character varying]::text[]))`
+- `ck_commsconsent_status`: `CHECK (status::text = ANY (ARRAY['opted_in'::character varying, 'opted_out'::character varying]::text[]))`
+
+**RLS policies**
+
+- `comms_consents_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
+### comms_delivery_log
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | bigint | no | `identity BY DEFAULT` |
+| `organization_id` | uuid | no |  |
+| `channel` | character varying(20) | no |  |
+| `purpose` | character varying(30) | no |  |
+| `language` | character varying(2) | yes |  |
+| `template_id` | uuid | yes |  |
+| `patient_id` | uuid | yes |  |
+| `appointment_id` | uuid | yes |  |
+| `follow_up_id` | uuid | yes |  |
+| `recipient_masked` | character varying(64) | yes |  |
+| `provider` | character varying(40) | no |  |
+| `status` | character varying(25) | no |  |
+| `cost_paise` | integer | no | `0` |
+| `period` | character varying(7) | no |  |
+| `dedupe_key` | character varying(200) | yes |  |
+| `trigger` | character varying(20) | no | `'manual'::character varying` |
+| `error` | character varying(300) | yes |  |
+| `actor_user_id` | uuid | yes |  |
+| `correlation_id` | character varying(64) | yes |  |
+| `created_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `comms_delivery_log_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `comms_delivery_log_actor_user_id_fkey`: `FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL`
+- `comms_delivery_log_appointment_id_fkey`: `FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE SET NULL`
+- `comms_delivery_log_follow_up_id_fkey`: `FOREIGN KEY (follow_up_id) REFERENCES follow_ups(id) ON DELETE SET NULL`
+- `comms_delivery_log_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `comms_delivery_log_patient_id_fkey`: `FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE SET NULL`
+- `comms_delivery_log_template_id_fkey`: `FOREIGN KEY (template_id) REFERENCES comms_templates(id) ON DELETE SET NULL`
+
+**Check constraints**
+
+- `ck_commslog_channel`: `CHECK (channel::text = ANY (ARRAY['email'::character varying, 'sms'::character varying, 'whatsapp'::character varying]::text[]))`
+- `ck_commslog_cost`: `CHECK (cost_paise >= 0)`
+- `ck_commslog_period`: `CHECK (period::text ~ '^[0-9]{4}-[0-9]{2}$'::text)`
+- `ck_commslog_purpose`: `CHECK (purpose::text = ANY (ARRAY['appointment_reminder'::character varying, 'follow_up'::character varying, 'missed_appointment'::character varying, 'generic'::character varying]::text[]))`
+- `ck_commslog_status`: `CHECK (status::text = ANY (ARRAY['queued'::character varying, 'sent'::character varying, 'sent_mock'::character varying, 'suppressed'::character varying, 'failed'::character varying, 'skipped_no_consent'::character varying, 'skipped_quota'::character varying, 'skipped_quiet_hours'::character varying, 'skipped_no_recipient'::character varying, 'skipped_no_template'::character varying]::text[]))`
+- `ck_commslog_trigger`: `CHECK (trigger::text = ANY (ARRAY['manual'::character varying, 'reminder_run'::character varying, 'scheduler'::character varying]::text[]))`
+
+**Indexes**
+
+- `ix_commslog_org_created`: `btree (organization_id, created_at)`
+- `ix_commslog_org_period`: `btree (organization_id, period, channel)`
+- `uq_commslog_dedupe` (UNIQUE, partial): `btree (organization_id, dedupe_key)` WHERE `((dedupe_key IS NOT NULL) AND ((status)::text = ANY ((ARRAY['queued'::character varying, 'sent'::character varying, 'sent_mock'::character varying, 'suppressed'::character varying])::text[])))`
+
+**RLS policies**
+
+- `comms_delivery_log_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
+**Triggers**
+
+- `trg_comms_delivery_log_append_only`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `forbid_comms_log_mutation()`
+
 ### comms_messages
 
 - Row-level security: **disabled**
@@ -671,6 +820,125 @@ Database at Alembic head **0013** (catalog read from PostgreSQL 16). Files in `a
 **Indexes**
 
 - `ix_comms_created`: `btree (created_at)`
+
+### comms_patient_preferences
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE, DELETE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `organization_id` | uuid | no |  |
+| `patient_id` | uuid | no |  |
+| `preferred_language` | character varying(2) | yes |  |
+| `email` | character varying(320) | yes |  |
+| `updated_by` | uuid | yes |  |
+| `updated_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `pk_comms_prefs`: `PRIMARY KEY (organization_id, patient_id)`
+
+**Foreign keys**
+
+- `comms_patient_preferences_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `comms_patient_preferences_patient_id_fkey`: `FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE`
+- `comms_patient_preferences_updated_by_fkey`: `FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL`
+
+**Check constraints**
+
+- `ck_commspref_language`: `CHECK (preferred_language IS NULL OR (preferred_language::text = ANY (ARRAY['en'::character varying, 'mr'::character varying, 'hi'::character varying]::text[])))`
+
+**RLS policies**
+
+- `comms_patient_preferences_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
+### comms_templates
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `channel` | character varying(20) | no |  |
+| `purpose` | character varying(30) | no |  |
+| `language` | character varying(2) | no |  |
+| `name` | character varying(120) | no |  |
+| `subject` | character varying(200) | no | `''::character varying` |
+| `body` | character varying(2000) | no |  |
+| `dlt_template_id` | character varying(40) | yes |  |
+| `whatsapp_template_name` | character varying(120) | yes |  |
+| `is_active` | boolean | no | `true` |
+| `is_default` | boolean | no | `false` |
+| `created_by` | uuid | yes |  |
+| `updated_by` | uuid | yes |  |
+| `created_at` | timestamp with time zone | no | `now()` |
+| `updated_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `comms_templates_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `comms_templates_created_by_fkey`: `FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL`
+- `comms_templates_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `comms_templates_updated_by_fkey`: `FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL`
+
+**Check constraints**
+
+- `ck_commstpl_channel`: `CHECK (channel::text = ANY (ARRAY['email'::character varying, 'sms'::character varying, 'whatsapp'::character varying]::text[]))`
+- `ck_commstpl_dlt`: `CHECK (dlt_template_id IS NULL OR dlt_template_id::text ~ '^[0-9]{10,30}$'::text)`
+- `ck_commstpl_language`: `CHECK (language::text = ANY (ARRAY['en'::character varying, 'mr'::character varying, 'hi'::character varying]::text[]))`
+- `ck_commstpl_purpose`: `CHECK (purpose::text = ANY (ARRAY['appointment_reminder'::character varying, 'follow_up'::character varying, 'missed_appointment'::character varying, 'generic'::character varying]::text[]))`
+- `ck_commstpl_wa`: `CHECK (whatsapp_template_name IS NULL OR whatsapp_template_name::text ~ '^[a-z0-9_]{1,120}$'::text)`
+
+**Indexes**
+
+- `ix_commstpl_org`: `btree (organization_id, channel)`
+- `uq_commstpl_active` (UNIQUE, partial): `btree (organization_id, channel, purpose, language)` WHERE `is_active`
+
+**RLS policies**
+
+- `comms_templates_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
+### comms_tenant_settings
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `organization_id` | uuid | no |  |
+| `monthly_spend_cap_paise` | bigint | yes |  |
+| `quiet_start_hour` | smallint | no | `'21'::smallint` |
+| `quiet_end_hour` | smallint | no | `'8'::smallint` |
+| `reminder_hours_ahead` | smallint | no | `'24'::smallint` |
+| `reminder_channels` | character varying(20)[] | no | `'{sms}'::character varying[]` |
+| `updated_by` | uuid | yes |  |
+| `updated_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `comms_tenant_settings_pkey`: `PRIMARY KEY (organization_id)`
+
+**Foreign keys**
+
+- `comms_tenant_settings_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `comms_tenant_settings_updated_by_fkey`: `FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL`
+
+**Check constraints**
+
+- `ck_commsset_ahead`: `CHECK (reminder_hours_ahead >= 1 AND reminder_hours_ahead <= 168)`
+- `ck_commsset_cap`: `CHECK (monthly_spend_cap_paise IS NULL OR monthly_spend_cap_paise >= 0)`
+- `ck_commsset_channels`: `CHECK (reminder_channels <@ ARRAY['email'::character varying, 'sms'::character varying, 'whatsapp'::character varying])`
+- `ck_commsset_quiet`: `CHECK (quiet_start_hour >= 0 AND quiet_start_hour <= 23 AND quiet_end_hour >= 0 AND quiet_end_hour <= 23)`
+
+**RLS policies**
+
+- `comms_tenant_settings_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
 
 ### dispense_items
 
@@ -982,6 +1250,56 @@ Database at Alembic head **0013** (catalog read from PostgreSQL 16). Files in `a
 **Triggers**
 
 - `trg_expense_immutable`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `forbid_expense_mutation()`
+
+### follow_ups
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `patient_id` | uuid | no |  |
+| `branch_id` | uuid | yes |  |
+| `due_date` | date | no |  |
+| `reason` | character varying(80) | no |  |
+| `status` | character varying(12) | no | `'planned'::character varying` |
+| `assigned_user_id` | uuid | yes |  |
+| `created_by` | uuid | yes |  |
+| `appointment_id` | uuid | yes |  |
+| `status_note` | character varying(200) | no | `''::character varying` |
+| `reminded_at` | timestamp with time zone | yes |  |
+| `closed_at` | timestamp with time zone | yes |  |
+| `created_at` | timestamp with time zone | no | `now()` |
+| `updated_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `follow_ups_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `follow_ups_appointment_id_fkey`: `FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE SET NULL`
+- `follow_ups_assigned_user_id_fkey`: `FOREIGN KEY (assigned_user_id) REFERENCES users(id) ON DELETE SET NULL`
+- `follow_ups_branch_id_fkey`: `FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL`
+- `follow_ups_created_by_fkey`: `FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL`
+- `follow_ups_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `follow_ups_patient_id_fkey`: `FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE RESTRICT`
+
+**Check constraints**
+
+- `ck_followup_booked_has_appt`: `CHECK (status::text <> 'booked'::text OR appointment_id IS NOT NULL)`
+- `ck_followup_status`: `CHECK (status::text = ANY (ARRAY['planned'::character varying, 'reminded'::character varying, 'booked'::character varying, 'completed'::character varying, 'missed'::character varying, 'cancelled'::character varying]::text[]))`
+
+**Indexes**
+
+- `ix_followup_org_due`: `btree (organization_id, status, due_date)`
+- `ix_followup_org_patient`: `btree (organization_id, patient_id)`
+
+**RLS policies**
+
+- `follow_ups_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
 
 ### idempotency_keys
 
@@ -2872,6 +3190,8 @@ Database at Alembic head **0013** (catalog read from PostgreSQL 16). Files in `a
 | `admission_transfers_id_seq` | (none) |
 | `ai_credit_ledger_id_seq` | (none) |
 | `audit_events_id_seq` | SELECT, USAGE |
+| `comms_consent_events_id_seq` | (none) |
+| `comms_delivery_log_id_seq` | (none) |
 | `comms_messages_id_seq` | SELECT, USAGE |
 | `inventory_movements_id_seq` | (none) |
 | `ledger_entries_id_seq` | (none) |
@@ -2905,6 +3225,7 @@ Database at Alembic head **0013** (catalog read from PostgreSQL 16). Files in `a
 | `forbid_billing_record_mutation()` | trigger | plpgsql |
 | `forbid_closed_encounter()` | trigger | plpgsql |
 | `forbid_closed_laborder()` | trigger | plpgsql |
+| `forbid_comms_log_mutation()` | trigger | plpgsql |
 | `forbid_completed_encounter_delete()` | trigger | plpgsql |
 | `forbid_dispense_mutation()` | trigger | plpgsql |
 | `forbid_expense_mutation()` | trigger | plpgsql |
@@ -2927,19 +3248,19 @@ Database at Alembic head **0013** (catalog read from PostgreSQL 16). Files in `a
 
 ## Seeded RBAC catalogue
 
-53 permission keys (seeded by migrations):
+60 permission keys (seeded by migrations):
 
-`admission.manage`, `ai.audit.read`, `ai.copilot.use`, `ai.settings.manage`, `appointment.read`, `appointment.write`, `audit.read`, `bed.manage`, `bed.read`, `billing.invoice`, `billing.payment`, `billing.read`, `billing.refund`, `billing.saas.pay`, `billing.saas.read`, `billing.saas.refund_request`, `branch.manage`, `branch.read`, `discharge`, `encounter.read`, `encounter.write`, `expense.manage`, `expense.read`, `inventory.manage`, `inventory.read`, `lab.import`, `lab.order`, `lab.read`, `lab.release`, `lab.verify`, `member.manage`, `member.read`, `nursing.read`, `nursing.write`, `org.manage`, `org.offboard`, `org.read`, `org.transfer_ownership`, `patient.merge`, `patient.read`, `patient.write`, `pharmacy.dispense`, `pharmacy.manage`, `pharmacy.read`, `prescription.read`, `prescription.sign`, `queue.manage`, `queue.read`, `report.read`, `subscription.manage`, `subscription.read`, `support.read`, `support.write`
+`admission.manage`, `ai.audit.read`, `ai.copilot.use`, `ai.settings.manage`, `appointment.read`, `appointment.write`, `audit.read`, `bed.manage`, `bed.read`, `billing.invoice`, `billing.payment`, `billing.read`, `billing.refund`, `billing.saas.pay`, `billing.saas.read`, `billing.saas.refund_request`, `branch.manage`, `branch.read`, `comms.consent`, `comms.manage`, `comms.read`, `comms.send`, `discharge`, `encounter.read`, `encounter.write`, `expense.manage`, `expense.read`, `followup.create`, `followup.read`, `followup.write`, `inventory.manage`, `inventory.read`, `lab.import`, `lab.order`, `lab.read`, `lab.release`, `lab.verify`, `member.manage`, `member.read`, `nursing.read`, `nursing.write`, `org.manage`, `org.offboard`, `org.read`, `org.transfer_ownership`, `patient.merge`, `patient.read`, `patient.write`, `pharmacy.dispense`, `pharmacy.manage`, `pharmacy.read`, `prescription.read`, `prescription.sign`, `queue.manage`, `queue.read`, `report.read`, `subscription.manage`, `subscription.read`, `support.read`, `support.write`
 
 | System role | Permissions |
 |---|---|
-| `admin` | admission.manage, ai.audit.read, ai.copilot.use, ai.settings.manage, appointment.read, appointment.write, audit.read, bed.manage, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, billing.saas.pay, billing.saas.read, branch.manage, branch.read, discharge, encounter.read, encounter.write, expense.manage, expense.read, inventory.manage, inventory.read, lab.import, lab.order, lab.read, lab.release, lab.verify, member.manage, member.read, nursing.read, nursing.write, org.manage, org.read, patient.merge, patient.read, patient.write, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, subscription.manage, subscription.read, support.read, support.write |
-| `auditor` | ai.audit.read, audit.read, billing.saas.read, branch.read, member.read, org.read, subscription.read |
+| `admin` | admission.manage, ai.audit.read, ai.copilot.use, ai.settings.manage, appointment.read, appointment.write, audit.read, bed.manage, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, billing.saas.pay, billing.saas.read, branch.manage, branch.read, comms.consent, comms.manage, comms.read, comms.send, discharge, encounter.read, encounter.write, expense.manage, expense.read, followup.create, followup.read, followup.write, inventory.manage, inventory.read, lab.import, lab.order, lab.read, lab.release, lab.verify, member.manage, member.read, nursing.read, nursing.write, org.manage, org.read, patient.merge, patient.read, patient.write, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, subscription.manage, subscription.read, support.read, support.write |
+| `auditor` | ai.audit.read, audit.read, billing.saas.read, branch.read, comms.read, member.read, org.read, subscription.read |
 | `billing` | ai.copilot.use, appointment.read, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, billing.saas.read, branch.read, expense.manage, expense.read, lab.read, member.read, org.read, patient.read, pharmacy.read, report.read, subscription.read |
-| `doctor` | admission.manage, ai.copilot.use, appointment.read, bed.read, billing.read, branch.read, discharge, encounter.read, encounter.write, expense.read, inventory.read, lab.order, lab.read, lab.release, lab.verify, member.read, nursing.read, nursing.write, org.read, patient.read, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read |
+| `doctor` | admission.manage, ai.copilot.use, appointment.read, bed.read, billing.read, branch.read, comms.consent, comms.send, discharge, encounter.read, encounter.write, expense.read, followup.create, followup.read, followup.write, inventory.read, lab.order, lab.read, lab.release, lab.verify, member.read, nursing.read, nursing.write, org.read, patient.read, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read |
 | `lab_technician` | bed.read, branch.read, lab.import, lab.order, lab.read, lab.verify, member.read, org.read, patient.read |
-| `nurse` | admission.manage, appointment.read, bed.read, branch.read, encounter.read, encounter.write, inventory.read, lab.order, lab.read, member.read, nursing.read, nursing.write, org.read, patient.read, pharmacy.read, prescription.read, queue.read, report.read |
-| `owner` | admission.manage, ai.audit.read, ai.copilot.use, ai.settings.manage, appointment.read, appointment.write, audit.read, bed.manage, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, billing.saas.pay, billing.saas.read, billing.saas.refund_request, branch.manage, branch.read, discharge, encounter.read, encounter.write, expense.manage, expense.read, inventory.manage, inventory.read, lab.import, lab.order, lab.read, lab.release, lab.verify, member.manage, member.read, nursing.read, nursing.write, org.manage, org.offboard, org.read, org.transfer_ownership, patient.merge, patient.read, patient.write, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, subscription.manage, subscription.read, support.read, support.write |
+| `nurse` | admission.manage, appointment.read, bed.read, branch.read, encounter.read, encounter.write, followup.read, inventory.read, lab.order, lab.read, member.read, nursing.read, nursing.write, org.read, patient.read, pharmacy.read, prescription.read, queue.read, report.read |
+| `owner` | admission.manage, ai.audit.read, ai.copilot.use, ai.settings.manage, appointment.read, appointment.write, audit.read, bed.manage, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, billing.saas.pay, billing.saas.read, billing.saas.refund_request, branch.manage, branch.read, comms.consent, comms.manage, comms.read, comms.send, discharge, encounter.read, encounter.write, expense.manage, expense.read, followup.create, followup.read, followup.write, inventory.manage, inventory.read, lab.import, lab.order, lab.read, lab.release, lab.verify, member.manage, member.read, nursing.read, nursing.write, org.manage, org.offboard, org.read, org.transfer_ownership, patient.merge, patient.read, patient.write, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, subscription.manage, subscription.read, support.read, support.write |
 | `pharmacist` | bed.read, branch.read, inventory.read, lab.read, member.read, org.read, patient.read, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read |
-| `receptionist` | admission.manage, appointment.read, appointment.write, bed.read, billing.invoice, billing.payment, billing.read, branch.read, lab.read, member.read, org.read, patient.read, patient.write, pharmacy.read, prescription.read, queue.manage, queue.read |
+| `receptionist` | admission.manage, appointment.read, appointment.write, bed.read, billing.invoice, billing.payment, billing.read, branch.read, comms.consent, comms.read, comms.send, followup.read, followup.write, lab.read, member.read, org.read, patient.read, patient.write, pharmacy.read, prescription.read, queue.manage, queue.read |
 | `support` | org.read, support.read, support.write |

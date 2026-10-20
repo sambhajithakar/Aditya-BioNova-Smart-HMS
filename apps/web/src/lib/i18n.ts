@@ -14,6 +14,7 @@ export const LANGS: { code: Lang; label: string; native: string }[] = [
 
 import { aiDictionaries } from "./i18n-ai";
 import { billingDictionaries } from "./i18n-billing";
+import { commsDictionaries } from "./i18n-comms";
 import { saasDictionaries } from "./i18n-saas";
 
 type Dict = Record<string, string>;
@@ -1113,9 +1114,27 @@ const coreDictionaries: Record<Lang, Dict> = {
 export const baseDictionaries = coreDictionaries;
 
 export const dictionaries: Record<Lang, Dict> = {
-  en: { ...coreDictionaries.en, ...saasDictionaries.en, ...aiDictionaries.en, ...billingDictionaries.en },
-  mr: { ...coreDictionaries.mr, ...saasDictionaries.mr, ...aiDictionaries.mr, ...billingDictionaries.mr },
-  hi: { ...coreDictionaries.hi, ...saasDictionaries.hi, ...aiDictionaries.hi, ...billingDictionaries.hi },
+  en: {
+    ...coreDictionaries.en,
+    ...saasDictionaries.en,
+    ...aiDictionaries.en,
+    ...billingDictionaries.en,
+    ...commsDictionaries.en,
+  },
+  mr: {
+    ...coreDictionaries.mr,
+    ...saasDictionaries.mr,
+    ...aiDictionaries.mr,
+    ...billingDictionaries.mr,
+    ...commsDictionaries.mr,
+  },
+  hi: {
+    ...coreDictionaries.hi,
+    ...saasDictionaries.hi,
+    ...aiDictionaries.hi,
+    ...billingDictionaries.hi,
+    ...commsDictionaries.hi,
+  },
 };
 
 export function getLang(): Lang {

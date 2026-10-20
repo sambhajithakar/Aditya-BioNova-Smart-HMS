@@ -220,10 +220,15 @@ def current_usage(db: Session, organization_id: uuid.UUID) -> dict[str, int]:
     beds = db.scalar(select(func.count()).select_from(Bed).where(
         Bed.organization_id == organization_id)) or 0
     from .ai.gateway import credits_used
+    from .comms import engine as comms_engine
+    from .models import Organization
 
+    org = db.get(Organization, organization_id)
+    period = comms_engine.period_of(comms_engine.utcnow(), comms_engine.org_tz(org))
+    sent = comms_engine.usage(db, organization_id, period)
     return {"max_users": users + pending, "max_branches": branches, "max_beds": beds,
             "ai_credits_monthly": credits_used(db, organization_id),
-            "sms_monthly": 0, "whatsapp_monthly": 0}
+            "sms_monthly": sent["sms"]["used"], "whatsapp_monthly": sent["whatsapp"]["used"]}
 
 
 def check_limit(db: Session, organization_id: uuid.UUID, limit_key: str,
