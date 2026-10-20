@@ -1,7 +1,8 @@
 # Android build — Aditya BioNova Smart HMS mobile app
 
 Status on 2026-10-20: **no APK has been built yet.** The Dart side is
-verified (`flutter analyze` clean, `flutter test` 121 passing), but the
+verified (`flutter analyze` clean, `flutter test` 173 passing — offline
+sync v2, see `MOBILE_OFFLINE_SYNC.md`), but the
 release APK, the manifest merge and the network-security config have only
 been checked by static tests. The app has **not** run on an emulator or a
 physical device.
@@ -37,14 +38,23 @@ Versions pinned by the repository:
 
 | Component | Version / source |
 | --- | --- |
-| Flutter | 3.47.7 (Dart ≥ 3.13.5, see `pubspec.yaml`) |
+| Flutter | 3.47.7 stable (framework abaf9c5237, engine deb287481e) |
+| Dart | 3.13.5 (`environment: sdk: ^3.13.5` in `pubspec.yaml`) |
 | Android Gradle Plugin | 9.1.0 (`android/settings.gradle.kts`) |
 | Kotlin Gradle plugin | 2.4.0 |
 | Gradle | 9.3.1 (`android/gradle/wrapper/gradle-wrapper.properties`) |
 | compileSdk / targetSdk | 36 (Flutter defaults, `flutter.compileSdkVersion`) |
-| minSdk | 24 = Android 7.0 (Flutter default) |
+| minSdk | 24 = Android 7.0 (Flutter default; `mobile_scanner` needs ≥ 23, `printing` ≥ 21) |
 | NDK | 28.2.13676358 (Flutter default) |
 | JDK | 17 or newer (bytecode target 17) |
+| Native plugins | `flutter_secure_storage` 11.x, `path_provider` 2.1.x, `mobile_scanner` 7.4.2 (CameraX + Google ML Kit barcode, bundled model), `printing` 5.15.1 — exact versions in `pubspec.lock` |
+
+All values above are read from the repository: `minSdk`, `targetSdk` and
+`compileSdk` are `flutter.minSdkVersion` / `flutter.targetSdkVersion` /
+`flutter.compileSdkVersion` in `android/app/build.gradle.kts`, whose values
+come from the pinned Flutter SDK
+(`packages/flutter_tools/gradle/src/main/kotlin/FlutterExtension.kt`:
+compileSdk 36, minSdk 24, targetSdk 36, NDK 28.2.13676358).
 
 ```bash
 # 1. JDK 17+ on PATH (java -version), e.g. Temurin 17.
@@ -88,11 +98,16 @@ $BT/aapt dump badging "$APK" | grep -E "package:|sdkVersion|targetSdkVersion|use
 $BT/apksigner verify --verbose --print-certs "$APK"
 ```
 
-Expected from the manifest: package `in.adityabionova.aditya_bionova_mobile`,
-`minSdkVersion 24`, `targetSdkVersion 36`, permission `INTERNET` only (plus
-whatever the Flutter / `flutter_secure_storage` / `path_provider` plugins
-merge — check the badging output, nothing location/camera/contacts should
-appear), `allowBackup=false`.
+Expected from the manifest: package = the `applicationId` in
+`android/app/build.gradle.kts`, `minSdkVersion 24`, `targetSdkVersion 36`,
+permissions `INTERNET` and `CAMERA` (merged by `mobile_scanner` for the
+check-in QR / medicine barcode scanner; the camera opens only on the scan
+screen) plus whatever the Flutter / `flutter_secure_storage` /
+`path_provider` / `printing` plugins merge — check the badging output,
+nothing location/contacts/storage should appear — and `allowBackup=false`.
+APK size: the bundled ML Kit barcode model adds roughly 2–3 MB per ABI;
+build per-ABI APKs for low-cost phones:
+`flutter build apk --release --split-per-abi --dart-define=API_BASE=…`.
 
 ### Demo signing (local only)
 
@@ -213,3 +228,19 @@ management), one small 5" screen and one tablet.
     `features` shows everything.
 16. **Accessibility** — TalkBack reads every button in all three
     languages; colour contrast of state chips; landscape on a tablet.
+17. **Device revocation** — with unsynced items, revoke this device's
+    session from the web (sessions list → revoke, or suspend the member);
+    the app returns to sign-in with "This device was signed out by an
+    administrator", the patient list is empty after re-opening; signing in
+    as the SAME user brings the items back and they sync once (server shows
+    one row each); a different user sees only the sealed count.
+18. **Scanner** — camera permission prompt appears only on the scan
+    screen; QR check-in (server with `qr_checkin`) and a GS1 DataMatrix on
+    a medicine strip (batch + expiry shown) on the entry-level device;
+    "Type the code" fallback works when the camera cannot focus.
+19. **PDF** — Draft PDF opens the share sheet and shows the red
+    "DRAFT - not valid until signed online" watermark; a signed Rx and a
+    receipt print from server data only when online.
+20. **Role interfaces** — sign in as doctor, receptionist, owner and
+    pharmacist; each gets its own tab set; the Overview shows today's
+    collections online and "Needs connection" offline.

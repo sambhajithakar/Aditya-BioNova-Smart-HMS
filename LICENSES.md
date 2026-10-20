@@ -55,6 +55,29 @@ lock files carry sha256 hashes and are regenerated with
 | caniuse-lite | 1.0.30001815 | CC-BY-4.0 (data; attribution retained) |
 | typescript | 5.9.3 | Apache-2.0 |
 
+## Dart / Flutter — Android app (exact versions in `apps/mobile/pubspec.lock`, verified from each package's LICENSE file and pub.dev licence tags, 2026-10-20)
+
+| Package | Version | Licence | Use |
+|---|---|---|---|
+| Flutter SDK / Dart SDK | 3.47.7 / 3.13.5 | BSD-3-Clause | framework |
+| http | 1.6.0 | BSD-3-Clause | API transport |
+| intl / flutter_localizations | 0.20.3 / SDK | BSD-3-Clause | en / mr / hi |
+| pointycastle | 4.0.0 | MIT | AES-256-GCM store, PBKDF2 PIN |
+| flutter_secure_storage | 11.2.0 | BSD-3-Clause | Android Keystore |
+| path_provider | 2.1.6 | BSD-3-Clause | store location |
+| cupertino_icons | 1.0.9 | MIT | icons |
+| **mobile_scanner** (new, M8) | 7.4.2 | BSD-3-Clause | QR check-in / medicine barcode scanner |
+| ↳ Google ML Kit barcode scanning (Android native, pulled by mobile_scanner) | 17.3.0 | Google ML Kit Terms of Service (free, proprietary; on-device, no data sent) | ✅ commercial use permitted; keep attribution; re-check terms before release |
+| **pdf** (new, M8) | 3.13.1 | Apache-2.0 | Rx draft / signed Rx / receipt PDFs |
+| **printing** (new, M8) | 5.15.1 | Apache-2.0 | Android share / print sheet |
+| ↳ pdf_widget_wrapper / barcode | 1.0.4 / 2.2.9 | Apache-2.0 | transitive |
+| ↳ archive / image / bidi / xml / petitparser / posix | 4.5.2 / 4.12.0 / 2.0.13 / 7.0.1 / 7.0.2 / 6.5.2 | MIT | transitive |
+| ↳ path_parsing / qr | 1.1.0 / 3.0.2 | MIT / BSD-3-Clause | transitive |
+| fake_async / flutter_lints (dev only) | 1.3.3 / 6.0.0 | Apache-2.0 / BSD-3-Clause | tests / lints |
+
+Re-check: `cd apps/mobile && flutter pub deps --style=compact` and read
+`~/.pub-cache/hosted/pub.dev/<pkg>-<ver>/LICENSE` for every new package.
+
 ## System / infrastructure
 - PostgreSQL 16 (database): PostgreSQL Licence ✅
 - Docker images (`postgres:16.15-alpine`, `python:3.12.15-slim`, `node:22.23.3-alpine`, pinned by digest): upstream licences ✅
