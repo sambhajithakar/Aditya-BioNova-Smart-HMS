@@ -310,27 +310,46 @@ def book(
     return _out(db, [fu], _today(db, principal.organization_id))[0]
 
 
-def _simple(to: str):
-    def endpoint(
-        follow_up_id: uuid.UUID,
-        payload: FollowUpActionIn,
-        request: Request,
-        principal: Principal = Depends(require_permission("followup.write")),
-        db: Session = Depends(get_db, scope="function"),
-    ) -> FollowUpOut:
-        fu = _load(db, principal, follow_up_id)
-        _move(fu, to, payload.note)
-        db.flush()
-        _audit(db, principal, request, f"followup.{to}", fu)
-        return _out(db, [fu], _today(db, principal.organization_id))[0]
-
-    endpoint.__name__ = f"follow_up_{to}"
-    return endpoint
+def _transition(db: Session, principal: Principal, request: Request, follow_up_id: uuid.UUID,
+                to: str, note: str) -> FollowUpOut:
+    fu = _load(db, principal, follow_up_id)
+    _move(fu, to, note)
+    db.flush()
+    _audit(db, principal, request, f"followup.{to}", fu)
+    return _out(db, [fu], _today(db, principal.organization_id))[0]
 
 
-for _action, _to in (("complete", "completed"), ("cancel", "cancelled"), ("missed", "missed")):
-    router.add_api_route(f"/{{follow_up_id}}/{_action}", _simple(_to), methods=["POST"],
-                         response_model=FollowUpOut, name=f"follow_up_{_action}")
+@router.post("/{follow_up_id}/complete", response_model=FollowUpOut)
+def complete(
+    follow_up_id: uuid.UUID,
+    payload: FollowUpActionIn,
+    request: Request,
+    principal: Principal = Depends(require_permission("followup.write")),
+    db: Session = Depends(get_db, scope="function"),
+) -> FollowUpOut:
+    return _transition(db, principal, request, follow_up_id, "completed", payload.note)
+
+
+@router.post("/{follow_up_id}/cancel", response_model=FollowUpOut)
+def cancel(
+    follow_up_id: uuid.UUID,
+    payload: FollowUpActionIn,
+    request: Request,
+    principal: Principal = Depends(require_permission("followup.write")),
+    db: Session = Depends(get_db, scope="function"),
+) -> FollowUpOut:
+    return _transition(db, principal, request, follow_up_id, "cancelled", payload.note)
+
+
+@router.post("/{follow_up_id}/missed", response_model=FollowUpOut)
+def mark_missed(
+    follow_up_id: uuid.UUID,
+    payload: FollowUpActionIn,
+    request: Request,
+    principal: Principal = Depends(require_permission("followup.write")),
+    db: Session = Depends(get_db, scope="function"),
+) -> FollowUpOut:
+    return _transition(db, principal, request, follow_up_id, "missed", payload.note)
 
 
 @router.post("/{follow_up_id}/remind", response_model=SendResultOut)
