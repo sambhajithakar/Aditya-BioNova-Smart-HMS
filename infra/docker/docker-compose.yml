@@ -1,16 +1,42 @@
-# Local/staging stack. Usage (from repo root):
-#   docker compose -f infra/docker/docker-compose.yml up --build
-# NEVER use these default passwords outside local development.
+# Local / private-staging stack. Usage (from repo root):
+#   cp infra/docker/compose.env.example infra/docker/.env   # then fill in secrets
+#   docker compose -f infra/docker/docker-compose.yml --env-file infra/docker/.env up --build
+#
+# * Every secret is REQUIRED (${VAR:?}) — there are no default passwords.
+#   Use URL-safe values (e.g. `python3 -c "import secrets;print(secrets.token_hex(24))"`)
+#   because the DB passwords are embedded in connection URLs.
+# * All published ports bind to 127.0.0.1 only; put a TLS reverse proxy in
+#   front for anything beyond this host (DEPLOYMENT.md).
+# * Migrations run once in the `migrate` job before the API starts; the API
+#   container never alters the schema.
+# * Synthetic data only. No real patient data in this stack.
+
+x-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+
+x-api-env: &api-env
+  DATABASE_URL: postgresql+psycopg2://hms_app:${HMS_APP_PASSWORD:?set HMS_APP_PASSWORD}@postgres:5432/hms_dev
+  MIGRATION_DATABASE_URL: postgresql+psycopg2://hms:${HMS_PG_PASSWORD:?set HMS_PG_PASSWORD}@postgres:5432/hms_dev
+  JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (>=32 random chars)}
+  ENVIRONMENT: ${HMS_ENVIRONMENT:-staging}
+  CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000","http://127.0.0.1:3000"]}
+
 services:
   postgres:
-    image: postgres:16-alpine
+    # postgres:16.15-alpine (multi-arch index digest, resolved 2026-10-20)
+    image: postgres:16.15-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     environment:
       POSTGRES_USER: hms
-      POSTGRES_PASSWORD: ${HMS_PG_PASSWORD:-change_me}
+      POSTGRES_PASSWORD: ${HMS_PG_PASSWORD:?set HMS_PG_PASSWORD}
       POSTGRES_DB: hms_dev
-      HMS_APP_PASSWORD: ${HMS_APP_PASSWORD:-change_me}
+      # read by postgres-init/01-roles.sh on first boot (creates hms_app)
+      HMS_APP_PASSWORD: ${HMS_APP_PASSWORD:?set HMS_APP_PASSWORD}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${HMS_PG_HOST_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d:ro
@@ -19,33 +45,62 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
 
-  api:
+  migrate:
+    # One-shot release job: `alembic upgrade head` with the table-owner role.
     build:
       context: ../..
       dockerfile: infra/docker/api.Dockerfile
-    environment:
-      DATABASE_URL: postgresql+psycopg2://hms_app:${HMS_APP_PASSWORD:-change_me}@postgres:5432/hms_dev
-      MIGRATION_DATABASE_URL: postgresql+psycopg2://hms:${HMS_PG_PASSWORD:-change_me}@postgres:5432/hms_dev
-      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in an untracked .env file}
-      ENVIRONMENT: development
-      CORS_ORIGINS: '["http://localhost:3000"]'
-    ports:
-      - "8000:8000"
+    image: hms-api:local
+    <<: *hardening
+    environment: *api-env
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
     depends_on:
       postgres:
         condition: service_healthy
+
+  api:
+    image: hms-api:local
+    build:
+      context: ../..
+      dockerfile: infra/docker/api.Dockerfile
+    <<: *hardening
+    environment:
+      <<: *api-env
+      # Trust X-Forwarded-* only from the reverse proxy (set to its address).
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
+      WEB_CONCURRENCY: ${API_WORKERS:-2}
+    ports:
+      - "127.0.0.1:${HMS_API_HOST_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
 
   web:
     build:
       context: ../..
       dockerfile: infra/docker/web.Dockerfile
-    environment:
-      API_ORIGIN: http://api:8000
+      args:
+        # Baked into .next/routes-manifest.json at build time (audit I1);
+        # changing it requires a rebuild — a runtime env var has no effect.
+        API_ORIGIN: ${WEB_API_ORIGIN:-http://api:8000}
+    image: hms-web:local
+    <<: *hardening
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+      - /app/.next/cache:size=128m,uid=1000,gid=1000
     ports:
-      - "3000:3000"
+      - "127.0.0.1:${HMS_WEB_HOST_PORT:-3000}:3000"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   pgdata:
