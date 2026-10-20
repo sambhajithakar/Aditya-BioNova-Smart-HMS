@@ -45,8 +45,11 @@ ENV NODE_ENV=production \
 COPY --chown=root:root --from=prod-deps /app/node_modules ./node_modules
 COPY --chown=root:root apps/web/package.json apps/web/next.config.mjs ./
 COPY --chown=root:root --from=build /app/.next ./.next
-# Next writes its runtime cache under .next/cache — the only writable path.
-RUN mkdir -p .next/cache && chown -R node:node .next/cache
+# `next start` writes only .next/cache and .next/server/route-cache at
+# runtime (verified) — the only paths owned by the runtime user. Compose
+# mounts both as tmpfs so the root filesystem can be read-only.
+RUN mkdir -p .next/cache .next/server/route-cache \
+ && chown -R node:node .next/cache .next/server/route-cache
 
 USER node
 EXPOSE 3000

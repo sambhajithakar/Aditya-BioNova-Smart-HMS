@@ -95,6 +95,7 @@ services:
     tmpfs:
       - /tmp:size=64m,mode=1777
       - /app/.next/cache:size=128m,uid=1000,gid=1000
+      - /app/.next/server/route-cache:size=64m,uid=1000,gid=1000
     ports:
       - "127.0.0.1:${HMS_WEB_HOST_PORT:-3000}:3000"
     depends_on:
