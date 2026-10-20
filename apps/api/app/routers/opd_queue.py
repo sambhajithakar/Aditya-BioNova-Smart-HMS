@@ -50,6 +50,89 @@ def _today() -> date:
     return clinic_today()
 
 
+def lock_service_day(db: Session, organization_id: uuid.UUID, service_day: date) -> None:
+    """Per-tenant-per-day queue lock (transaction-scoped, re-entrant)."""
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+        {"key": f"opdqueue:{organization_id}:{service_day}"},
+    )
+
+
+def issue_queue_entry(
+    db: Session,
+    principal: Principal,
+    request: Request,
+    *,
+    patient_id: uuid.UUID,
+    branch_id: uuid.UUID,
+    appointment_id: uuid.UUID | None,
+    priority: str = "normal",
+) -> OpdQueueEntry:
+    """Allocate today's next token for an already-validated patient/branch.
+
+    Shared by ``POST /opd/queue`` and QR check-in (routers/checkin.py)."""
+    service_day = _today()
+
+    # serialize joins per tenant per day BEFORE the duplicate check: two
+    # concurrent joins of one patient cannot both see "not queued yet"
+    # (uq_queue_one_active is the DB backstop)
+    lock_service_day(db, principal.organization_id, service_day)
+
+    # already in today's active queue?
+    already = db.scalar(
+        select(func.count())
+        .select_from(OpdQueueEntry)
+        .where(
+            OpdQueueEntry.organization_id == principal.organization_id,
+            OpdQueueEntry.patient_id == patient_id,
+            OpdQueueEntry.service_date == service_day,
+            OpdQueueEntry.status.in_(("waiting", "called", "in_consultation")),
+        )
+    )
+    if already:
+        raise HTTPException(
+            status_code=409, detail="Patient already in today's active queue"
+        )
+
+    # token allocation runs under the same per-tenant-per-day lock
+    last_token = db.scalar(
+        select(func.max(OpdQueueEntry.token_number)).where(
+            OpdQueueEntry.organization_id == principal.organization_id,
+            OpdQueueEntry.service_date == service_day,
+        )
+    )
+    entry = OpdQueueEntry(
+        organization_id=principal.organization_id,
+        branch_id=branch_id,
+        patient_id=patient_id,
+        appointment_id=appointment_id,
+        service_date=service_day,
+        token_number=(last_token or 0) + 1,
+        priority=priority,
+        created_by=principal.user_id,
+    )
+    db.add(entry)
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Token race, please retry")
+
+    record_event(
+        db,
+        action="opd.queue_joined",
+        organization_id=str(principal.organization_id),
+        actor_user_id=str(principal.user_id),
+        resource_type="opd_queue",
+        resource_id=str(entry.id),
+        metadata={"token": entry.token_number, "patient_id": str(entry.patient_id),
+                  "priority": entry.priority},
+        correlation_id=get_correlation_id(request),
+        ip_address=get_client_ip(request),
+    )
+    return entry
+
+
 @router.post("", response_model=QueueEntryOut, status_code=status.HTTP_201_CREATED)
 def join_queue(
     payload: QueueJoinIn,
@@ -90,69 +173,12 @@ def join_queue(
         load_appointment(db, principal, payload.appointment_id,
                          patient_id=payload.patient_id)
 
-    service_day = _today()
-
-    # serialize joins per tenant per day BEFORE the duplicate check: two
-    # concurrent joins of one patient cannot both see "not queued yet"
-    # (uq_queue_one_active is the DB backstop)
-    db.execute(
-        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
-        {"key": f"opdqueue:{principal.organization_id}:{service_day}"},
+    entry = issue_queue_entry(
+        db, principal, request,
+        patient_id=payload.patient_id, branch_id=payload.branch_id,
+        appointment_id=payload.appointment_id, priority=payload.priority,
     )
-
-    # already in today's active queue?
-    already = db.scalar(
-        select(func.count())
-        .select_from(OpdQueueEntry)
-        .where(
-            OpdQueueEntry.organization_id == principal.organization_id,
-            OpdQueueEntry.patient_id == payload.patient_id,
-            OpdQueueEntry.service_date == service_day,
-            OpdQueueEntry.status.in_(("waiting", "called", "in_consultation")),
-        )
-    )
-    if already:
-        raise HTTPException(
-            status_code=409, detail="Patient already in today's active queue"
-        )
-
-    # token allocation runs under the same per-tenant-per-day lock
-    last_token = db.scalar(
-        select(func.max(OpdQueueEntry.token_number)).where(
-            OpdQueueEntry.organization_id == principal.organization_id,
-            OpdQueueEntry.service_date == service_day,
-        )
-    )
-    entry = OpdQueueEntry(
-        organization_id=principal.organization_id,
-        branch_id=payload.branch_id,
-        patient_id=payload.patient_id,
-        appointment_id=payload.appointment_id,
-        service_date=service_day,
-        token_number=(last_token or 0) + 1,
-        priority=payload.priority,
-        created_by=principal.user_id,
-    )
-    db.add(entry)
-    try:
-        db.flush()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(status_code=409, detail="Token race, please retry")
-
     out = QueueEntryOut.model_validate(entry)
-    record_event(
-        db,
-        action="opd.queue_joined",
-        organization_id=str(principal.organization_id),
-        actor_user_id=str(principal.user_id),
-        resource_type="opd_queue",
-        resource_id=str(entry.id),
-        metadata={"token": entry.token_number, "patient_id": str(entry.patient_id),
-                  "priority": entry.priority},
-        correlation_id=get_correlation_id(request),
-        ip_address=get_client_ip(request),
-    )
     idempotent_store(
         db,
         organization_id=principal.organization_id,

@@ -31,6 +31,18 @@ const nextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
+      // QR check-in scans with the device camera (same origin only); every
+      // other page keeps camera=() from securityHeaders. Later rules win.
+      {
+        source: "/checkin",
+        headers: [
+          {
+            key: "Permissions-Policy",
+            value:
+              "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), serial=()",
+          },
+        ],
+      },
       {
         source: "/api/session/:path*",
         headers: [{ key: "Cache-Control", value: "no-store" }],

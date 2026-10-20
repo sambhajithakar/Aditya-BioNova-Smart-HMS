@@ -8,6 +8,12 @@
  * own text stays in the language it was written. Uses the browser's
  * print pipeline (Save as PDF) — no server-side PDF dependency.
  * `?type=receipt` switches the layout to the billing receipt.
+ *
+ * Smart Printer Setup: the clinic's default printer profile for the document
+ * (GET /setup/printers/defaults) sets the `@page` size / margins and font
+ * scale; the prescription template (header, footer, registration number)
+ * and receipt footer come from GET /setup/settings. If either is not
+ * readable the original A4 layout is used unchanged.
  */
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -26,6 +32,7 @@ import {
 } from "@/lib/api";
 import { onAuthFailure } from "@/lib/session";
 import { itemDrugName } from "@/lib/print";
+import { OrgSettingsOut, PrinterDefaults, pageCss, pageGeometry } from "@/lib/setup";
 
 type Label = { en: string; mr: string; hi: string };
 
@@ -94,8 +101,15 @@ function PrintView() {
   const [branchName, setBranchName] = useState<string>("");
   const [prescriber, setPrescriber] = useState<Prescriber | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [printDefaults, setPrintDefaults] = useState<PrinterDefaults | null>(null);
+  const [template, setTemplate] = useState<OrgSettingsOut["settings"] | null>(null);
 
   useEffect(() => onAuthFailure(() => router.replace("/login")), [router]);
+
+  useEffect(() => {
+    api.get<PrinterDefaults>("/setup/printers/defaults").then(setPrintDefaults).catch(() => undefined);
+    api.get<OrgSettingsOut>("/setup/settings").then((s) => setTemplate(s.settings)).catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -157,6 +171,12 @@ function PrintView() {
     }
     void load();
   }, [params.id, type]);
+
+  const doc = type === "receipt" ? "receipt" : "prescription";
+  const profile = printDefaults?.[doc] ?? null;
+  const fallbackKind = template?.prescription.paper_size === "A5" && doc === "prescription" ? "a5" : "a4";
+  const sheetCss =
+    PRINT_CSS + (profile || template ? pageCss(pageGeometry(profile, fallbackKind)) : "");
 
   if (error) {
     return (
@@ -242,6 +262,9 @@ function PrintView() {
           </section>
         )}
 
+        {template?.billing.receipt_footer && (
+          <p className="tri" data-testid="receipt-footer">{template.billing.receipt_footer}</p>
+        )}
         <footer className="print-foot">
           <span>{tri(L.signature)}</span>
         </footer>
@@ -253,7 +276,7 @@ function PrintView() {
         >
           {tri(L.print)}
         </button>
-        <style>{PRINT_CSS}</style>
+        <style>{sheetCss}</style>
       </main>
     );
   }
@@ -262,7 +285,7 @@ function PrintView() {
     return (
       <main className="print-sheet">
         <p className="muted">{tri(L.loading)}</p>
-        <style>{PRINT_CSS}</style>
+        <style>{sheetCss}</style>
       </main>
     );
   }
@@ -275,6 +298,11 @@ function PrintView() {
           {branchName && (
             <p className="tri" data-testid="clinic-branch">
               {tri(L.branch)}: {branchName}
+            </p>
+          )}
+          {template?.prescription.header_text && (
+            <p className="tri" data-testid="rx-header-text" style={{ whiteSpace: "pre-line", margin: "0.1rem 0" }}>
+              {template.prescription.header_text}
             </p>
           )}
           <p className="doc-title">{tri(L.prescription)}</p>
@@ -358,6 +386,11 @@ function PrintView() {
           </p>
         )}
         <p className="tri">{tri(L.amendments)}</p>
+        {template?.prescription.footer_text && (
+          <p data-testid="rx-footer-text" style={{ whiteSpace: "pre-line" }}>
+            {template.prescription.footer_text}
+          </p>
+        )}
       </section>
 
       <footer className="print-foot">
@@ -367,9 +400,11 @@ function PrintView() {
               <p>
                 <strong>{prescriber.full_name}</strong>
               </p>
-              <p className="tri">
-                {tri(L.regNo)}: {prescriber.registration_number || "—"}
-              </p>
+              {template?.prescription.show_registration_number !== false && (
+                <p className="tri">
+                  {tri(L.regNo)}: {prescriber.registration_number || "—"}
+                </p>
+              )}
             </>
           )}
           <p>{tri(L.signature)}</p>
@@ -385,7 +420,7 @@ function PrintView() {
         {tri(L.print)}
       </button>
 
-      <style>{PRINT_CSS}</style>
+      <style>{sheetCss}</style>
     </main>
   );
 }

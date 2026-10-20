@@ -16,6 +16,7 @@ import { aiDictionaries } from "./i18n-ai";
 import { billingDictionaries } from "./i18n-billing";
 import { commsDictionaries } from "./i18n-comms";
 import { saasDictionaries } from "./i18n-saas";
+import { setupDictionaries } from "./i18n-setup";
 
 type Dict = Record<string, string>;
 
@@ -1120,6 +1121,7 @@ export const dictionaries: Record<Lang, Dict> = {
     ...aiDictionaries.en,
     ...billingDictionaries.en,
     ...commsDictionaries.en,
+    ...setupDictionaries.en,
   },
   mr: {
     ...coreDictionaries.mr,
@@ -1127,6 +1129,7 @@ export const dictionaries: Record<Lang, Dict> = {
     ...aiDictionaries.mr,
     ...billingDictionaries.mr,
     ...commsDictionaries.mr,
+    ...setupDictionaries.mr,
   },
   hi: {
     ...coreDictionaries.hi,
@@ -1134,6 +1137,7 @@ export const dictionaries: Record<Lang, Dict> = {
     ...aiDictionaries.hi,
     ...billingDictionaries.hi,
     ...commsDictionaries.hi,
+    ...setupDictionaries.hi,
   },
 };
 

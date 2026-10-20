@@ -186,6 +186,7 @@ describe("feature-gated navigation", () => {
     expect(map).toEqual({
       appointments: "appointments",
       queue: "opd_queue",
+      checkin: "opd_queue",
       consultation: "consultation",
       billing: "billing",
       pharmacy: "pharmacy",

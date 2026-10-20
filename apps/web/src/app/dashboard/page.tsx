@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { SetupWizardCard } from "@/components/SetupWizardCard";
 import { api } from "@/lib/api";
 import { useLang } from "@/lib/lang";
 import { hasPermission, useMe } from "@/lib/me";
@@ -83,6 +84,7 @@ function DashboardBody() {
           )}
         </p>
       </div>
+      {hasPermission(me, "setup.manage") && <SetupWizardCard />}
       {hasPermission(me, "org.manage") && <OnboardingCard />}
       <div className="grid kpis" style={{ marginTop: "1.25rem" }}>
         {modules.map((m) => (
