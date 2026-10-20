@@ -8,9 +8,8 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { ApiError, DuplicateCandidate, PageOf, Patient, api } from "@/lib/api";
-import { getLang, t } from "@/lib/i18n";
-
-type Lang = "en" | "mr" | "hi";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/lib/lang";
 
 const EMPTY_FORM = {
   full_name: "",
@@ -22,8 +21,8 @@ const EMPTY_FORM = {
   allergies: "",
 };
 
-export default function PatientsPage() {
-  const [lang, setLang] = useState<Lang>("en");
+function PatientsBody() {
+  const { lang } = useLang();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Patient[]>([]);
   const [selected, setSelected] = useState<Patient | null>(null);
@@ -34,7 +33,6 @@ export default function PatientsPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => setLang(getLang()), []);
 
   const search = useCallback(async (q: string) => {
     try {
@@ -93,11 +91,10 @@ export default function PatientsPage() {
   }
 
   return (
-    <AppShell active="patients">
+    <>
       <main className="page">
-        <p className="notice">{t("m2Notice", lang)}</p>
 
-        <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: "1.25rem" }}>
+        <div className="grid two" style={{ gap: "1.25rem" }}>
           <section className="card">
             <h2 style={{ marginTop: 0 }}>{t("patients", lang)}</h2>
             <div className="field">
@@ -127,7 +124,7 @@ export default function PatientsPage() {
                     <td>
                       <button
                         type="button"
-                        className="ghost"
+                        className="secondary"
                         onClick={() => setSelected(p)}
                       >
                         {p.full_name}
@@ -242,7 +239,7 @@ export default function PatientsPage() {
                 </button>
                 {pendingAllow && (
                   <button
-                    className="ghost"
+                    className="secondary"
                     type="button"
                     disabled={busy}
                     onClick={() => void submit(true)}
@@ -282,6 +279,14 @@ export default function PatientsPage() {
           </section>
         )}
       </main>
+    </>
+  );
+}
+
+export default function PatientsPage() {
+  return (
+    <AppShell active="patients">
+      <PatientsBody />
     </AppShell>
   );
 }

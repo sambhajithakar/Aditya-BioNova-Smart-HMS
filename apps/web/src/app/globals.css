@@ -127,15 +127,145 @@ button.primary {
   cursor: pointer;
 }
 button.primary:hover { background: var(--teal-500); }
-button.ghost {
+/* U1: secondary/ghost buttons are dark-on-light so they are visible on white
+   cards (WCAG 1.4.3). The light-on-navy variant is only used in the header. */
+button.ghost,
+button.secondary,
+button.chip {
+  background: var(--white);
+  color: var(--navy-800);
+  border: 1px solid var(--navy-700);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.9rem;
+  min-height: 40px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+button.ghost:hover,
+button.secondary:hover,
+button.chip:hover { background: var(--teal-100); }
+button.chip { border-radius: 999px; border-color: var(--teal-600); color: var(--teal-600); }
+button.danger {
+  background: var(--white);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.9rem;
+  min-height: 40px;
+  font-weight: 600;
+  cursor: pointer;
+}
+button.icon {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 999px;
+  min-width: 36px;
+  min-height: 36px;
+  margin-left: 0.5rem;
+  cursor: pointer;
+}
+.app-header button.on-dark,
+.app-header button.ghost {
   background: transparent;
   color: var(--white);
-  border: 1px solid rgba(255,255,255,0.5);
+  border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: var(--radius);
   padding: 0.5rem 0.9rem;
   min-height: 40px;
   cursor: pointer;
 }
+button:disabled,
+button[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+/* Plain <button> without a class inside page content (legacy pages). */
+main button:not([class]) {
+  background: var(--white);
+  color: var(--navy-800);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.8rem;
+  min-height: 40px;
+  cursor: pointer;
+}
+a.primary {
+  display: inline-flex;
+  align-items: center;
+  background: var(--teal-600);
+  color: var(--white);
+  border-radius: var(--radius);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* U2: form controls without an explicit type, selects, dates, textareas. */
+input:not([type]),
+input[type="search"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+select,
+textarea {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 1rem;
+  min-height: 44px;
+  background: var(--white);
+  color: var(--text);
+  max-width: 100%;
+  font-family: inherit;
+}
+input[aria-invalid="true"],
+select[aria-invalid="true"] { border-color: var(--danger); }
+div.field { display: grid; gap: 0.3rem; font-weight: 600; min-width: 0; }
+.field-error { color: var(--danger); font-size: 0.85rem; font-weight: 600; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+th { color: var(--text-muted); font-size: 0.9rem; }
+.table-wrap { overflow-x: auto; }
+
+.row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-start; }
+.row .grow, .field.grow { flex: 1; min-width: 220px; }
+.grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.card.narrow { max-width: 520px; margin: 0 auto; }
+.card.inset { background: var(--surface); box-shadow: none; }
+.card.tile { text-decoration: none; color: inherit; display: block; }
+.card.tile:hover { border-color: var(--teal-500); }
+.muted-on-dark { opacity: 0.75; }
+
+.rx-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  margin-top: 0.75rem;
+}
+.rx-item legend { padding: 0 0.4rem; display: flex; align-items: center; }
+.rx-grid {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+.rx-grid .span-all { grid-column: 1 / -1; }
+
+.secret {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  word-break: break-all;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.7rem;
+}
+.codes { columns: 2; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
 .error {
   color: var(--danger);
@@ -160,4 +290,23 @@ button.ghost {
   padding: 0.15rem 0.6rem;
   margin: 0.1rem 0.25rem 0.1rem 0;
   font-size: 0.85rem;
+}
+
+/* U3: responsive layout — usable down to 390px wide phones. */
+@media (max-width: 760px) {
+  main.page { padding: 1rem 0.75rem; }
+  .card { padding: 0.9rem; }
+  .grid.two { grid-template-columns: 1fr; }
+  .app-header { padding: 0.6rem 0.75rem; gap: 0.5rem; }
+  .app-header .context { flex-basis: 100%; order: 3; font-size: 0.85rem; }
+  .card table, main.page > table { display: block; overflow-x: auto; white-space: nowrap; }
+  form.stack { max-width: none; }
+  .row > .field, .row > button { flex: 1 1 100%; }
+  div.field > input, div.field > select, label.field > input, label.field > select { width: 100%; min-width: 0; }
+  .codes { columns: 1; }
+  h1 { font-size: 1.5rem; }
+}
+@media (max-width: 420px) {
+  .lang-switch button { padding: 0.4rem 0.55rem; font-size: 0.9rem; }
+  .layout-nav a { padding: 0.5rem 0.65rem; }
 }

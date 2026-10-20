@@ -9,6 +9,7 @@
  */
 import { CSSProperties, Fragment, useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { PatientPicker } from "@/components/PatientPicker";
 import {
   Admission,
   ApiError,
@@ -20,9 +21,10 @@ import {
   Ward,
   api,
 } from "@/lib/api";
-import { getLang, t } from "@/lib/i18n";
-
-type Lang = "en" | "mr" | "hi";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/lib/lang";
+import { useIdempotencyKey, useInFlight } from "@/lib/idempotency";
+import { defaultBranchId, useMe } from "@/lib/me";
 
 const OUTCOMES: { value: string; key: string }[] = [
   { value: "recovered", key: "recovered" },
@@ -54,8 +56,11 @@ const chip = (bg: string): CSSProperties => ({
   background: bg,
 });
 
-export default function IpdPage() {
-  const [lang, setLang] = useState<Lang>("en");
+function IpdBody() {
+  const { lang } = useLang();
+  const me = useMe();
+  const { busy, run } = useInFlight();
+  const admitKey = useIdempotencyKey();
   const [wards, setWards] = useState<Ward[]>([]);
   const [beds, setBeds] = useState<Bed[]>([]);
   const [admissions, setAdmissions] = useState<Admission[]>([]);
@@ -86,13 +91,10 @@ export default function IpdPage() {
   const [pulse, setPulse] = useState("");
   const [temp, setTemp] = useState("");
   const [spo2, setSpo2] = useState("");
-  const [nurseId, setNurseId] = useState<string | null>(null);
-  void nurseId;
 
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  useEffect(() => setLang(getLang()), []);
 
   const load = useCallback(async () => {
     try {
@@ -100,7 +102,7 @@ export default function IpdPage() {
         api.get<Ward[]>("/ipd/wards"),
         api.get<Bed[]>("/ipd/beds"),
         api.get<PageOf<Admission>>("/ipd/admissions?status=admitted&limit=100"),
-        api.get<PageOf<Patient>>("/patients?limit=200"),
+        api.get<PageOf<Patient>>("/patients?limit=100"), // labels only
         api.get<Branch[]>("/branches"),
       ]);
       setWards(w);
@@ -108,12 +110,12 @@ export default function IpdPage() {
       setAdmissions(adm.items);
       setPatients(patientPage.items);
       setBranches(branchList.filter((x) => x.status === "active"));
-      setBranchId((prev) => prev || branchList[0]?.id || "");
+      setBranchId((prev) => prev || defaultBranchId(me, branchList));
       setWardId((prev) => prev || w[0]?.id || "");
     } catch {
       setError("Could not load the IPD board.");
     }
-  }, []);
+  }, [me]);
 
   useEffect(() => {
     void load();
@@ -171,8 +173,9 @@ export default function IpdPage() {
       await api.post(
         "/ipd/admissions",
         { patient_id: patientId, ward_id: wardId, bed_id: bedId, reason },
-        `web-admit-${patientId}-${bedId}`
+        admitKey.current()
       );
+      admitKey.reset();
       setReason("");
       setBedId("");
       setNotice("Patient admitted to the bed.");
@@ -274,10 +277,9 @@ export default function IpdPage() {
   );
 
   return (
-    <AppShell active="ipd">
+    <>
       <main className="page">
         <h1 style={{ marginTop: 0 }}>{t("ipd", lang)}</h1>
-        <p className="notice">{t("m6Notice", lang)}</p>
 
         <section className="card" style={{ marginTop: "1.25rem" }}>
           <h3 style={{ marginTop: 0 }}>{t("addWard", lang)}</h3>
@@ -420,25 +422,7 @@ export default function IpdPage() {
         <section className="card" style={{ marginTop: "1.25rem" }}>
           <h3 style={{ marginTop: 0 }}>{t("admitPatient", lang)}</h3>
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-            <div className="field">
-              <label htmlFor="ap">{t("patients", lang)}</label>
-              <select
-                id="ap"
-                value={patientId}
-                onChange={(e) => {
-                  setPatientId(e.target.value);
-                  setWardId("");
-                  setBedId("");
-                }}
-              >
-                <option value="">—</option>
-                {patients.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.uhid} — {p.full_name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <PatientPicker id="ap" value={patientId} onChange={(id) => { setPatientId(id); setWardId(""); setBedId(""); }} />
             <div className="field">
               <label htmlFor="aw">{t("wards", lang)}</label>
               <select
@@ -487,7 +471,8 @@ export default function IpdPage() {
               className="primary"
               type="button"
               style={{ alignSelf: "end" }}
-              onClick={() => void admit()}
+              disabled={busy}
+              onClick={() => void run(admit)}
             >
               {t("admit", lang)}
             </button>
@@ -761,6 +746,14 @@ export default function IpdPage() {
           </p>
         )}
       </main>
+    </>
+  );
+}
+
+export default function IpdPage() {
+  return (
+    <AppShell active="ipd">
+      <IpdBody />
     </AppShell>
   );
 }

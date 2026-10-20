@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { PatientPicker } from "@/components/PatientPicker";
 import {
   ApiError,
   Branch,
@@ -20,9 +21,10 @@ import {
   Patient,
   api,
 } from "@/lib/api";
-import { getLang, t } from "@/lib/i18n";
-
-type Lang = "en" | "mr" | "hi";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/lib/lang";
+import { useInFlight } from "@/lib/idempotency";
+import { defaultBranchId, useMe } from "@/lib/me";
 
 const ORDER_STATUS_KEY: Record<string, string> = {
   ordered: "ordered",
@@ -42,8 +44,10 @@ const RESULT_STATUS_KEY: Record<string, string> = {
 const FLAGS = ["normal", "low", "high", "abnormal", "critical"];
 const SPECIMENS = ["blood", "urine", "stool", "swab", "sputum", "tissue", "other"];
 
-export default function LabPage() {
-  const [lang, setLang] = useState<Lang>("en");
+function LabBody() {
+  const { lang } = useLang();
+  const me = useMe();
+  const { busy, run } = useInFlight();
   const [orders, setOrders] = useState<LabOrder[]>([]);
   const [tests, setTests] = useState<LabTest[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -75,7 +79,6 @@ export default function LabPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  useEffect(() => setLang(getLang()), []);
 
   const load = useCallback(async () => {
     try {
@@ -87,21 +90,20 @@ export default function LabPage() {
       setOrders(orderPage.items);
       setTests(testList);
       setBranches(branchList.filter((b) => b.status === "active"));
-      setNBranch((prev) => prev || branchList[0]?.id || "");
+      setNBranch((prev) => prev || defaultBranchId(me, branchList));
     } catch (err) {
       setError(
         err instanceof ApiError ? String(err.message) : "Could not load the lab."
       );
     }
-  }, []);
+  }, [me]);
 
   useEffect(() => {
     void load();
     api
-      .get<PageOf<Patient>>("/patients?limit=200")
+      .get<PageOf<Patient>>("/patients?limit=100") // labels only
       .then((p) => {
         setPatients(p.items);
-        setNPatient((prev) => prev || p.items[0]?.id || "");
       })
       .catch(() => setPatients([]));
   }, [load]);
@@ -239,10 +241,9 @@ export default function LabPage() {
       : r.value_text || "—";
 
   return (
-    <AppShell active="lab">
+    <>
       <main className="page">
         <h1 style={{ marginTop: 0 }}>{t("lab", lang)}</h1>
-        <p className="muted">{t("m5Notice", lang)}</p>
 
         {error && (
           <p className="error" role="alert">
@@ -254,20 +255,7 @@ export default function LabPage() {
         <section className="card">
           <h3 style={{ marginTop: 0 }}>{t("newLabOrder", lang)}</h3>
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-            <div className="field" style={{ minWidth: "16rem" }}>
-              <label htmlFor="lo_pat">{t("patients", lang)}</label>
-              <select
-                id="lo_pat"
-                value={nPatient}
-                onChange={(e) => setNPatient(e.target.value)}
-              >
-                {patients.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.uhid} — {p.full_name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <PatientPicker id="lo_pat" value={nPatient} onChange={(id) => setNPatient(id)} />
             <div className="field">
               <label htmlFor="lo_branch">{t("branch", lang)}</label>
               <select
@@ -326,7 +314,8 @@ export default function LabPage() {
             className="primary"
             type="button"
             style={{ marginTop: "0.75rem" }}
-            onClick={() => void createOrder()}
+            disabled={busy}
+              onClick={() => void run(createOrder)}
           >
             {t("newLabOrder", lang)}
           </button>
@@ -358,7 +347,7 @@ export default function LabPage() {
                   <td>{new Date(o.created_at).toLocaleString()}</td>
                   <td>
                     <button
-                      className="ghost"
+                      className="secondary"
                       type="button"
                       onClick={() => void openOrder(o.id)}
                     >
@@ -449,7 +438,7 @@ export default function LabPage() {
                     <td>
                       {s.status === "collected" && (
                         <button
-                          className="ghost"
+                          className="secondary"
                           type="button"
                           onClick={() =>
                             void act(
@@ -505,7 +494,7 @@ export default function LabPage() {
                     <td>
                       {r.status === "imported" && (
                         <button
-                          className="ghost"
+                          className="secondary"
                           type="button"
                           onClick={() =>
                             void act(`/results/${r.id}/verify`, {}, t("verify", lang))
@@ -516,7 +505,7 @@ export default function LabPage() {
                       )}
                       {r.status === "verified" && (
                         <button
-                          className="ghost"
+                          className="secondary"
                           type="button"
                           onClick={() =>
                             void act(
@@ -531,7 +520,7 @@ export default function LabPage() {
                       )}
                       {r.status === "released" && (
                         <button
-                          className="ghost"
+                          className="secondary"
                           type="button"
                           onClick={() => {
                             setAmendId(r.id);
@@ -604,7 +593,7 @@ export default function LabPage() {
                     {t("save", lang)}
                   </button>
                   <button
-                    className="ghost"
+                    className="secondary"
                     type="button"
                     style={{ alignSelf: "end" }}
                     onClick={() => setAmendId(null)}
@@ -701,7 +690,7 @@ export default function LabPage() {
                 />
               </div>
               <button
-                className="ghost"
+                className="secondary"
                 type="button"
                 disabled={["released", "cancelled", "in_progress"].includes(
                   selected.status
@@ -720,6 +709,14 @@ export default function LabPage() {
           </section>
         )}
       </main>
+    </>
+  );
+}
+
+export default function LabPage() {
+  return (
+    <AppShell active="lab">
+      <LabBody />
     </AppShell>
   );
 }

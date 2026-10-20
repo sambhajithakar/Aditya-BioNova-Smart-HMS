@@ -15,9 +15,10 @@ import {
   PageOf,
   api,
 } from "@/lib/api";
-import { getLang, t } from "@/lib/i18n";
-
-type Lang = "en" | "mr" | "hi";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/lib/lang";
+import { useIdempotencyKey, useInFlight } from "@/lib/idempotency";
+import { defaultBranchId, useMe } from "@/lib/me";
 
 const rowBtn: CSSProperties = {
   border: "1px solid var(--border)",
@@ -30,8 +31,11 @@ const rowBtn: CSSProperties = {
   cursor: "pointer",
 };
 
-export default function InventoryPage() {
-  const [lang, setLang] = useState<Lang>("en");
+function InventoryBody() {
+  const { lang } = useLang();
+  const me = useMe();
+  const { busy, run } = useInFlight();
+  const moveKey = useIdempotencyKey();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [movements, setMovements] = useState<InventoryMovement[]>([]);
   const [alerts, setAlerts] = useState<InventoryItem[]>([]);
@@ -52,7 +56,6 @@ export default function InventoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  useEffect(() => setLang(getLang()), []);
 
   const load = useCallback(async () => {
     try {
@@ -66,11 +69,11 @@ export default function InventoryPage() {
       setMovements(movePage.items);
       setAlerts(alertPage.items);
       setBranches(branchList.filter((b) => b.status === "active"));
-      setBranchId((prev) => prev || branchList[0]?.id || "");
+      setBranchId((prev) => prev || defaultBranchId(me, branchList));
     } catch {
       setError("Could not load inventory.");
     }
-  }, []);
+  }, [me]);
 
   useEffect(() => {
     void load();
@@ -119,8 +122,9 @@ export default function InventoryPage() {
           reason: moveReason,
           write_off: writeOff,
         },
-        `web-inv-${itemId}-${moveType}-${qty}-${Date.now()}`
+        moveKey.current()
       );
+      moveKey.reset();
       setMoveReason("");
       setWriteOff(false);
       setNotice("Movement recorded on the ledger.");
@@ -133,10 +137,9 @@ export default function InventoryPage() {
   const money = (n: number) => `₹${Number(n).toLocaleString("en-IN")}`;
 
   return (
-    <AppShell active="inventory">
+    <>
       <main className="page">
         <h1 style={{ marginTop: 0 }}>{t("inventory", lang)}</h1>
-        <p className="notice">{t("m6Notice", lang)}</p>
 
         <section className="card" style={{ marginTop: "1.25rem" }}>
           <h3 style={{ marginTop: 0 }}>{t("newItem", lang)}</h3>
@@ -309,8 +312,8 @@ export default function InventoryPage() {
                         <button
                           type="button"
                           style={rowBtn}
-                          disabled={it.status !== "active"}
-                          onClick={() => void postMovement(it.id)}
+                          disabled={busy || it.status !== "active"}
+                          onClick={() => void run(() => postMovement(it.id))}
                         >
                           {t("save", lang)}
                         </button>
@@ -404,6 +407,14 @@ export default function InventoryPage() {
           </p>
         )}
       </main>
+    </>
+  );
+}
+
+export default function InventoryPage() {
+  return (
+    <AppShell active="inventory">
+      <InventoryBody />
     </AppShell>
   );
 }

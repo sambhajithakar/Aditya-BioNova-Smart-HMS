@@ -7,6 +7,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { PatientPicker } from "@/components/PatientPicker";
 import {
   ApiError,
   Branch,
@@ -16,11 +17,13 @@ import {
   Patient,
   Payment,
   Receipt,
+  Refund,
   api,
 } from "@/lib/api";
-import { getLang, t } from "@/lib/i18n";
-
-type Lang = "en" | "mr" | "hi";
+import { defaultBranchId, useCan, useMe } from "@/lib/me";
+import { useIdempotencyKey, useInFlight } from "@/lib/idempotency";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/lib/lang";
 
 type Line = {
   item_type: string;
@@ -39,7 +42,22 @@ const EMPTY_LINE: Line = {
 };
 
 export default function BillingPage() {
-  const [lang, setLang] = useState<Lang>("en");
+  return (
+    <AppShell active="billing">
+      <Billing />
+    </AppShell>
+  );
+}
+
+function Billing() {
+  const { lang } = useLang();
+  const me = useMe();
+  const can = useCan();
+  const { busy, run } = useInFlight();
+  const payKey = useIdempotencyKey();
+  const [refundFor, setRefundFor] = useState<Payment | null>(null);
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundReason, setRefundReason] = useState("");
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -53,23 +71,21 @@ export default function BillingPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  useEffect(() => setLang(getLang()), []);
 
   const load = useCallback(async () => {
     try {
       const [invPage, patientPage, branchList] = await Promise.all([
         api.get<PageOf<Invoice>>("/billing/invoices?limit=50"),
-        api.get<PageOf<Patient>>("/patients?limit=100"),
+        api.get<PageOf<Patient>>("/patients?limit=100"), // labels only; picking uses server search
         api.get<Branch[]>("/branches"),
       ]);
       setInvoices(invPage.items);
       setPatients(patientPage.items);
       setBranches(branchList.filter((b) => b.status === "active"));
-      setPatientId((prev) => prev || patientPage.items[0]?.id || "");
     } catch {
-      setError("Could not load invoices.");
+      setError(t("loadFailed", lang));
     }
-  }, []);
+  }, [lang]);
 
   useEffect(() => {
     void load();
@@ -81,14 +97,15 @@ export default function BillingPage() {
     try {
       const detail = await api.get<InvoiceDetail>(`/billing/invoices/${id}`);
       setSelected(detail);
-      setPayAmount(String(detail.total - detail.amount_paid));
+      setPayAmount(Math.max(0, Number(detail.total) - Number(detail.amount_paid)).toFixed(2));
+      payKey.reset(); // a different invoice is a new payment attempt
     } catch (err) {
       setError(err instanceof ApiError ? String(err.message) : "Load failed");
     }
   }
 
   async function createInvoice() {
-    if (!patientId) return setError("Pick a patient.");
+    if (!patientId) return setError(t("pickPatientFirst", lang));
     const items = lines
       .filter((l) => l.description.trim())
       .map((l) => ({
@@ -98,12 +115,13 @@ export default function BillingPage() {
         unit_price: Number(l.unit_price) || 0,
         tax_rate: Number(l.tax_rate) || 0,
       }));
-    if (items.length === 0) return setError("Add at least one line.");
+    if (items.length === 0) return setError(t("addOneLine", lang));
     setError(null);
+    await run(async () => {
     try {
       const inv = await api.post<Invoice>("/billing/invoices", {
         patient_id: patientId,
-        branch_id: branches[0]?.id,
+        branch_id: defaultBranchId(me, branches),
         discount: Number(discount) || 0,
         items,
       });
@@ -113,37 +131,72 @@ export default function BillingPage() {
       await load();
       await openInvoice(inv.id);
     } catch (err) {
-      setError(err instanceof ApiError ? String(err.message) : "Create failed");
+      setError(err instanceof ApiError ? String(err.message) : t("actionFailed", lang));
     }
+    });
   }
 
   async function act(path: string, body: unknown = {}) {
-    if (!selected) return;
     setError(null);
-    try {
-      await api.post(`/billing${path}`, body);
-      await load();
-      await openInvoice(selected.id);
-    } catch (err) {
-      setError(err instanceof ApiError ? String(err.message) : "Action failed");
-    }
+    await run(async () => {
+      try {
+        await api.post(`/billing${path}`, body);
+        await load();
+        if (selected) await openInvoice(selected.id);
+      } catch (err) {
+        setError(err instanceof ApiError ? String(err.message) : t("actionFailed", lang));
+      }
+    });
   }
 
   async function takePayment(gateway: "manual" | "sandbox") {
     if (!selected) return;
+    const amount = Number(payAmount);
+    if (!Number.isFinite(amount) || amount <= 0) return setError(t("checkInput", lang));
     setError(null);
-    try {
-      await api.post(
-        `/billing/invoices/${selected.id}/payments`,
-        { amount: Number(payAmount), method: payMethod, gateway },
-        gateway === "sandbox" ? `web-pay-${selected.id}-${Date.now()}` : undefined
-      );
-      setNotice(t("payment", lang));
-      await load();
-      await openInvoice(selected.id);
-    } catch (err) {
-      setError(err instanceof ApiError ? String(err.message) : "Payment failed");
+    await run(async () => {
+      try {
+        // H13: one random key per payment attempt (manual cash/UPI/card too),
+        // kept across retries of the same attempt, retired on success.
+        await payKey.run((key) =>
+          api.post(
+            `/billing/invoices/${selected.id}/payments`,
+            { amount, method: payMethod, gateway },
+            key,
+          ),
+        );
+        setNotice(t("paymentRecorded", lang));
+        await load();
+        await openInvoice(selected.id);
+      } catch (err) {
+        setError(err instanceof ApiError ? String(err.message) : t("actionFailed", lang));
+      }
+    });
+  }
+
+  async function submitRefund() {
+    if (!selected || !refundFor) return;
+    const amount = Number(refundAmount);
+    if (!Number.isFinite(amount) || amount <= 0 || refundReason.trim().length < 3) {
+      return setError(t("refundInvalid", lang));
     }
+    setError(null);
+    await run(async () => {
+      try {
+        await api.post<Refund>(`/billing/payments/${refundFor.id}/refund`, {
+          amount,
+          reason: refundReason.trim(),
+        });
+        setNotice(t("refundRecorded", lang));
+        setRefundFor(null);
+        setRefundAmount("");
+        setRefundReason("");
+        await load();
+        await openInvoice(selected.id);
+      } catch (err) {
+        setError(err instanceof ApiError ? String(err.message) : t("actionFailed", lang));
+      }
+    });
   }
 
   async function confirmSandbox(paymentId: string) {
@@ -170,10 +223,8 @@ export default function BillingPage() {
     (1 + (Number(l.tax_rate) || 0) / 100);
 
   return (
-    <AppShell active="billing">
       <main className="page">
         <h1 style={{ marginTop: 0 }}>{t("billing", lang)}</h1>
-        <p className="muted">{t("m3Notice", lang)}</p>
 
         {error && (
           <p className="error" role="alert">
@@ -185,21 +236,7 @@ export default function BillingPage() {
         <section className="card">
           <h3 style={{ marginTop: 0 }}>{t("newInvoice", lang)}</h3>
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-            <div className="field">
-              <label htmlFor="bi-p">{t("patients", lang)}</label>
-              <select
-                id="bi-p"
-                value={patientId}
-                onChange={(e) => setPatientId(e.target.value)}
-              >
-                <option value="">—</option>
-                {patients.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.uhid} — {p.full_name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <PatientPicker id="bi-p" value={patientId} onChange={(id) => setPatientId(id)} />
             <div className="field">
               <label htmlFor="bi-disc">{t("discount", lang)}</label>
               <input
@@ -214,7 +251,7 @@ export default function BillingPage() {
           <table style={{ marginTop: "0.75rem" }}>
             <thead>
               <tr>
-                <th>Type</th>
+                <th>{t("itemType", lang)}</th>
                 <th>{t("itemDescription", lang)}</th>
                 <th>{t("qty", lang)}</th>
                 <th>{t("unitPrice", lang)}</th>
@@ -240,7 +277,7 @@ export default function BillingPage() {
                       {["consultation", "procedure", "pharmacy", "lab", "other"].map(
                         (ty) => (
                           <option key={ty} value={ty}>
-                            {ty}
+                            {t(`itemType_${ty}`, lang)}
                           </option>
                         )
                       )}
@@ -305,7 +342,8 @@ export default function BillingPage() {
                   <td>
                     <button
                       type="button"
-                      className="ghost"
+                      className="icon"
+                      aria-label={t("remove", lang)}
                       onClick={() => setLines((xs) => xs.filter((_, i) => i !== idx))}
                     >
                       ✕
@@ -318,12 +356,17 @@ export default function BillingPage() {
           <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
             <button
               type="button"
-              className="ghost"
+              className="secondary"
               onClick={() => setLines((xs) => [...xs, { ...EMPTY_LINE }])}
             >
               + {t("addItemLine", lang)}
             </button>
-            <button className="primary" type="button" onClick={() => void createInvoice()}>
+            <button
+              className="primary"
+              type="button"
+              disabled={busy || !can("billing.invoice")}
+              onClick={() => void createInvoice()}
+            >
               {t("newInvoice", lang)}
             </button>
           </div>
@@ -357,15 +400,16 @@ export default function BillingPage() {
                   <td>
                     <button
                       type="button"
-                      className="ghost"
+                      className="secondary"
                       onClick={() => void openInvoice(inv.id)}
                     >
-                      {t("receipt", lang)}
+                      {t("open", lang)}
                     </button>
-                    {inv.status === "draft" && (
+                    {inv.status === "draft" && can("billing.invoice") && (
                       <button
                         type="button"
                         className="primary"
+                        disabled={busy}
                         onClick={() =>
                           void act(`/invoices/${inv.id}/issue`).then(() =>
                             openInvoice(inv.id)
@@ -375,10 +419,11 @@ export default function BillingPage() {
                         {t("issue", lang)}
                       </button>
                     )}
-                    {inv.status === "issued" && (
+                    {inv.status === "issued" && can("billing.invoice") && (
                       <button
                         type="button"
-                        className="ghost"
+                        className="danger"
+                        disabled={busy}
                         onClick={() =>
                           void act(`/invoices/${inv.id}/void`).then(() =>
                             openInvoice(inv.id)
@@ -394,7 +439,7 @@ export default function BillingPage() {
               {invoices.length === 0 && (
                 <tr>
                   <td colSpan={6} className="muted">
-                    No invoices yet.
+                    {t("noInvoices", lang)}
                   </td>
                 </tr>
               )}
@@ -438,7 +483,8 @@ export default function BillingPage() {
               {(Number(selected.total) - Number(selected.amount_paid)).toFixed(2)}
             </p>
 
-            {(selected.status === "issued" || selected.status === "paid") && (
+            {selected.status === "issued" &&
+              can("billing.payment") && (
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 <div className="field">
                   <label htmlFor="pay-amt">{t("amount", lang)}</label>
@@ -465,13 +511,17 @@ export default function BillingPage() {
                   type="button"
                   className="primary"
                   style={{ alignSelf: "end" }}
+                  disabled={busy}
+                  data-testid="take-payment"
                   onClick={() => void takePayment("manual")}
                 >
-                  {t("takePayment", lang)} ({t("cash", lang)})
+                  {t("takePayment", lang)} ({t(payMethod, lang)})
                 </button>
                 <button
                   type="button"
+                  className="secondary"
                   style={{ alignSelf: "end" }}
+                  disabled={busy}
                   onClick={() => void takePayment("sandbox")}
                 >
                   {t("upi", lang)} (sandbox)
@@ -500,15 +550,31 @@ export default function BillingPage() {
                         <span className="tag">{pay.status}</span>
                       </td>
                       <td>
-                        {pay.status === "pending" && (
+                        {pay.status === "pending" && can("billing.payment") && (
                           <button
                             type="button"
                             className="primary"
+                            disabled={busy}
                             onClick={() => void confirmSandbox(pay.id)}
                           >
                             {t("payment", lang)} ✓
                           </button>
                         )}
+                        {(pay.status === "succeeded" || pay.status === "partially_refunded") &&
+                          can("billing.refund") && (
+                            <button
+                              type="button"
+                              className="secondary"
+                              disabled={busy}
+                              onClick={() => {
+                                setRefundFor(pay);
+                                setRefundAmount("");
+                                setRefundReason("");
+                              }}
+                            >
+                              {t("refund", lang)}
+                            </button>
+                          )}
                       </td>
                     </tr>
                   ))}
@@ -516,8 +582,53 @@ export default function BillingPage() {
               </table>
             )}
 
+            {refundFor && (
+              <div className="card inset" style={{ marginTop: "0.75rem" }}>
+                <h4 style={{ marginTop: 0 }}>
+                  {t("refund", lang)} — {Number(refundFor.amount).toFixed(2)} ({refundFor.method})
+                </h4>
+                <div className="row">
+                  <div className="field">
+                    <label htmlFor="rf-amt">{t("amount", lang)}</label>
+                    <input
+                      id="rf-amt"
+                      inputMode="decimal"
+                      value={refundAmount}
+                      onChange={(e) => setRefundAmount(e.target.value)}
+                    />
+                  </div>
+                  <div className="field grow">
+                    <label htmlFor="rf-reason">{t("reason", lang)}</label>
+                    <input
+                      id="rf-reason"
+                      value={refundReason}
+                      maxLength={300}
+                      onChange={(e) => setRefundReason(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="primary"
+                    style={{ alignSelf: "end" }}
+                    disabled={busy}
+                    onClick={() => void submitRefund()}
+                  >
+                    {t("refund", lang)}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary"
+                    style={{ alignSelf: "end" }}
+                    onClick={() => setRefundFor(null)}
+                  >
+                    {t("cancel", lang)}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
-              <button type="button" onClick={() => void loadReceipt()}>
+              <button type="button" className="secondary" onClick={() => void loadReceipt()}>
                 {t("receipt", lang)}
               </button>
               {receipt && (
@@ -525,6 +636,7 @@ export default function BillingPage() {
                   className="primary"
                   href={`/print/rx/${selected.id}?type=receipt`}
                   target="_blank"
+                  rel="noopener noreferrer"
                   style={{ padding: "0.5rem 1rem" }}
                 >
                   {t("printReceipt", lang)}
@@ -557,6 +669,5 @@ export default function BillingPage() {
           </section>
         )}
       </main>
-    </AppShell>
   );
 }
