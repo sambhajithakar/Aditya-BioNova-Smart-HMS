@@ -15,6 +15,7 @@ import {
   ensureAccessToken,
   getAccessToken,
   notifyAuthFailure,
+  notifyMfaEnrollmentRequired,
   refreshSession,
   setSession,
   clearSession,
@@ -46,7 +47,8 @@ async function toApiError(res: Response): Promise<ApiError> {
 
 type RequestOpts = RequestInit & { auth?: boolean };
 
-async function request<T>(path: string, options: RequestOpts = {}, retried = false): Promise<T> {
+/** Authenticated fetch with one refresh+retry on 401; throws ApiError unless ok. */
+async function send(path: string, options: RequestOpts = {}, retried = false): Promise<Response> {
   const { auth = true, ...init } = options;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -64,11 +66,23 @@ async function request<T>(path: string, options: RequestOpts = {}, retried = fal
   const res = await fetch(`/api/v1${path}`, { ...init, headers, credentials: "same-origin" });
   if (res.status === 401 && auth) {
     if (!retried && (await refreshSession())) {
-      return request<T>(path, options, true);
+      return send(path, options, true);
     }
     notifyAuthFailure();
   }
-  if (!res.ok) throw await toApiError(res);
+  if (!res.ok) {
+    const err = await toApiError(res);
+    // M7.1: a member under the org's MFA policy who has not enrolled yet.
+    if (err.status === 403 && err.detail === "mfa_enrollment_required") {
+      notifyMfaEnrollmentRequired();
+    }
+    throw err;
+  }
+  return res;
+}
+
+async function request<T>(path: string, options: RequestOpts = {}): Promise<T> {
+  const res = await send(path, options);
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
@@ -83,9 +97,20 @@ export const api = {
     }),
   patch: <T>(path: string, body: unknown) =>
     request<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
+  put: <T>(path: string, body: unknown) =>
+    request<T>(path, { method: "PUT", body: JSON.stringify(body) }),
+  del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
   /** Unauthenticated POST (forgot/reset password). */
   publicPost: <T>(path: string, body: unknown) =>
     request<T>(path, { method: "POST", body: JSON.stringify(body), auth: false }),
+  /** Authenticated request whose response is a file (e.g. the tenant export zip). */
+  download: async (
+    path: string,
+    method: "GET" | "POST" = "GET",
+  ): Promise<{ blob: Blob; disposition: string | null }> => {
+    const res = await send(path, method === "POST" ? { method, body: "{}" } : { method });
+    return { blob: await res.blob(), disposition: res.headers.get("Content-Disposition") };
+  },
 };
 
 // --- auth / session ----------------------------------------------------------
@@ -105,6 +130,21 @@ export type Me = {
   branch_id: string | null;
   role: string;
   permissions: string[];
+  // M7.1 contract additions (optional so older payloads still type-check).
+  edition?: { code: string; name: string } | null;
+  /** EFFECTIVE status: an expired trial reports "read_only". */
+  subscription_status?:
+    | "trialing"
+    | "active"
+    | "past_due"
+    | "read_only"
+    | "suspended"
+    | "cancelled";
+  /** Feature keys of the tenant's edition; nav/actions outside it are hidden. */
+  features?: string[];
+  /** Role is under the org MFA policy and the user has not enrolled yet. */
+  mfa_enrollment_required?: boolean;
+  is_platform_admin?: boolean;
 };
 
 /** What /api/session/{login,mfa-verify,accept-invite} return to the browser. */

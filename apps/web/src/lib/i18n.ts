@@ -12,9 +12,11 @@ export const LANGS: { code: Lang; label: string; native: string }[] = [
   { code: "hi", label: "Hindi", native: "हिंदी" },
 ];
 
+import { saasDictionaries } from "./i18n-saas";
+
 type Dict = Record<string, string>;
 
-export const dictionaries: Record<Lang, Dict> = {
+const coreDictionaries: Record<Lang, Dict> = {
   en: {
     brand: "Aditya BioNova Smart HMS",
     signIn: "Sign in",
@@ -1103,6 +1105,15 @@ export const dictionaries: Record<Lang, Dict> = {
     itemType_other: "अन्य",
     newConsultation: "नया परामर्श",
   },
+};
+
+/** M1–M7.0 dictionaries before the M7.1 additions (kept for the collision test). */
+export const baseDictionaries = coreDictionaries;
+
+export const dictionaries: Record<Lang, Dict> = {
+  en: { ...coreDictionaries.en, ...saasDictionaries.en },
+  mr: { ...coreDictionaries.mr, ...saasDictionaries.mr },
+  hi: { ...coreDictionaries.hi, ...saasDictionaries.hi },
 };
 
 export function getLang(): Lang {
