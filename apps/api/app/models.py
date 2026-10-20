@@ -2473,3 +2473,105 @@ class SupportTicketMessage(Base):
                         name="ck_ticketmsg_internal_vendor"),
         Index("ix_ticketmsg_ticket", "ticket_id", "id"),
     )
+
+
+# --- AI-0 governance (docs/AI_ARCHITECTURE.md §2) ---------------------------------
+class AiTenantSettings(Base):
+    """Per-tenant opt-in: entitlement means "paid for", this means "switched on"."""
+
+    __tablename__ = "ai_tenant_settings"
+
+    organization_id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    enabled_features: Mapped[list[str]] = mapped_column(
+        ARRAY(String(40)), nullable=False, default=list, server_default="{}"
+    )
+    updated_by: Mapped[UUID_PK | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=now()
+    )
+
+
+class AiRequest(Base):
+    """Append-only audit row for every AI gateway call (content sealed AES-GCM)."""
+
+    __tablename__ = "ai_requests"
+
+    id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+    )
+    organization_id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    actor_user_id: Mapped[UUID_PK | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    feature: Mapped[str] = mapped_column(String(40), nullable=False)
+    task: Mapped[str] = mapped_column(String(40), nullable=False)
+    provider: Mapped[str] = mapped_column(String(40), nullable=False)
+    model: Mapped[str] = mapped_column(String(120), nullable=False)
+    inference: Mapped[str] = mapped_column(String(10), nullable=False)
+    data_class: Mapped[str] = mapped_column(String(2), nullable=False)
+    deidentified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False,
+                                               server_default=text("false"))
+    prompt_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    prompt_redacted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    output_redacted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    output_valid: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    tools_called: Mapped[list] = mapped_column(JSONB, nullable=False, default=list,
+                                               server_default=text("'[]'::jsonb"))
+    credits: Mapped[int] = mapped_column(Integer, nullable=False, default=0,
+                                         server_default="0")
+    input_units: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_units: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(String(25), nullable=False)
+    correlation_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("inference IN ('mock','live')", name="ck_aireq_inference"),
+        CheckConstraint("data_class IN ('C0','C1','C2','C3')", name="ck_aireq_class"),
+        CheckConstraint(
+            "status IN ('ok','suppressed','failed','timeout','rejected_output',"
+            "'rejected_by_policy','refused')", name="ck_aireq_status"),
+        CheckConstraint("credits >= 0", name="ck_aireq_credits"),
+        Index("ix_aireq_org_created", "organization_id", "created_at"),
+    )
+
+
+class AiCreditEntry(Base):
+    """Append-only AI credit ledger; usage = SUM(consume) for the clinic-month."""
+
+    __tablename__ = "ai_credit_ledger"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    organization_id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    period: Mapped[str] = mapped_column(String(7), nullable=False)
+    entry_type: Mapped[str] = mapped_column(String(10), nullable=False)
+    credits: Mapped[int] = mapped_column(Integer, nullable=False)
+    ai_request_id: Mapped[UUID_PK | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ai_requests.id", ondelete="SET NULL"), nullable=True
+    )
+    actor_user_id: Mapped[UUID_PK | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    reason: Mapped[str] = mapped_column(String(300), nullable=False, server_default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("entry_type IN ('consume','grant','adjust')", name="ck_aicredit_type"),
+        CheckConstraint("period ~ '^[0-9]{4}-[0-9]{2}$'", name="ck_aicredit_period"),
+        Index("ix_aicredit_org_period", "organization_id", "period"),
+    )

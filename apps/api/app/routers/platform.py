@@ -127,6 +127,8 @@ def _detail(db: Session, org: Organization) -> PlatformTenantDetailOut:
     return PlatformTenantDetailOut(
         **_tenant_out(db, org, sub, counts).model_dump(),
         subscription=_platform_subscription_out(db, sub, counts) if sub else None,
+        limit_overrides=dict(sub.limit_overrides or {}) if sub else {},
+        feature_overrides=dict(sub.feature_overrides or {}) if sub else {},
         events=[SubscriptionEventOut(
             id=e.id, from_plan=e.from_plan, to_plan=e.to_plan, from_status=e.from_status,
             to_status=e.to_status, reason=e.reason, created_at=e.created_at,
@@ -185,12 +187,18 @@ def list_tenants(
     if q:
         like = f"%{q.lower()}%"
         stmt = stmt.where((Organization.name.ilike(like)) | (Organization.slug.ilike(like)))
-    if status:
+    # `status` filters the tenant status (active/suspended/deleting) or, for any
+    # other value, the EFFECTIVE subscription status (trialing, read_only, ...)
+    org_statuses = ("active", "suspended", "deleting")
+    if status in org_statuses:
         stmt = stmt.where(Organization.status == status)
     counts = _overview_counts(db)
     subs = {s.organization_id: s for s in db.scalars(select(Subscription)).all()}
-    return [_tenant_out(db, o, subs.get(o.id), counts.get(o.id, {}))
+    rows = [_tenant_out(db, o, subs.get(o.id), counts.get(o.id, {}))
             for o in db.scalars(stmt.limit(500)).all()]
+    if status and status not in org_statuses:
+        rows = [r for r in rows if r.effective_status == status]
+    return rows
 
 
 @router.get("/tenants/{org_id}", response_model=PlatformTenantDetailOut)
@@ -235,8 +243,8 @@ def set_subscription(
 ) -> PlatformTenantDetailOut:
     org = _load_org(db, org_id)
     plan = get_plan(db, payload.plan_code)
-    bad = sorted((set(payload.feature_overrides) - set(FEATURES))
-                 | (set(payload.limit_overrides) - set(LIMITS)))
+    bad = sorted((set(payload.feature_overrides or {}) - set(FEATURES))
+                 | (set(payload.limit_overrides or {}) - set(LIMITS)))
     if bad:
         raise HTTPException(status_code=422, detail=f"Unknown keys: {', '.join(bad)}")
     sub = db.scalar(select(Subscription).where(Subscription.organization_id == org.id))
@@ -250,8 +258,10 @@ def set_subscription(
     sub.billing_cycle = payload.billing_cycle
     sub.trial_ends_at = payload.trial_ends_at
     sub.current_period_end = payload.current_period_end
-    sub.feature_overrides = payload.feature_overrides
-    sub.limit_overrides = payload.limit_overrides
+    if payload.feature_overrides is not None:
+        sub.feature_overrides = payload.feature_overrides
+    if payload.limit_overrides is not None:
+        sub.limit_overrides = payload.limit_overrides
     sub.updated_at = datetime.now(timezone.utc)
     record_subscription_event(db, org.id, from_plan=old_plan, to_plan=plan.code,
                               from_status=old_status, to_status=payload.status,

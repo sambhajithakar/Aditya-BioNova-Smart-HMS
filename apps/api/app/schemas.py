@@ -1828,6 +1828,8 @@ class SubscriptionEventOut(BaseModel):
 
 class PlatformTenantDetailOut(PlatformTenantOut):
     subscription: SubscriptionOut | None
+    limit_overrides: dict[str, int | None] = {}
+    feature_overrides: dict[str, bool] = {}
     events: list[SubscriptionEventOut]
 
 
@@ -1842,8 +1844,9 @@ class PlatformSubscriptionIn(StrictModel):
     billing_cycle: Literal["monthly", "annual"] = "monthly"
     trial_ends_at: datetime | None = None
     current_period_end: datetime | None = None
-    limit_overrides: dict[str, int | None] = {}
-    feature_overrides: dict[str, bool] = {}
+    # omitted / null = keep the tenant's current overrides; {} clears them
+    limit_overrides: dict[str, int | None] | None = None
+    feature_overrides: dict[str, bool] | None = None
     reason: str = Field(min_length=3, max_length=500)
 
 
@@ -1873,3 +1876,70 @@ class PlanFeaturesIn(StrictModel):
 
 class PlanLimitsIn(StrictModel):
     limits: dict[str, int | None]
+
+
+# --- AI-0 ----------------------------------------------------------------------------
+class AiSettingsOut(BaseModel):
+    enabled_features: list[str]
+    entitled_features: list[str]
+    live_inference: bool
+    copilot_provider: str
+    copilot_provider_region: str
+
+
+class AiSettingsIn(StrictModel):
+    enabled_features: list[str]
+
+
+class CopilotAskIn(StrictModel):
+    question: str = Field(min_length=2, max_length=500)
+    language: Literal["en", "mr", "hi"] | None = None
+
+
+class CopilotComputedWith(BaseModel):
+    function: str
+    args: dict
+    method: str
+
+
+class CopilotAnswerOut(BaseModel):
+    request_id: uuid.UUID
+    answered: bool
+    language: str
+    answer: str
+    figures: dict
+    rows: list[dict]
+    computed_with: CopilotComputedWith | None
+    inference: str          # "mock" | "live" — always shown to the user
+    provider: str
+    model: str
+    credits_charged: int
+    note: str | None = None
+
+
+class CopilotCatalogEntry(BaseModel):
+    function: str
+    label: str
+    args: list[str]
+
+
+class AiUsageOut(BaseModel):
+    period: str
+    used_credits: int
+    limit_credits: int | None
+
+
+class AiRequestOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    feature: str
+    task: str
+    provider: str
+    model: str
+    inference: str
+    data_class: str
+    status: str
+    credits: int
+    latency_ms: int | None
+    created_at: datetime

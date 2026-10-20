@@ -86,12 +86,18 @@ it does not exist in staging or production builds.
 
 ## Endpoints
 
-Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 143 operations in 22 tags.
+Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 149 operations in 23 tags.
 
 ### Summary
 
 | Tag | Method | Path | Permission | Idempotency-Key |
 |---|---|---|---|---|
+| ai | POST | `/api/v1/ai/copilot/ask` | `ai.copilot.use` |  |
+| ai | GET | `/api/v1/ai/copilot/catalog` | `ai.copilot.use` |  |
+| ai | GET | `/api/v1/ai/requests` | `ai.audit.read` |  |
+| ai | GET | `/api/v1/ai/settings` | `ai.settings.manage` |  |
+| ai | PATCH | `/api/v1/ai/settings` | `ai.settings.manage` |  |
+| ai | GET | `/api/v1/ai/usage` | `ai.audit.read` |  |
 | appointments | GET | `/api/v1/appointments` | `appointment.read` |  |
 | appointments | POST | `/api/v1/appointments` | `appointment.write` |  |
 | appointments | GET | `/api/v1/appointments/{appointment_id}` | `appointment.read` |  |
@@ -235,6 +241,66 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 143 op
 | support | POST | `/api/v1/support/tickets/{ticket_id}/messages` | `support.write` |  |
 | system | GET | `/api/v1/health` | public |  |
 | system | GET | `/api/v1/health/ready` | public |  |
+
+### ai
+
+#### `POST /api/v1/ai/copilot/ask`
+
+**Ask**
+
+- Permission: `ai.copilot.use`
+- operationId: `ask_api_v1_ai_copilot_ask_post`
+- Request body: `CopilotAskIn`
+- Response: `200 CopilotAnswerOut`
+
+#### `GET /api/v1/ai/copilot/catalog`
+
+**Catalog**
+
+- Permission: `ai.copilot.use`
+- operationId: `catalog_api_v1_ai_copilot_catalog_get`
+- Request body: -
+- Response: `200 list[CopilotCatalogEntry]`
+
+#### `GET /api/v1/ai/requests`
+
+**List Requests**
+
+- Permission: `ai.audit.read`
+- operationId: `list_requests_api_v1_ai_requests_get`
+- Request body: -
+- Response: `200 list[AiRequestOut]`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `limit` | query | integer | no |
+
+#### `GET /api/v1/ai/settings`
+
+**Get Ai Settings**
+
+- Permission: `ai.settings.manage`
+- operationId: `get_ai_settings_api_v1_ai_settings_get`
+- Request body: -
+- Response: `200 AiSettingsOut`
+
+#### `PATCH /api/v1/ai/settings`
+
+**Update Ai Settings**
+
+- Permission: `ai.settings.manage`
+- operationId: `update_ai_settings_api_v1_ai_settings_patch`
+- Request body: `AiSettingsIn`
+- Response: `200 AiSettingsOut`
+
+#### `GET /api/v1/ai/usage`
+
+**Usage**
+
+- Permission: `ai.audit.read`
+- operationId: `usage_api_v1_ai_usage_get`
+- Request body: -
+- Response: `200 AiUsageOut`
 
 ### appointments
 
@@ -2030,6 +2096,46 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `patient_uhid` | string |
 | `patient_full_name` | string |
 
+### AiRequestOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `feature`* | string |
+| `task`* | string |
+| `provider`* | string |
+| `model`* | string |
+| `inference`* | string |
+| `data_class`* | string |
+| `status`* | string |
+| `credits`* | integer |
+| `latency_ms`* | integer \| null |
+| `created_at`* | string(date-time) |
+
+### AiSettingsIn
+
+| Field | Type |
+|---|---|
+| `enabled_features`* | list[string] |
+
+### AiSettingsOut
+
+| Field | Type |
+|---|---|
+| `enabled_features`* | list[string] |
+| `entitled_features`* | list[string] |
+| `live_inference`* | boolean |
+| `copilot_provider`* | string |
+| `copilot_provider_region`* | string |
+
+### AiUsageOut
+
+| Field | Type |
+|---|---|
+| `period`* | string |
+| `used_credits`* | integer |
+| `limit_credits`* | integer \| null |
+
 ### AmendResultIn
 
 | Field | Type |
@@ -2191,6 +2297,46 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | Field | Type |
 |---|---|
 | `specimen_type`* | string |
+
+### CopilotAnswerOut
+
+| Field | Type |
+|---|---|
+| `request_id`* | string(uuid) |
+| `answered`* | boolean |
+| `language`* | string |
+| `answer`* | string |
+| `figures`* | object |
+| `rows`* | list[object] |
+| `computed_with`* | CopilotComputedWith \| null |
+| `inference`* | string |
+| `provider`* | string |
+| `model`* | string |
+| `credits_charged`* | integer |
+| `note` | string \| null |
+
+### CopilotAskIn
+
+| Field | Type |
+|---|---|
+| `question`* | string |
+| `language` | string \| null |
+
+### CopilotCatalogEntry
+
+| Field | Type |
+|---|---|
+| `function`* | string |
+| `label`* | string |
+| `args`* | list[string] |
+
+### CopilotComputedWith
+
+| Field | Type |
+|---|---|
+| `function`* | string |
+| `args`* | object |
+| `method`* | string |
 
 ### DiagnosisIn
 
@@ -3078,8 +3224,8 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `billing_cycle` | string (monthly, annual) |
 | `trial_ends_at` | string(date-time) \| null |
 | `current_period_end` | string(date-time) \| null |
-| `limit_overrides` | dict[str, integer \| null] |
-| `feature_overrides` | dict[str, boolean] |
+| `limit_overrides` | dict[str, integer \| null] \| null |
+| `feature_overrides` | dict[str, boolean] \| null |
 | `reason`* | string |
 
 ### PlatformSupportMessageIn
@@ -3108,6 +3254,8 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `patients`* | integer |
 | `offboarding_requested_at`* | string(date-time) \| null |
 | `subscription`* | SubscriptionOut \| null |
+| `limit_overrides` | dict[str, integer \| null] |
+| `feature_overrides` | dict[str, boolean] |
 | `events`* | list[SubscriptionEventOut] |
 
 ### PlatformTenantOut

@@ -1,4 +1,10 @@
-"""Fixed-window rate limiting and account lockout, stored in PostgreSQL.
+"""Sliding-window rate limiting and account lockout, stored in PostgreSQL.
+
+Counters are kept per fixed window, but every decision uses the standard
+sliding-window estimate ``current + previous × (unused share of the previous
+window)`` — with pure fixed windows an attacker gets ~2× the limit by
+straddling a window boundary, and a lockout split across two windows would
+never trip (found by the test suite running across a :15 boundary).
 
 Counters live in ``rate_limit_counters`` (migration 0009) so limits hold
 across API instances without extra infrastructure. Keys are SHA-256 hashed:
@@ -67,25 +73,44 @@ def _run(stmt, params: dict) -> int | None:
         db.close()
 
 
+def _estimate(key: str, current: int, start: int, window_seconds: int,
+              *, conservative: bool = False) -> float:
+    """Sliding-window estimate of hits over the last ``window_seconds``.
+
+    ``conservative`` counts the whole previous window (never under-counts),
+    used for account lockout where a slight over-count is the safe error."""
+    previous = _run(_PEEK, {"k": key, "ws": start - window_seconds}) or 0
+    if conservative:
+        return current + previous
+    overlap = 1 - (time.time() - start) / window_seconds
+    return current + previous * max(0.0, overlap)
+
+
 def hit(scope: str, ident: str | None, *, limit: int, window_seconds: int) -> None:
     """Count one request; raise 429 once ``limit`` is exceeded in the window."""
     if not get_settings().rate_limit_enabled or not ident:
         return
     start, end = _window(window_seconds)
-    hits = _run(_UPSERT, {"k": _key(scope, ident), "ws": start, "exp": end}) or 0
+    key = _key(scope, ident)
+    # counters outlive their window by one more window (needed for the estimate)
+    hits = _run(_UPSERT, {"k": key, "ws": start, "exp": end + window_seconds}) or 0
     if hits % 500 == 1:  # cheap opportunistic cleanup
         _run(_PRUNE, {})
-    if hits > limit:
+    if _estimate(key, hits, start, window_seconds) > limit:
         raise too_many(end - int(time.time()))
 
 
 def check(scope: str, ident: str | None, *, limit: int, window_seconds: int) -> None:
-    """Raise 429 if the counter is already at ``limit`` (does not count)."""
+    """Raise 429 if the counter is already at ``limit`` (does not count).
+
+    Used for lockouts, so it counts conservatively: a lock can last up to two
+    windows, but failures split by a window boundary can never escape it."""
     if not get_settings().rate_limit_enabled or not ident:
         return
     start, end = _window(window_seconds)
-    hits = _run(_PEEK, {"k": _key(scope, ident), "ws": start}) or 0
-    if hits >= limit:
+    key = _key(scope, ident)
+    hits = _run(_PEEK, {"k": key, "ws": start}) or 0
+    if _estimate(key, hits, start, window_seconds, conservative=True) >= limit:
         raise too_many(end - int(time.time()))
 
 
@@ -94,7 +119,7 @@ def record(scope: str, ident: str | None, *, window_seconds: int) -> None:
     if not get_settings().rate_limit_enabled or not ident:
         return
     start, end = _window(window_seconds)
-    _run(_UPSERT, {"k": _key(scope, ident), "ws": start, "exp": end})
+    _run(_UPSERT, {"k": _key(scope, ident), "ws": start, "exp": end + window_seconds})
 
 
 def clear(scope: str, ident: str | None) -> None:

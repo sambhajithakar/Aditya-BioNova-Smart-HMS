@@ -21,6 +21,7 @@ from . import __version__
 from .config import get_settings
 from .entitlements import enforce_writable, require_feature
 from .routers import (
+    ai,
     audit,
     appointments,
     auth,
@@ -215,6 +216,9 @@ def create_app() -> FastAPI:
     for r, feature in gated:
         app.include_router(r, prefix=BASE_PREFIX,
                            dependencies=[Depends(require_feature(feature))])
+    # AI: questions are reads, so they keep working on a read-only subscription
+    app.include_router(ai.router, prefix=BASE_PREFIX, dependencies=[
+        Depends(require_feature("ai_copilot", writes_need_writable=False))])
     if settings.is_dev:
         app.include_router(dev.router, prefix=BASE_PREFIX)
     return app

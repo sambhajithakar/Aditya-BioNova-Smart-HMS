@@ -473,3 +473,26 @@ def test_platform_limits_beds_via_override(client):
     second = client.post("/api/v1/ipd/beds", json={"ward_id": ward["id"], "label": "A2"},
                          headers=th)
     assert second.status_code == 403 and "max_beds" in second.json()["detail"]
+
+
+def test_platform_overrides_are_kept_unless_given_and_status_filter(client):
+    _, ph = _platform_admin(client)
+    tenant = _register(client)
+    tid = tenant["organization"]["id"]
+    base = {"plan_code": "hospital_core", "status": "active", "reason": "contract"}
+    client.put(f"/api/v1/platform/tenants/{tid}/subscription",
+               json={**base, "limit_overrides": {"max_users": 77}}, headers=ph)
+    again = client.put(f"/api/v1/platform/tenants/{tid}/subscription",
+                       json={**base, "billing_cycle": "annual", "reason": "cycle change"},
+                       headers=ph).json()
+    assert again["limit_overrides"] == {"max_users": 77}  # omitted -> kept
+    assert again["subscription"]["usage"]["max_users"]["limit"] == 77
+    cleared = client.put(f"/api/v1/platform/tenants/{tid}/subscription",
+                         json={**base, "limit_overrides": {}, "reason": "reset"},
+                         headers=ph).json()
+    assert cleared["limit_overrides"] == {}
+    slug = tenant["organization"]["slug"]
+    assert [t["slug"] for t in client.get(f"/api/v1/platform/tenants?q={slug}&status=active",
+                                          headers=ph).json()] == [slug]
+    assert client.get(f"/api/v1/platform/tenants?q={slug}&status=trialing",
+                      headers=ph).json() == []

@@ -757,3 +757,21 @@ def test_runtime_role_cannot_rewrite_schema_revision(client):
             cur.execute("UPDATE alembic_version SET version_num = 'forged'")
     conn.rollback()
     conn.close()
+
+
+def test_lockout_holds_across_a_window_boundary(client, monkeypatch):
+    """Failures split across two fixed windows must still lock the account."""
+    import app.ratelimit as rl
+
+    org = _fresh_org(client)
+    email = org["user"]["email"]
+    base = 1_800_000_000 - 1_800_000_000 % 900  # a window start
+    clock = {"t": base + 899.0}                  # 1 s before the boundary
+    monkeypatch.setattr(rl.time, "time", lambda: clock["t"])
+    for _ in range(3):
+        assert login(client, email=email, password="wrong-password").status_code == 401
+    clock["t"] = base + 901.0                    # just after the boundary
+    for _ in range(2):
+        assert login(client, email=email, password="wrong-password").status_code == 401
+    assert login(client, email=email, password=PASSWORD).status_code == 429
+    ratelimit.clear("login-fail", email)

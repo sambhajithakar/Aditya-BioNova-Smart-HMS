@@ -7637,6 +7637,232 @@
         }
       }
     },
+    "/api/v1/ai/settings": {
+      "get": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Get Ai Settings",
+        "operationId": "get_ai_settings_api_v1_ai_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSettingsOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Update Ai Settings",
+        "operationId": "update_ai_settings_api_v1_ai_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiSettingsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSettingsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ai/copilot/catalog": {
+      "get": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Catalog",
+        "operationId": "catalog_api_v1_ai_copilot_catalog_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CopilotCatalogEntry"
+                  },
+                  "type": "array",
+                  "title": "Response Catalog Api V1 Ai Copilot Catalog Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ai/copilot/ask": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Ask",
+        "operationId": "ask_api_v1_ai_copilot_ask_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopilotAskIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopilotAnswerOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ai/usage": {
+      "get": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Usage",
+        "operationId": "usage_api_v1_ai_usage_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiUsageOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ai/requests": {
+      "get": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "List Requests",
+        "operationId": "list_requests_api_v1_ai_requests_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AiRequestOut"
+                  },
+                  "title": "Response List Requests Api V1 Ai Requests Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/dev/outbox": {
       "get": {
         "tags": [
@@ -7868,6 +8094,164 @@
           "discharged_at"
         ],
         "title": "AdmissionOut"
+      },
+      "AiRequestOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "feature": {
+            "type": "string",
+            "title": "Feature"
+          },
+          "task": {
+            "type": "string",
+            "title": "Task"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "inference": {
+            "type": "string",
+            "title": "Inference"
+          },
+          "data_class": {
+            "type": "string",
+            "title": "Data Class"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "credits": {
+            "type": "integer",
+            "title": "Credits"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Ms"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "feature",
+          "task",
+          "provider",
+          "model",
+          "inference",
+          "data_class",
+          "status",
+          "credits",
+          "latency_ms",
+          "created_at"
+        ],
+        "title": "AiRequestOut"
+      },
+      "AiSettingsIn": {
+        "properties": {
+          "enabled_features": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Enabled Features"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "enabled_features"
+        ],
+        "title": "AiSettingsIn"
+      },
+      "AiSettingsOut": {
+        "properties": {
+          "enabled_features": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Enabled Features"
+          },
+          "entitled_features": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Entitled Features"
+          },
+          "live_inference": {
+            "type": "boolean",
+            "title": "Live Inference"
+          },
+          "copilot_provider": {
+            "type": "string",
+            "title": "Copilot Provider"
+          },
+          "copilot_provider_region": {
+            "type": "string",
+            "title": "Copilot Provider Region"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled_features",
+          "entitled_features",
+          "live_inference",
+          "copilot_provider",
+          "copilot_provider_region"
+        ],
+        "title": "AiSettingsOut"
+      },
+      "AiUsageOut": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "used_credits": {
+            "type": "integer",
+            "title": "Used Credits"
+          },
+          "limit_credits": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit Credits"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "used_credits",
+          "limit_credits"
+        ],
+        "title": "AiUsageOut"
       },
       "AmendResultIn": {
         "properties": {
@@ -8610,6 +8994,174 @@
           "specimen_type"
         ],
         "title": "CollectSpecimenIn"
+      },
+      "CopilotAnswerOut": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Request Id"
+          },
+          "answered": {
+            "type": "boolean",
+            "title": "Answered"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "figures": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Figures"
+          },
+          "rows": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "computed_with": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CopilotComputedWith"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "inference": {
+            "type": "string",
+            "title": "Inference"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "credits_charged": {
+            "type": "integer",
+            "title": "Credits Charged"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "answered",
+          "language",
+          "answer",
+          "figures",
+          "rows",
+          "computed_with",
+          "inference",
+          "provider",
+          "model",
+          "credits_charged"
+        ],
+        "title": "CopilotAnswerOut"
+      },
+      "CopilotAskIn": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 2,
+            "title": "Question"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "en",
+                  "mr",
+                  "hi"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "CopilotAskIn"
+      },
+      "CopilotCatalogEntry": {
+        "properties": {
+          "function": {
+            "type": "string",
+            "title": "Function"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "args": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Args"
+          }
+        },
+        "type": "object",
+        "required": [
+          "function",
+          "label",
+          "args"
+        ],
+        "title": "CopilotCatalogEntry"
+      },
+      "CopilotComputedWith": {
+        "properties": {
+          "function": {
+            "type": "string",
+            "title": "Function"
+          },
+          "args": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Args"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          }
+        },
+        "type": "object",
+        "required": [
+          "function",
+          "args",
+          "method"
+        ],
+        "title": "CopilotComputedWith"
       },
       "DiagnosisIn": {
         "properties": {
@@ -12930,27 +13482,39 @@
             "title": "Current Period End"
           },
           "limit_overrides": {
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "integer"
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "type": "object",
-            "title": "Limit Overrides",
-            "default": {}
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit Overrides"
           },
           "feature_overrides": {
-            "additionalProperties": {
-              "type": "boolean"
-            },
-            "type": "object",
-            "title": "Feature Overrides",
-            "default": {}
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feature Overrides"
           },
           "reason": {
             "type": "string",
@@ -13095,6 +13659,29 @@
                 "type": "null"
               }
             ]
+          },
+          "limit_overrides": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Limit Overrides",
+            "default": {}
+          },
+          "feature_overrides": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Feature Overrides",
+            "default": {}
           },
           "events": {
             "items": {

@@ -100,6 +100,21 @@ class Settings(BaseSettings):
     whatsapp_access_token: str | None = None
     whatsapp_api_version: str = "v21.0"
 
+    # --- AI gateway (docs/AI_ARCHITECTURE.md). Kill switches: AI_ENABLED stops
+    # everything; with AI_LIVE_ENABLED=false (default) only the in-process mock
+    # provider runs and nothing leaves the server.
+    ai_enabled: bool = True
+    ai_live_enabled: bool = False
+    ai_copilot_provider: str = "mock"          # mock | openai_compatible
+    # OpenAI-style /v1/chat/completions endpoint (e.g. self-hosted vLLM/Ollama).
+    # Its data ceiling is declared, not assumed: C3 only for vendor-controlled
+    # infrastructure in India; anything third-party must stay at C1.
+    ai_openai_base_url: str | None = None
+    ai_openai_api_key: str | None = None
+    ai_openai_model: str = "unset"
+    ai_openai_region: str = "foreign"          # in-self-hosted | in-cloud:<region> | foreign
+    ai_openai_max_data_class: str = "C1"
+
     @field_validator("jwt_secret")
     @classmethod
     def _min_secret_length(cls, v: str) -> str:

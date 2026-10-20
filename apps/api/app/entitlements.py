@@ -166,9 +166,10 @@ def get_entitlements(
 _WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
 
-def require_feature(feature_key: str):
+def require_feature(feature_key: str, *, writes_need_writable: bool = True):
     """Router-level guard: the module must be in the tenant's plan and the
-    subscription must allow the request (writes need a writable status)."""
+    subscription must allow the request (writes need a writable status unless
+    the module's POSTs are reads, e.g. asking the Copilot a question)."""
     if feature_key not in FEATURES:
         raise ValueError(f"unknown feature {feature_key!r}")
 
@@ -181,7 +182,7 @@ def require_feature(feature_key: str):
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Feature not included in your plan: {feature_key}",
             )
-        if request.method in _WRITE_METHODS and not ent.writable:
+        if writes_need_writable and request.method in _WRITE_METHODS and not ent.writable:
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 detail=f"Subscription is read-only: {ent.read_only_reason}",
@@ -218,8 +219,11 @@ def current_usage(db: Session, organization_id: uuid.UUID) -> dict[str, int]:
         Branch.organization_id == organization_id, Branch.status == "active")) or 0
     beds = db.scalar(select(func.count()).select_from(Bed).where(
         Bed.organization_id == organization_id)) or 0
+    from .ai.gateway import credits_used
+
     return {"max_users": users + pending, "max_branches": branches, "max_beds": beds,
-            "ai_credits_monthly": 0, "sms_monthly": 0, "whatsapp_monthly": 0}
+            "ai_credits_monthly": credits_used(db, organization_id),
+            "sms_monthly": 0, "whatsapp_monthly": 0}
 
 
 def check_limit(db: Session, organization_id: uuid.UUID, limit_key: str,
