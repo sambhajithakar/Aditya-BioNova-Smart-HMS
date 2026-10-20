@@ -44,7 +44,11 @@ export function middleware(req: NextRequest) {
   }
 
   const nonce = btoa(crypto.randomUUID());
-  const csp = buildCsp(nonce, process.env.NODE_ENV !== "production");
+  const csp = buildCsp(
+    nonce,
+    process.env.NODE_ENV !== "production",
+    process.env.RAZORPAY_CHECKOUT === "1",
+  );
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", csp);

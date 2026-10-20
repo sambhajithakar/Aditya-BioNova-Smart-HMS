@@ -11,7 +11,7 @@
  * far smaller risk than script injection and no third-party origins are
  * allowed anywhere.
  */
-export function buildCsp(nonce: string, dev = false): string {
+export function buildCsp(nonce: string, dev = false, razorpayCheckout = false): string {
   const directives: Record<string, string> = {
     "default-src": "'self'",
     "script-src": `'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
@@ -26,6 +26,13 @@ export function buildCsp(nonce: string, dev = false): string {
     "manifest-src": "'self'",
     "worker-src": "'self' blob:",
   };
+  if (razorpayCheckout) {
+    // Opt-in (RAZORPAY_CHECKOUT=1) for SaaS billing in Razorpay TEST mode: its
+    // checkout script is loaded by our own trusted code ('strict-dynamic') and
+    // renders the payment form in a frame from these origins.
+    directives["frame-src"] = "https://api.razorpay.com https://checkout.razorpay.com";
+    directives["connect-src"] += " https://lumberjack.razorpay.com";
+  }
   return Object.entries(directives)
     .map(([k, v]) => `${k} ${v}`)
     .join("; ");

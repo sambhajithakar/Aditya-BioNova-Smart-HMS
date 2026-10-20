@@ -30,6 +30,7 @@ export const NAV: ShellNavItem[] = [
     href: "/settings/subscription",
     perm: "subscription.read",
   },
+  { key: "saasBilling", label: "navSaasBilling", href: "/settings/billing", perm: "billing.saas.read" },
   { key: "support", label: "navSupport", href: "/support", perm: "support.read" },
   { key: "audit", label: "navAudit", href: "/settings/audit", perm: "audit.read" },
   { key: "data", label: "navData", href: "/settings/data", perm: "org.offboard" },

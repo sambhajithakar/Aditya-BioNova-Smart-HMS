@@ -19,6 +19,7 @@ import { MFA_SETUP_PATH, mfaRedirectTarget } from "@/lib/saas";
 const PLATFORM_NAV = [
   { key: "overview", label: "platformOverview", href: "/platform" },
   { key: "plans", label: "platformPlans", href: "/platform/plans" },
+  { key: "billing", label: "platformBilling", href: "/platform/billing" },
   { key: "support", label: "platformSupport", href: "/platform/support" },
 ];
 

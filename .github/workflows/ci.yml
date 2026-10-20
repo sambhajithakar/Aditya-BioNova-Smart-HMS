@@ -242,6 +242,40 @@ jobs:
       - name: flutter test
         run: flutter test
 
+  android-apk:
+    name: Android demo APK (debug-signed, not for distribution)
+    runs-on: ubuntu-latest
+    needs: mobile
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: 3.47.7
+          cache: true
+      - name: flutter pub get
+        run: flutter pub get --enforce-lockfile
+      - name: Build release APKs (no keystore in CI -> Android debug certificate)
+        # The runner image ships the Android SDK. No signing key is ever stored
+        # in the repository or CI; a real release needs the owner's keystore.
+        run: |
+          export JAVA_HOME="$JAVA_HOME_21_X64"
+          flutter build apk --release
+          flutter build apk --release --split-per-abi
+          cd build/app/outputs/flutter-apk && sha256sum *.apk | tee SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: aditya-bionova-hms-demo-apk
+          path: |
+            apps/mobile/build/app/outputs/flutter-apk/*.apk
+            apps/mobile/build/app/outputs/flutter-apk/SHA256SUMS
+          retention-days: 14
+
   contracts:
     name: OpenAPI contract snapshot
     runs-on: ubuntu-latest
