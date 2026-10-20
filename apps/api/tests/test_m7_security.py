@@ -177,7 +177,7 @@ def test_legacy_password_hash_upgraded_on_login(client):
 # --- MFA ---------------------------------------------------------------------------
 def test_totp_matches_rfc6238_vector():
     # RFC 6238 appendix B, SHA-1 seed "12345678901234567890", T=59 -> 94287082
-    secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+    secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"  # gitleaks:allow (public RFC test seed)
     assert totp_now(secret, at=59) == "287082"
     assert verify_totp(secret, "287082", last_step=None, at=59) == 1
     assert verify_totp(secret, "287082", last_step=1, at=59) is None  # replay

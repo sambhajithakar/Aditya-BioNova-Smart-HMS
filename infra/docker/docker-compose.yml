@@ -22,6 +22,10 @@ x-api-env: &api-env
   DATABASE_URL: postgresql+psycopg2://hms_app:${HMS_APP_PASSWORD:?set HMS_APP_PASSWORD}@postgres:5432/hms_dev
   MIGRATION_DATABASE_URL: postgresql+psycopg2://hms:${HMS_PG_PASSWORD:?set HMS_PG_PASSWORD}@postgres:5432/hms_dev
   JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (>=32 random chars)}
+  # AES-256-GCM key for secrets at rest (TOTP seeds): urlsafe base64 of 32
+  # random bytes, e.g. python -c "import base64,os;print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
+  FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY:?set FIELD_ENCRYPTION_KEY (urlsafe base64, 32 bytes)}
+  WEB_BASE_URL: ${WEB_BASE_URL:-http://localhost:3000}
   ENVIRONMENT: ${HMS_ENVIRONMENT:-staging}
   CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000","http://127.0.0.1:3000"]}
 

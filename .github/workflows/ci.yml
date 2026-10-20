@@ -201,11 +201,13 @@ jobs:
           for v in HMS_PG_PASSWORD HMS_APP_PASSWORD JWT_SECRET; do
             s="$(openssl rand -hex 24)"; echo "::add-mask::$s"; echo "$v=$s" >> "$GITHUB_ENV"
           done
+          k="$(openssl rand -base64 32 | tr '+/' '-_')"
+          echo "::add-mask::$k"; echo "FIELD_ENCRYPTION_KEY=$k" >> "$GITHUB_ENV"
       - name: Build both images (api + web, no push)
         run: $COMPOSE build
       - name: Compose smoke test (migrate job -> api ready -> web proxies to api)
         run: |
-          $COMPOSE up -d
+          $COMPOSE up -d || { $COMPOSE logs --no-color; exit 1; }
           ok=""
           for _ in $(seq 1 60); do
             if curl -sf http://127.0.0.1:8000/api/v1/health/ready >/dev/null \

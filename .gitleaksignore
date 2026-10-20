@@ -1,0 +1,3 @@
+# Reviewed false positives (fingerprint = commit:file:rule:line).
+# RFC 6238 appendix-B public TOTP test seed (base32 of "12345678901234567890").
+bec2275962395f7fa89ac3deb8b0880f78724c3a:apps/api/tests/test_m7_security.py:generic-api-key:180
