@@ -1,116 +1,167 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ApiError, login } from "@/lib/api";
-import { LANGS, Lang, getLang, setLang, t } from "@/lib/i18n";
+/**
+ * Sign-in with an optional second step: when the backend answers
+ * `mfa_required`, the user enters a 6-digit TOTP code or a recovery code.
+ * Tokens never touch localStorage — /api/session/login sets the httpOnly
+ * refresh cookie and returns only the access token (kept in memory).
+ */
+import Link from "next/link";
+import { FormEvent, Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { MfaChallenge, login, verifyMfa } from "@/lib/api";
+import { useLang } from "@/lib/lang";
+import { PublicShell, authErrorMessage } from "@/components/PublicShell";
+import { safeNext } from "@/lib/safe-next";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
-  const [lang, setLangState] = useState<Lang>("en");
+  const search = useSearchParams();
+  const { t } = useLang();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [slug, setSlug] = useState("");
+  const [challenge, setChallenge] = useState<MfaChallenge | null>(null);
+  const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    setLangState(getLang());
-  }, []);
-
-  function switchLang(next: Lang) {
-    setLang(next);
-    setLangState(next);
-  }
+  const done = () => router.replace(safeNext(search.get("next")));
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setError(null);
     setBusy(true);
     try {
-      await login({ email, password, organization_slug: slug || undefined });
-      router.push("/dashboard");
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
-        setError(
-          "Multiple clinics match this account — enter the clinic slug.",
-        );
-      } else if (err instanceof ApiError && err.status === 401) {
-        setError("Invalid credentials.");
+      const r = await login({ email, password, organization_slug: slug || undefined });
+      if (r.kind === "mfa") {
+        setChallenge(r.challenge);
+        setPassword("");
       } else {
-        setError("Could not sign in. Is the API running?");
+        done();
       }
+    } catch (err) {
+      setError(authErrorMessage(err, t));
     } finally {
       setBusy(false);
     }
   }
 
+  async function onVerify(e: FormEvent) {
+    e.preventDefault();
+    if (busy || !challenge) return;
+    setError(null);
+    setBusy(true);
+    try {
+      await verifyMfa(challenge.mfa_token, code.trim());
+      done();
+    } catch (err) {
+      setError(authErrorMessage(err, t));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (challenge) {
+    return (
+      <>
+        <h1 style={{ marginTop: 0 }}>{t("mfaTitle")}</h1>
+        <p className="muted">{t("mfaPrompt")}</p>
+        <form className="stack" onSubmit={onVerify}>
+          <label className="field">
+            {t("mfaCode")}
+            <input
+              type="text"
+              inputMode="text"
+              autoComplete="one-time-code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              pattern="^(\d{6}|[A-Za-z0-9]{4}-[A-Za-z0-9]{4})$"
+              title={t("mfaCodeHint")}
+              required
+              autoFocus
+            />
+          </label>
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
+          <button className="primary" type="submit" disabled={busy}>
+            {busy ? "…" : t("verify")}
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              setChallenge(null);
+              setCode("");
+              setError(null);
+            }}
+          >
+            {t("back")}
+          </button>
+        </form>
+      </>
+    );
+  }
+
   return (
     <>
-      <header className="app-header">
-        <span className="brand">{t("brand", lang)}</span>
-        <span className="spacer" />
-        <span className="lang-switch" role="group" aria-label="Language">
-          {LANGS.map((l) => (
-            <button
-              key={l.code}
-              type="button"
-              aria-pressed={lang === l.code}
-              onClick={() => switchLang(l.code)}
-            >
-              {l.native}
-            </button>
-          ))}
-        </span>
-      </header>
-      <main className="page">
-        <div className="card" style={{ maxWidth: 520 }}>
-          <h1 style={{ marginTop: 0 }}>{t("signIn", lang)}</h1>
-          <form className="stack" onSubmit={onSubmit}>
-            <label className="field">
-              {t("email", lang)}
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="username"
-                required
-              />
-            </label>
-            <label className="field">
-              {t("password", lang)}
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                required
-              />
-            </label>
-            <label className="field">
-              {t("clinicSlug", lang)}
-              <input
-                type="text"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                placeholder="sunrise-clinic"
-              />
-            </label>
-            {error ? (
-              <p className="error" role="alert">
-                {error}
-              </p>
-            ) : null}
-            <button className="primary" type="submit" disabled={busy}>
-              {busy ? "…" : t("signIn", lang)}
-            </button>
-          </form>
-          <p className="muted" style={{ marginTop: "1.25rem" }}>
-            New clinic? Register via <code>POST /api/v1/auth/register</code>{" "}
-            (self-serve onboarding ships in M2).
+      <h1 style={{ marginTop: 0 }}>{t("signIn")}</h1>
+      <form className="stack" onSubmit={onSubmit}>
+        <label className="field">
+          {t("email")}
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="username"
+            required
+          />
+        </label>
+        <label className="field">
+          {t("password")}
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+          />
+        </label>
+        <label className="field">
+          {t("clinicSlug")}
+          <input
+            type="text"
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+            placeholder="sunrise-clinic"
+          />
+        </label>
+        {error && (
+          <p className="error" role="alert">
+            {error}
           </p>
-        </div>
-      </main>
+        )}
+        <button className="primary" type="submit" disabled={busy}>
+          {busy ? "…" : t("signIn")}
+        </button>
+      </form>
+      <p style={{ marginTop: "1.25rem" }}>
+        <Link href="/forgot-password">{t("forgotPassword")}</Link>
+      </p>
     </>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <PublicShell>
+      <Suspense fallback={null}>
+        <LoginForm />
+      </Suspense>
+    </PublicShell>
   );
 }
