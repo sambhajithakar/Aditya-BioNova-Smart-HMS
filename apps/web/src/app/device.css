@@ -72,6 +72,7 @@ td > select {
   width: 100%;
   min-width: 3.5rem;
 }
+td > select { min-width: 7.5rem; } /* option text must stay readable */
 
 /* bottom navigation (phones only) */
 .bottom-nav { display: none; }

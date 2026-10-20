@@ -54,10 +54,15 @@ export { NAV };
  * lifetime (module memory only — never Web Storage). Every page renders its
  * own <AppShell>, so without this each client-side navigation waited one
  * extra round trip before rendering. The cached value is shown immediately
- * and re-validated in the background; it is dropped on logout and on any
- * auth failure, so the gate still requires a session established by /auth/me.
+ * and re-validated in the background when older than ME_REVALIDATE_MS (and
+ * whenever something reports it changed, or the connection returns); it is
+ * dropped on logout and on any auth failure, so the gate still requires a
+ * session established by /auth/me. The API enforces permissions on every
+ * call regardless.
  */
 let cachedMe: Me | null = null;
+let cachedMeAt = 0;
+const ME_REVALIDATE_MS = 30_000;
 
 const BANNER_KEY: Record<string, string> = {
   trialing: "bannerTrialing",
@@ -108,6 +113,7 @@ export function AppShell({
           if (!m.mfa_enrollment_required) setMfaForced(false);
           // Unchanged member → keep the same object, so pages whose effects
           // depend on `me` do not refetch their data after re-validation.
+          cachedMeAt = Date.now();
           if (cachedMe && JSON.stringify(cachedMe) === JSON.stringify(m)) {
             setMe(cachedMe);
             return;
@@ -126,7 +132,13 @@ export function AppShell({
           if (unreachable) return;
           goLogin();
         });
-    void loadMe(true);
+    if (cachedMe && Date.now() - cachedMeAt < ME_REVALIDATE_MS) {
+      // Fresh enough: no request competing with the page's own first fetches.
+      const target = mfaRedirectTarget(cachedMe, pathname);
+      if (target) router.replace(target);
+    } else {
+      void loadMe(true);
+    }
     const offMe = onMeChanged(() => void loadMe(false));
     const offConn = subscribeConn((s) => {
       if (s.status === "online") void loadMe(true);
@@ -217,6 +229,10 @@ export function AppShell({
           <Link
             key={item.key}
             href={item.href}
+            // Perf: no viewport prefetch of ~20 modules on every page (it
+            // saturated slow links); DeviceChrome prefetches the role's
+            // most-used modules when idle.
+            prefetch={false}
             className={item.key === active ? "active" : undefined}
             aria-current={item.key === active ? "page" : undefined}
           >

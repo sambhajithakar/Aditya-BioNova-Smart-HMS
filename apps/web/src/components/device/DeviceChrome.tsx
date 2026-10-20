@@ -165,6 +165,7 @@ export default function DeviceChrome({
         {hasDashboard && (
           <Link
             href="/dashboard"
+            prefetch={false}
             className={active === "dashboard" ? "active" : undefined}
             aria-current={active === "dashboard" ? "page" : undefined}
           >
@@ -176,6 +177,7 @@ export default function DeviceChrome({
           <Link
             key={item.key}
             href={item.href}
+            prefetch={false}
             className={item.key === active ? "active" : undefined}
             aria-current={item.key === active ? "page" : undefined}
           >
@@ -212,6 +214,7 @@ export default function DeviceChrome({
             <li key={item.key}>
               <Link
                 href={item.href}
+                prefetch={false}
                 className={item.key === active ? "active" : undefined}
                 aria-current={item.key === active ? "page" : undefined}
                 onClick={() => sheetRef.current?.close()}

@@ -86,7 +86,7 @@ function DashboardBody() {
       {hasPermission(me, "org.manage") && <OnboardingCard />}
       <div className="grid kpis" style={{ marginTop: "1.25rem" }}>
         {modules.map((m) => (
-          <Link className="card kpi tile" href={m.href} key={m.key}>
+          <Link className="card kpi tile" href={m.href} key={m.key} prefetch={false}>
             <span className="label">{t(navLabel(m))}</span>
           </Link>
         ))}

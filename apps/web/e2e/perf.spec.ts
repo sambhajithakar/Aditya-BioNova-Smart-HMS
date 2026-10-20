@@ -5,7 +5,9 @@
  * device profile:
  *   - login page: FCP, LCP, DOMContentLoaded, JS bytes transferred
  *   - sign-in → dashboard heading visible (ms), JS bytes for that step
- *   - client-side navigation to each main module (ms to its heading)
+ *   - client-side navigation to each main module: ms to its heading with no
+ *     "Loading…" text (navXMs), and ms to its last API response (dataXMs —
+ *     the comparable "page has its data" time)
  *   - total blocking time (sum of long-task time over 50 ms)
  *   - JS heap used after a forced GC at the end (CDP Runtime.getHeapUsage)
  * Results are printed and written to test-results/perf/<label>.json.
@@ -149,6 +151,7 @@ for (const p of PROFILES) {
 
       // Client-side navigation through the main modules via the shell links.
       let navTotal = 0;
+      let dataTotal = 0;
       for (const href of MODULES) {
         let link = page.locator(`a[href="${href}"]:visible`).first();
         if ((await link.count()) === 0) {
@@ -160,16 +163,48 @@ for (const p of PROFILES) {
           link = page.locator(`a[href="${href}"]:visible`).first();
           if ((await link.count()) === 0) continue;
         }
+        // Data-complete time: the last /api/v1 response of this navigation
+        // (after the heading shows, wait until no API request has been in
+        // flight for 1.5 s). "Heading" alone is not comparable between builds:
+        // one may render its heading before even requesting its data.
+        let inflight = 0;
+        let lastApi = 0;
+        let lastActivity = Date.now();
+        const isApi = (u: string) => u.includes("/api/v1/");
+        const onReq = (q: import("@playwright/test").Request) => {
+          if (isApi(q.url())) {
+            inflight++;
+            lastActivity = Date.now();
+          }
+        };
+        const onDone = (q: import("@playwright/test").Request) => {
+          if (isApi(q.url())) {
+            inflight = Math.max(0, inflight - 1);
+            lastApi = lastActivity = Date.now();
+          }
+        };
+        page.on("request", onReq);
+        page.on("requestfinished", onDone);
+        page.on("requestfailed", onDone);
         const s = Date.now();
         await link.click();
         await expect(page).toHaveURL(new RegExp(`${href}$`), { timeout: 120_000 });
         await expect(page.locator("main.page h1, main.page h2").first()).toBeVisible({ timeout: 120_000 });
         await expect(page.getByText("Loading…")).toHaveCount(0, { timeout: 120_000 });
         const ms = Date.now() - s;
+        await expect
+          .poll(() => inflight === 0 && Date.now() - lastActivity > 1500, { timeout: 120_000, intervals: [100] })
+          .toBe(true);
+        page.off("request", onReq);
+        page.off("requestfinished", onDone);
+        page.off("requestfailed", onDone);
         r[`nav${href.replace(/\W/g, "_")}Ms`] = ms;
+        r[`data${href.replace(/\W/g, "_")}Ms`] = Math.max(ms, lastApi - s);
         navTotal += ms;
+        dataTotal += Math.max(ms, lastApi - s);
       }
       r.navAllModulesMs = navTotal;
+      r.dataAllModulesMs = dataTotal;
       r.tbtMs = await page.evaluate(() => (window as unknown as { __perf: { tbt: number } }).__perf.tbt);
       await cdp.send("HeapProfiler.collectGarbage");
       const heap = (await cdp.send("Runtime.getHeapUsage")) as { usedSize: number; totalSize: number };
