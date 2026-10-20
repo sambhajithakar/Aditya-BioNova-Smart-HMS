@@ -48,7 +48,7 @@ def report_summary(
     date_from: date | None = Query(default=None, alias="from"),
     date_to: date | None = Query(default=None, alias="to"),
     principal: Principal = Depends(require_permission("report.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> ReportSummaryOut:
     today = date.today()
     date_to = date_to or today

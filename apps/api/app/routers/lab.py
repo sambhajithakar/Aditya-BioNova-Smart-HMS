@@ -132,7 +132,7 @@ def list_lab_tests(
     q: str | None = None,
     limit: int = 100,
     principal: Principal = Depends(require_permission("lab.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> list[LabTestOut]:
     limit = min(max(limit, 1), MAX_LIMIT)
     query = select(LabTestCatalog).where(LabTestCatalog.is_active.is_(True))
@@ -154,7 +154,7 @@ def post_lab_order(
     payload: LabOrderIn,
     request: Request,
     principal: Principal = Depends(require_permission("lab.order")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> LabOrderDetailOut:
     patient = db.scalar(
         select(Patient).where(
@@ -203,7 +203,7 @@ def list_lab_orders(
     limit: int = 50,
     offset: int = 0,
     principal: Principal = Depends(require_permission("lab.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = min(max(limit, 1), MAX_LIMIT)
     q = select(LabOrder).where(LabOrder.organization_id == principal.organization_id)
@@ -223,7 +223,7 @@ def list_lab_orders(
 def get_lab_order(
     order_id: uuid.UUID,
     principal: Principal = Depends(require_permission("lab.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> LabOrderDetailOut:
     return _order_detail(db, principal, _get_order(db, principal, order_id))
 
@@ -234,7 +234,7 @@ def post_cancel_order(
     payload: CancelLabOrderIn,
     request: Request,
     principal: Principal = Depends(require_permission("lab.order")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> LabOrderDetailOut:
     order = _get_order(db, principal, order_id)
     if order.status not in ("ordered", "specimen_collected"):
@@ -276,7 +276,7 @@ def post_collect_specimen(
     payload: CollectSpecimenIn,
     request: Request,
     principal: Principal = Depends(require_permission("lab.order")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> LabSpecimenOut:
     order = _get_order(db, principal, order_id)
     if order.status != "ordered":
@@ -316,7 +316,7 @@ def post_reject_specimen(
     payload: RejectSpecimenIn,
     request: Request,
     principal: Principal = Depends(require_permission("lab.order")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> LabSpecimenOut:
     specimen = db.scalar(
         select(LabSpecimen).where(
@@ -356,7 +356,7 @@ def post_import_results(
     payload: ImportResultsIn,
     request: Request,
     principal: Principal = Depends(require_permission("lab.import")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> LabOrderDetailOut:
     order = _get_order(db, principal, order_id)
     if order.status not in ("specimen_collected", "in_progress"):
@@ -493,7 +493,7 @@ def post_verify_result(
     result_id: uuid.UUID,
     request: Request,
     principal: Principal = Depends(require_permission("lab.verify")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> LabResultOut:
     result = db.scalar(
         select(LabResult).where(
@@ -519,7 +519,7 @@ def post_release_result(
     result_id: uuid.UUID,
     request: Request,
     principal: Principal = Depends(require_permission("lab.release")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> LabResultOut:
     result = db.scalar(
         select(LabResult).where(
@@ -561,7 +561,7 @@ def post_amend_result(
     payload: AmendResultIn,
     request: Request,
     principal: Principal = Depends(require_permission("lab.import")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> LabResultOut:
     """Supersede a released result with a NEW audited version (four-eyes:
     amendments are imported by one person and must be re-verified/released

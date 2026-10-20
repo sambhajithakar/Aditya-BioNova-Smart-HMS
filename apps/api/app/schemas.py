@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 import uuid
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
@@ -110,6 +111,72 @@ class BranchOut(BaseModel):
     created_at: datetime
 
 
+class MfaChallengeOut(BaseModel):
+    """Login passed the password step; a second factor is required."""
+
+    mfa_required: bool = True
+    mfa_token: str
+    methods: list[str]
+    expires_in: int
+
+
+class MfaVerifyIn(StrictModel):
+    mfa_token: str = Field(min_length=20, max_length=2000)
+    code: str = Field(min_length=6, max_length=20)
+
+
+class MfaStatusOut(BaseModel):
+    totp_enabled: bool
+    recovery_codes_remaining: int
+
+
+class TotpSetupOut(BaseModel):
+    secret: str
+    otpauth_uri: str
+
+
+class TotpCodeIn(StrictModel):
+    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class RecoveryCodesOut(BaseModel):
+    recovery_codes: list[str]
+
+
+class MfaDisableIn(StrictModel):
+    password: str = Field(min_length=1, max_length=200)
+    code: str = Field(min_length=6, max_length=20)
+
+
+class PasswordChangeIn(StrictModel):
+    current_password: str = Field(min_length=1, max_length=200)
+    new_password: str = Field(min_length=10, max_length=200)
+
+
+class PasswordForgotIn(StrictModel):
+    email: EmailStr
+
+
+class PasswordResetIn(StrictModel):
+    token: str = Field(min_length=20, max_length=200)
+    new_password: str = Field(min_length=10, max_length=200)
+
+
+class SessionOut(BaseModel):
+    id: uuid.UUID
+    created_at: datetime
+    expires_at: datetime
+    user_agent: str | None
+    ip_address: str | None
+    current: bool
+
+
+class InvitationAcceptIn(StrictModel):
+    token: str = Field(min_length=20, max_length=200)
+    password: str = Field(min_length=1, max_length=200)
+    full_name: str | None = Field(default=None, min_length=2, max_length=200)
+
+
 # --- Members ----------------------------------------------------------------
 class MemberCreateIn(StrictModel):
     email: EmailStr
@@ -126,6 +193,42 @@ class MemberOut(BaseModel):
     full_name: str
     role_key: str
     branch_id: uuid.UUID | None
+    status: str
+    created_at: datetime
+
+
+class MemberUpdateIn(StrictModel):
+    role_key: str | None = Field(default=None, min_length=2, max_length=40)
+    status: Literal["active", "suspended"] | None = None
+    branch_id: uuid.UUID | None = None
+
+
+class InvitationCreateIn(StrictModel):
+    email: EmailStr
+    role_key: str = Field(min_length=2, max_length=40)
+    branch_id: uuid.UUID | None = None
+
+
+class InvitationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    email: str
+    role_key: str
+    branch_id: uuid.UUID | None
+    status: str
+    expires_at: datetime
+    created_at: datetime
+
+
+class OutboxMessageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    channel: str
+    to: str
+    subject: str
+    body: str
     status: str
     created_at: datetime
 

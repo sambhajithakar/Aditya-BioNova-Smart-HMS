@@ -92,8 +92,8 @@ def test_login_success_and_bad_credentials(client):
 def test_login_multiple_orgs_requires_slug(client):
     a = register_org(client, slug="multi-a")
     b = register_org(client, slug="multi-b")
-    # owner of A is added as member of B by B's owner
-    resp = client.post(
+    # B's owner can no longer attach A's owner directly (M7.0, H14) ...
+    direct = client.post(
         "/api/v1/members",
         json={
             "email": "owner@multi-a.example.com",
@@ -103,7 +103,22 @@ def test_login_multiple_orgs_requires_slug(client):
         },
         headers=_auth(b),
     )
-    assert resp.status_code == 201, resp.text
+    assert direct.status_code == 409
+    # ... A's owner joins B by accepting an invitation with their own password
+    inv = client.post(
+        "/api/v1/members/invitations",
+        json={"email": "owner@multi-a.example.com", "role_key": "doctor"},
+        headers=_auth(b),
+    )
+    assert inv.status_code == 201, inv.text
+    outbox = client.get("/api/v1/dev/outbox?limit=50").json()
+    link = next(m["body"] for m in outbox if m["to"] == "owner@multi-a.example.com")
+    token = link.split("accept-invite?token=")[1].split()[0]
+    accepted = client.post(
+        "/api/v1/auth/invitations/accept",
+        json={"token": token, "password": "Str0ngPassphrase!"},
+    )
+    assert accepted.status_code == 200, accepted.text
 
     ambiguous = login(client, email="owner@multi-a.example.com", password="Str0ngPassphrase!")
     assert ambiguous.status_code == 409

@@ -48,7 +48,7 @@ def register_patient(
     request: Request,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: Principal = Depends(require_permission("patient.write")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PatientOut:
     body = payload.model_dump(mode="json")
     replay = idempotent_replay(
@@ -147,7 +147,7 @@ def search_patients(
     limit: int = 20,
     offset: int = 0,
     principal: Principal = Depends(require_permission("patient.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = max(1, min(limit, MAX_LIMIT))
     offset = max(0, offset)
@@ -191,7 +191,7 @@ def search_patients(
 def get_patient(
     patient_id: uuid.UUID,
     principal: Principal = Depends(require_permission("patient.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PatientOut:
     row = db.scalar(
         select(Patient).where(
@@ -210,7 +210,7 @@ def update_patient(
     payload: PatientUpdateIn,
     request: Request,
     principal: Principal = Depends(require_permission("patient.write")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PatientOut:
     row = db.scalar(
         select(Patient).where(
@@ -250,7 +250,7 @@ def merge_patient(
     payload: PatientMergeIn,
     request: Request,
     principal: Principal = Depends(require_permission("patient.merge")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PatientOut:
     """Supervised duplicate resolution: source record is retired into target.
 

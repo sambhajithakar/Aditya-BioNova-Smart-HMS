@@ -51,7 +51,7 @@ def join_queue(
     request: Request,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: Principal = Depends(require_permission("queue.manage")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> QueueEntryOut:
     body = payload.model_dump(mode="json")
     replay = idempotent_replay(
@@ -159,7 +159,7 @@ def queue_board(
     limit: int = 100,
     offset: int = 0,
     principal: Principal = Depends(require_permission("queue.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = max(1, min(limit, MAX_LIMIT))
     offset = max(0, offset)
@@ -208,7 +208,7 @@ def call_patient(
     payload: QueueStatusIn,
     request: Request,
     principal: Principal = Depends(require_permission("queue.manage")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> QueueEntryOut:
     return _advance(
         db,
@@ -226,7 +226,7 @@ def start_consultation(
     payload: QueueStatusIn,
     request: Request,
     principal: Principal = Depends(require_permission("queue.manage")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> QueueEntryOut:
     return _advance(
         db,
@@ -243,7 +243,7 @@ def complete_consultation(
     entry_id: uuid.UUID,
     request: Request,
     principal: Principal = Depends(require_permission("queue.manage")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> QueueEntryOut:
     return _advance(db, principal, request, entry_id, new_status="completed")
 
@@ -253,7 +253,7 @@ def skip_patient(
     entry_id: uuid.UUID,
     request: Request,
     principal: Principal = Depends(require_permission("queue.manage")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> QueueEntryOut:
     return _advance(db, principal, request, entry_id, new_status="skipped")
 

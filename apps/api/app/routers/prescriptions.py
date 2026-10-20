@@ -146,7 +146,7 @@ def list_drugs(
     q: str | None = None,
     limit: int = 50,
     principal: Principal = Depends(require_permission("prescription.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> list[DrugOut]:
     limit = max(1, min(limit, 200))
     stmt = select(DrugCatalog).where(DrugCatalog.is_active.is_(True))
@@ -166,7 +166,7 @@ def create_draft(
     payload: PrescriptionIn,
     request: Request,
     principal: Principal = Depends(require_permission("prescription.sign")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PrescriptionDetailOut:
     patient = _load_patient(db, principal, payload.patient_id)
     rx = Prescription(
@@ -202,7 +202,7 @@ def create_draft(
 def check_warnings(
     rx_id: uuid.UUID,
     principal: Principal = Depends(require_permission("prescription.sign")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> RxWarningsOut:
     """Pre-flight safety check (allergy + duplicate) without signing."""
     rx = _get_rx(db, principal, rx_id)
@@ -223,7 +223,7 @@ def list_prescriptions(
     limit: int = 20,
     offset: int = 0,
     principal: Principal = Depends(require_permission("prescription.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = max(1, min(limit, MAX_LIMIT))
     offset = max(0, offset)
@@ -257,7 +257,7 @@ def list_prescriptions(
 def get_prescription(
     rx_id: uuid.UUID,
     principal: Principal = Depends(require_permission("prescription.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PrescriptionDetailOut:
     return _detail(db, principal, _get_rx(db, principal, rx_id))
 
@@ -268,7 +268,7 @@ def sign_prescription(
     payload: SignRxIn,
     request: Request,
     principal: Principal = Depends(require_permission("prescription.sign")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PrescriptionDetailOut:
     rx = _get_rx(db, principal, rx_id)
     if rx.status != "draft":
@@ -331,7 +331,7 @@ def amend_prescription(
     payload: AmendRxIn,
     request: Request,
     principal: Principal = Depends(require_permission("prescription.sign")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PrescriptionDetailOut:
     """Create version N+1. The old row is flipped to 'superseded' — the only
     UPDATE the database trigger permits on a signed prescription."""

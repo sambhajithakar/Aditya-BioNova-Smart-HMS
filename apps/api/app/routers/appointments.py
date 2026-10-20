@@ -78,7 +78,7 @@ def create_appointment(
     payload: AppointmentIn,
     request: Request,
     principal: Principal = Depends(require_permission("appointment.write")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> AppointmentOut:
     if payload.ends_at <= payload.starts_at:
         raise HTTPException(status_code=422, detail="ends_at must be after starts_at")
@@ -131,7 +131,7 @@ def list_appointments(
     limit: int = 50,
     offset: int = 0,
     principal: Principal = Depends(require_permission("appointment.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = max(1, min(limit, MAX_LIMIT))
     offset = max(0, offset)
@@ -170,7 +170,7 @@ def list_appointments(
 def get_appointment(
     appointment_id: uuid.UUID,
     principal: Principal = Depends(require_permission("appointment.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> AppointmentOut:
     row = db.scalar(
         select(Appointment).where(
@@ -189,7 +189,7 @@ def update_appointment(
     payload: AppointmentUpdateIn,
     request: Request,
     principal: Principal = Depends(require_permission("appointment.write")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> AppointmentOut:
     row = db.scalar(
         select(Appointment).where(

@@ -40,3 +40,6 @@ playwright-report/
 
 # build artifacts
 apps/web/tsconfig.tsbuildinfo
+
+# Local agent worktrees
+.claude/worktrees/

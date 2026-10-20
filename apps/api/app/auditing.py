@@ -93,6 +93,13 @@ def record_security_event(
 
     db = SessionLocal()
     try:
+        if organization_id:
+            # the audit function only accepts tenant events for the tenant in
+            # context (migration 0009 closed the empty-context bypass)
+            db.execute(
+                text("SELECT set_config('app.current_org_id', :v, true)"),
+                {"v": str(organization_id)},
+            )
         db.execute(
             _INSERT_FN,
             _params(

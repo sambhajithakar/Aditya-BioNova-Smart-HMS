@@ -27,7 +27,7 @@ def create_branch(
     payload: BranchIn,
     request: Request,
     principal: Principal = Depends(require_permission("branch.manage")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> BranchOut:
     branch = Branch(
         organization_id=principal.organization_id,  # from token, never from body
@@ -61,7 +61,7 @@ def create_branch(
 @router.get("", response_model=list[BranchOut])
 def list_branches(
     principal: Principal = Depends(require_permission("branch.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> list[BranchOut]:
     rows = db.scalars(
         select(Branch)
@@ -75,7 +75,7 @@ def list_branches(
 def get_branch(
     branch_id: uuid.UUID,
     principal: Principal = Depends(require_permission("branch.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> BranchOut:
     """Identifier manipulation across tenants returns 404 (RLS hides the row)."""
     row = db.scalar(

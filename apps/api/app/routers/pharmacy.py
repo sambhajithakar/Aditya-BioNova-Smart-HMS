@@ -103,7 +103,7 @@ def post_receive_stock(
     request: Request,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: Principal = Depends(require_permission("pharmacy.manage")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> StockBatchOut:
     body = payload.model_dump(mode="json")
     replay = idempotent_replay(
@@ -181,7 +181,7 @@ def list_stock_batches(
     limit: int = 50,
     offset: int = 0,
     principal: Principal = Depends(require_permission("pharmacy.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = min(max(limit, 1), MAX_LIMIT)
     q = select(StockBatch).where(
@@ -210,7 +210,7 @@ def list_stock_batches(
 @router.get("/stock/alerts", response_model=StockAlertOut)
 def stock_alerts(
     principal: Principal = Depends(require_permission("pharmacy.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> StockAlertOut:
     today = date.today()
     horizon = today + timedelta(days=EXPIRY_WARNING_DAYS)
@@ -267,7 +267,7 @@ def post_adjust_stock(
     payload: AdjustStockIn,
     request: Request,
     principal: Principal = Depends(require_permission("pharmacy.manage")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> StockMovementOut:
     batch = _get_batch(db, principal, batch_id)
     if batch.status == "recalled":
@@ -306,7 +306,7 @@ def list_stock_movements(
     limit: int = 50,
     offset: int = 0,
     principal: Principal = Depends(require_permission("pharmacy.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = min(max(limit, 1), MAX_LIMIT)
     q = select(StockMovement).where(
@@ -330,7 +330,7 @@ def post_dispense(
     request: Request,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: Principal = Depends(require_permission("pharmacy.dispense")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> DispenseOut:
     body = payload.model_dump(mode="json")
     replay = idempotent_replay(
@@ -483,7 +483,7 @@ def list_dispenses(
     limit: int = 50,
     offset: int = 0,
     principal: Principal = Depends(require_permission("pharmacy.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = min(max(limit, 1), MAX_LIMIT)
     q = select(Dispense).where(

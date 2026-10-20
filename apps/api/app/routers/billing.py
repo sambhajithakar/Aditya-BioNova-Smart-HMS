@@ -114,7 +114,7 @@ def create_invoice(
     payload: InvoiceIn,
     request: Request,
     principal: Principal = Depends(require_permission("billing.invoice")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> InvoiceDetailOut:
     patient = db.scalar(
         select(Patient).where(
@@ -212,7 +212,7 @@ def issue_invoice(
     invoice_id: uuid.UUID,
     request: Request,
     principal: Principal = Depends(require_permission("billing.invoice")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> InvoiceDetailOut:
     inv = _get_invoice(db, principal, invoice_id)
     if inv.status != "draft":
@@ -252,7 +252,7 @@ def void_invoice(
     invoice_id: uuid.UUID,
     request: Request,
     principal: Principal = Depends(require_permission("billing.invoice")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> InvoiceDetailOut:
     inv = _get_invoice(db, principal, invoice_id)
     if inv.status not in ("draft", "issued"):
@@ -298,7 +298,7 @@ def list_invoices(
     limit: int = 20,
     offset: int = 0,
     principal: Principal = Depends(require_permission("billing.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = max(1, min(limit, MAX_LIMIT))
     offset = max(0, offset)
@@ -332,7 +332,7 @@ def list_invoices(
 def get_invoice(
     invoice_id: uuid.UUID,
     principal: Principal = Depends(require_permission("billing.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> InvoiceDetailOut:
     return _invoice_detail(db, principal, _get_invoice(db, principal, invoice_id))
 
@@ -346,7 +346,7 @@ def record_payment(
     request: Request,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: Principal = Depends(require_permission("billing.payment")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PaymentOut:
     body = payload.model_dump(mode="json")
     replay = idempotent_replay(
@@ -461,7 +461,7 @@ def sandbox_confirm(
     payment_id: uuid.UUID,
     request: Request,
     principal: Principal = Depends(require_permission("billing.payment")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PaymentOut:
     """Sandbox gateway callback: confirm a pending payment (M7 spike)."""
     payment = _load_payment(db, principal, payment_id)
@@ -490,7 +490,7 @@ def sandbox_fail(
     payment_id: uuid.UUID,
     request: Request,
     principal: Principal = Depends(require_permission("billing.payment")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PaymentOut:
     payment = _load_payment(db, principal, payment_id)
     if payment.gateway != "sandbox":
@@ -535,7 +535,7 @@ def refund_payment(
     payload: RefundIn,
     request: Request,
     principal: Principal = Depends(require_permission("billing.refund")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> RefundOut:
     payment = _load_payment(db, principal, payment_id)
     if payment.status not in ("succeeded", "partially_refunded", "refunded"):
@@ -615,7 +615,7 @@ def refund_uuid() -> str:
 def invoice_ledger(
     invoice_id: uuid.UUID,
     principal: Principal = Depends(require_permission("billing.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> list[LedgerEntryOut]:
     inv = _get_invoice(db, principal, invoice_id)
     rows = db.scalars(
@@ -633,7 +633,7 @@ def invoice_ledger(
 def invoice_receipt(
     invoice_id: uuid.UUID,
     principal: Principal = Depends(require_permission("billing.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> ReceiptOut:
     """Receipt payload for the printable A4/A5 view (trilingual in web)."""
     inv = _get_invoice(db, principal, invoice_id)
@@ -712,7 +712,7 @@ def org_ledger(
     limit: int = 50,
     offset: int = 0,
     principal: Principal = Depends(require_permission("billing.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = max(1, min(limit, MAX_LIMIT))
     offset = max(0, offset)

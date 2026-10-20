@@ -122,6 +122,16 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=now()
     )
+    # M7.0 MFA: AES-GCM sealed TOTP seeds (see security.encrypt_field)
+    mfa_totp_secret_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    mfa_totp_pending_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    mfa_totp_enabled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    mfa_totp_last_step: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    password_changed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     __table_args__ = (
         CheckConstraint("status IN ('active','disabled')", name="ck_user_status"),
@@ -225,9 +235,138 @@ class RefreshSession(Base):
     replaced_by: Mapped[UUID_PK | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(400), nullable=True)
     ip_address: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    # hard cap for the whole rotation family (NULL on pre-M7 rows)
+    absolute_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     __table_args__ = (
         Index("ix_auth_sessions_user_org", "user_id", "organization_id"),
+    )
+
+
+class MfaRecoveryCode(Base):
+    """Single-use MFA recovery code (SHA-256 hash only). Identity-level: no RLS."""
+
+    __tablename__ = "mfa_recovery_codes"
+
+    id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+    )
+    user_id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    code_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=now()
+    )
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (Index("ix_mfa_recovery_user", "user_id"),)
+
+
+class PasswordResetToken(Base):
+    """Single-use, short-lived password reset token (SHA-256 hash only)."""
+
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+    )
+    user_id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=now()
+    )
+    ip_address: Mapped[str | None] = mapped_column(String(60), nullable=True)
+
+    __table_args__ = (Index("ix_pwreset_user", "user_id"),)
+
+
+class MemberInvitation(Base):
+    """Invitation for an e-mail to join an organization (tenant RLS)."""
+
+    __tablename__ = "member_invitations"
+
+    id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+    )
+    organization_id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+    role_id: Mapped[UUID_PK] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("roles.id", ondelete="RESTRICT"), nullable=False
+    )
+    branch_id: Mapped[UUID_PK | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("branches.id", ondelete="SET NULL"), nullable=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending", server_default="pending"
+    )
+    invited_by_user_id: Mapped[UUID_PK | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    accepted_user_id: Mapped[UUID_PK | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'accepted', 'revoked')", name="ck_invitation_status"
+        ),
+        Index("ix_invitation_org_status", "organization_id", "status"),
+    )
+
+
+class RateLimitCounter(Base):
+    """Fixed-window abuse counter (hashed key). See app/ratelimit.py."""
+
+    __tablename__ = "rate_limit_counters"
+
+    key_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    hits: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (Index("ix_rate_limit_expires", "expires_at"),)
+
+
+class CommsMessage(Base):
+    """Outbound message log (mock / suppressed providers). Append-only for the app."""
+
+    __tablename__ = "comms_messages"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    channel: Mapped[str] = mapped_column(String(20), nullable=False)
+    provider: Mapped[str] = mapped_column(String(40), nullable=False)
+    recipient: Mapped[str] = mapped_column(String(320), nullable=False)
+    subject: Mapped[str] = mapped_column(String(300), nullable=False, server_default="")
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    error: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("channel IN ('email', 'sms', 'whatsapp')", name="ck_comms_channel"),
+        Index("ix_comms_created", "created_at"),
     )
 
 

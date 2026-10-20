@@ -83,7 +83,7 @@ def create_item(
     payload: InventoryItemIn,
     request: Request,
     principal: Principal = Depends(require_permission("inventory.manage")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> InventoryItemOut:
     dup = db.scalar(
         select(InventoryItem.id).where(
@@ -135,7 +135,7 @@ def list_items(
     limit: int = 50,
     offset: int = 0,
     principal: Principal = Depends(require_permission("inventory.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = min(max(limit, 1), MAX_LIMIT)
     query = select(InventoryItem).where(
@@ -163,7 +163,7 @@ def update_item(
     payload: InventoryItemUpdateIn,
     request: Request,
     principal: Principal = Depends(require_permission("inventory.manage")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> InventoryItemOut:
     item = _get_item(db, principal, item_id)
     changed: dict[str, object] = {}
@@ -216,7 +216,7 @@ def post_movement(
     request: Request,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: Principal = Depends(require_permission("inventory.manage")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> InventoryMovementOut:
     # canonical body for idempotency: direction is derived, not accepted
     body = payload.model_dump(mode="json")
@@ -294,7 +294,7 @@ def list_movements(
     limit: int = 50,
     offset: int = 0,
     principal: Principal = Depends(require_permission("inventory.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = min(max(limit, 1), MAX_LIMIT)
     q = select(InventoryMovement).where(
@@ -317,7 +317,7 @@ def low_stock_alerts(
     limit: int = 50,
     offset: int = 0,
     principal: Principal = Depends(require_permission("inventory.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = min(max(limit, 1), MAX_LIMIT)
     q = select(InventoryItem).where(
