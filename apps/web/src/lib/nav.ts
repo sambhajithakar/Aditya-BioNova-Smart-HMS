@@ -20,6 +20,8 @@ export const NAV: ShellNavItem[] = [
   { key: "inventory", href: "/inventory", perm: "inventory.read", feature: "inventory" },
   { key: "expenses", href: "/expenses", perm: "expense.read", feature: "expenses" },
   { key: "reports", href: "/reports", perm: "report.read", feature: "reports_basic" },
+  { key: "followups", label: "navFollowUps", href: "/follow-ups", perm: "followup.read" },
+  { key: "communications", label: "navCommunications", href: "/communications", perm: "comms.read" },
   { key: "copilot", label: "navCopilot", href: "/copilot", perm: "ai.copilot.use", feature: "ai_copilot" },
   { key: "members", href: "/settings/members", perm: "member.read" },
   { key: "organization", label: "navOrganization", href: "/settings/organization", perm: "org.read" },
