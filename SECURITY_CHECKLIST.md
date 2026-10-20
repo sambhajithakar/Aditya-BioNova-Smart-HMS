@@ -46,7 +46,16 @@ review, DPDP/ABDM/CDSCO legal assessment and clinical safety review are
   the M4 mobile offline store is AES-256-GCM sealed with the key in the
   Android Keystore (tested: no plaintext at rest, tamper/wrong-key
   detection). SQLCipher when the app grows a local SQL store.
-- ⬜ Backups + restore drills (DEPLOYMENT.md drafts procedure; execute in M7)
+- ✅ Encrypted, checksummed backups (`scripts/backup.sh`: pg_dump -Fc + age/gpg,
+  sha256, retention) and guarded restore (`scripts/restore.sh`: checksum
+  verified, refuses non-empty target without --force) — executed 2026-10-20
+- ✅ Automated restore drill executed locally (synthetic data): every table's
+  row count, RLS flags/policies, triggers, grants identical after restore;
+  RLS + append-only audit + login re-verified on the restored DB
+  (`scripts/backup_restore_drill.sh`, result in DEPLOYMENT.md). CI job added,
+  first CI run pending
+- 🟡 Backup scheduling, off-site immutable copies, WAL archiving/PITR and
+  backup monitoring — documented as production recommendations, not built
 - ⬜ Secrets manager, key rotation, rate limiting (M7)
 
 ## Application hardening
@@ -54,7 +63,22 @@ review, DPDP/ABDM/CDSCO legal assessment and clinical safety review are
 - ✅ Generic 500 handler (no stack traces to clients; logged server-side)
 - ✅ Ruff lint + typecheck +33 automated tests incl. failure paths; CI gates
 - ✅ Dependency licence register + SBOM (LICENSES.md); **no AGPL dependencies**
-- ⬜ Dependency vulnerability scanning in CI (pip-audit/npm audit step, M7)
+- ✅ Python dependencies fully pinned with sha256 hashes
+  (`apps/api/requirements*.lock`); CI and the API image install with
+  `--require-hashes`; lock install + 105 tests verified in a fresh venv
+- ✅ `pip-audit --strict` run on both lock files (2026-10-20): no known
+  vulnerabilities (after moving to cryptography 50.0.2 / pytest 9.1.1)
+- 🟡 `npm audit --omit=dev --audit-level=high` (web) run 2026-10-20:
+  **fails** — postcss advisories via Next 15 (fix = Next upgrade, open)
+- ✅ Secret scan: gitleaks 8.30.1 over full git history (19 commits)
+  run 2026-10-20 — no leaks found
+- 🟡 CI jobs for pip-audit, npm audit, gitleaks, `alembic check`, Flutter,
+  Docker build/smoke and the restore drill are configured (SHA-pinned
+  actions, `permissions: contents: read`) but have **not yet run on CI**
+- 🟡 Containers: non-root, read-only rootfs, cap_drop ALL, healthchecks,
+  digest-pinned bases, `.dockerignore`, loopback-only ports, required
+  secrets — hadolint clean, but images **not built** in this workspace
+- ⬜ Container image scanning (Trivy), SBOM generation, CodeQL/SAST
 - ⬜ OWASP ASVS 5.0 full pass + independent penetration test (pre-launch gate)
 
 ## Clinical safety boundaries (enforced by scope at M1)

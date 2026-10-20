@@ -1,0 +1,60 @@
+# Build context = repository root (see infra/docker/*.Dockerfile).
+# Keep secrets, VCS metadata, host-built artefacts and caches OUT of images.
+
+# VCS / CI / editor
+.git
+.github
+.claude
+**/.idea
+**/.vscode
+**/.DS_Store
+**/*.swp
+
+# Secrets — never in an image (pydantic reads apps/api/.env if present!)
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pem
+**/*.key
+**/*.jks
+**/*.keystore
+**/key.properties
+**/secrets
+**/*.dump
+**/*.dump.*
+backups
+
+# Python caches / test output
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.venv
+**/venv
+**/.coverage
+**/htmlcov
+**/coverage
+apps/api/tests
+
+# Node — host node_modules must not overwrite the in-image `npm ci` result
+# (native binaries differ between glibc hosts and the musl/alpine image).
+**/node_modules
+**/.next
+**/out
+**/npm-debug.log*
+**/tsconfig.tsbuildinfo
+**/test-results
+**/playwright-report
+
+# Mobile app is not part of any server image
+apps/mobile
+
+# Local tooling / data
+.local
+**/pgdata
+**/*.log
+
+# Docs are not needed at runtime
+*.md
+docs
