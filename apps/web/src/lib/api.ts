@@ -20,6 +20,8 @@ import {
   setSession,
   clearSession,
 } from "./session";
+import { getConn, reportNetworkFailure, reportNetworkOk } from "./connectivity";
+import { clearAppCaches } from "./pwa";
 
 export class ApiError extends Error {
   status: number;
@@ -56,6 +58,11 @@ async function send(path: string, options: RequestOpts = {}, retried = false): P
   };
   if (auth) {
     const token = await ensureAccessToken();
+    if (!token && getConn().status !== "online") {
+      // The refresh could not reach the server (network down): this is not
+      // an auth failure, so do not end the session — the call simply fails.
+      throw new ApiError(503, "offline");
+    }
     if (!token) {
       notifyAuthFailure();
       throw new ApiError(401, "Not authenticated");
@@ -63,7 +70,15 @@ async function send(path: string, options: RequestOpts = {}, retried = false): P
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`/api/v1${path}`, { ...init, headers, credentials: "same-origin" });
+  let res: Response;
+  try {
+    res = await fetch(`/api/v1${path}`, { ...init, headers, credentials: "same-origin" });
+  } catch (err) {
+    // Network-level failure (not an HTTP error) → connectivity banner.
+    if (!(err instanceof DOMException && err.name === "AbortError")) reportNetworkFailure();
+    throw err;
+  }
+  if (res.status < 502 || res.status > 504) reportNetworkOk();
   if (res.status === 401 && auth) {
     if (!retried && (await refreshSession())) {
       return send(path, options, true);
@@ -225,6 +240,7 @@ export async function logout(): Promise<void> {
     });
   } finally {
     clearSession();
+    await clearAppCaches(); // service-worker caches never hold user data; clear anyway
   }
 }
 

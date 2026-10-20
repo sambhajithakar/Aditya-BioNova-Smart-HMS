@@ -17,6 +17,8 @@ export type SessionPayload = {
   expires_in: number;
 };
 
+import { reportNetworkFailure } from "./connectivity";
+
 type FetchLike = typeof fetch;
 
 let accessToken: string | null = null;
@@ -123,6 +125,7 @@ async function refreshOnce(): Promise<boolean> {
     setSession(data);
     return true;
   } catch {
+    reportNetworkFailure(); // network down, not a dead session (lib/connectivity.ts)
     return false;
   }
 }

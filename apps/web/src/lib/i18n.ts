@@ -13,6 +13,7 @@ export const LANGS: { code: Lang; label: string; native: string }[] = [
 ];
 
 import { aiDictionaries } from "./i18n-ai";
+import { deviceDictionaries } from "./i18n-device";
 import { saasDictionaries } from "./i18n-saas";
 
 type Dict = Record<string, string>;
@@ -1112,9 +1113,9 @@ const coreDictionaries: Record<Lang, Dict> = {
 export const baseDictionaries = coreDictionaries;
 
 export const dictionaries: Record<Lang, Dict> = {
-  en: { ...coreDictionaries.en, ...saasDictionaries.en, ...aiDictionaries.en },
-  mr: { ...coreDictionaries.mr, ...saasDictionaries.mr, ...aiDictionaries.mr },
-  hi: { ...coreDictionaries.hi, ...saasDictionaries.hi, ...aiDictionaries.hi },
+  en: { ...coreDictionaries.en, ...saasDictionaries.en, ...aiDictionaries.en, ...deviceDictionaries.en },
+  mr: { ...coreDictionaries.mr, ...saasDictionaries.mr, ...aiDictionaries.mr, ...deviceDictionaries.mr },
+  hi: { ...coreDictionaries.hi, ...saasDictionaries.hi, ...aiDictionaries.hi, ...deviceDictionaries.hi },
 };
 
 export function getLang(): Lang {

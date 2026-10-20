@@ -24,6 +24,7 @@ import {
   api,
 } from "@/lib/api";
 import { useLang } from "@/lib/lang";
+import { NeedsConnection, useOnline } from "@/components/device/online";
 import { defaultBranchId, useCan, useMe } from "@/lib/me";
 import { useInFlight } from "@/lib/idempotency";
 import {
@@ -62,6 +63,7 @@ function Consultation() {
   const { t } = useLang();
   const me = useMe();
   const can = useCan();
+  const online = useOnline(); // signing is server-finalised: never offline
   const { busy, run } = useInFlight();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [queue, setQueue] = useState<QueueEntry[]>([]);
@@ -689,11 +691,12 @@ function Consultation() {
                 />
               </div>
 
+              <NeedsConnection />
               <button
                 className="primary"
                 type="button"
                 style={{ marginTop: "0.75rem" }}
-                disabled={items.length === 0 || !editable || busy}
+                disabled={items.length === 0 || !editable || busy || !online}
                 onClick={() => void signPrescription(false)}
               >
                 {t("signRx")}
@@ -722,7 +725,7 @@ function Consultation() {
                   <button
                     className="primary"
                     type="button"
-                    disabled={!ackAllergies || busy}
+                    disabled={!ackAllergies || busy || !online}
                     onClick={() => void signPrescription(true)}
                   >
                     {t("signRx")}

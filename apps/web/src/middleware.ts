@@ -56,7 +56,11 @@ export function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     {
-      source: "/((?!_next/static|_next/image|favicon.ico|robots.txt).*)",
+      // PWA files (worker, manifest, icons, static offline page) are public,
+      // hold no user data and must not redirect to /login; their headers
+      // (incl. a script-free CSP for /offline.html) come from next.config.mjs.
+      source:
+        "/((?!_next/static|_next/image|favicon.ico|robots.txt|sw\\.js|manifest\\.webmanifest|offline\\.html|icons/).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

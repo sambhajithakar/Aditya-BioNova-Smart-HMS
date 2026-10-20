@@ -24,6 +24,7 @@ import { defaultBranchId, useCan, useMe } from "@/lib/me";
 import { useIdempotencyKey, useInFlight } from "@/lib/idempotency";
 import { t } from "@/lib/i18n";
 import { useLang } from "@/lib/lang";
+import { NeedsConnection, useOnline } from "@/components/device/online";
 
 type Line = {
   item_type: string;
@@ -53,6 +54,7 @@ function Billing() {
   const { lang } = useLang();
   const me = useMe();
   const can = useCan();
+  const online = useOnline(); // payments / refunds are server-finalised: never offline
   const { busy, run } = useInFlight();
   const payKey = useIdempotencyKey();
   const [refundFor, setRefundFor] = useState<Payment | null>(null);
@@ -483,6 +485,7 @@ function Billing() {
               {(Number(selected.total) - Number(selected.amount_paid)).toFixed(2)}
             </p>
 
+            <NeedsConnection />
             {selected.status === "issued" &&
               can("billing.payment") && (
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -511,7 +514,7 @@ function Billing() {
                   type="button"
                   className="primary"
                   style={{ alignSelf: "end" }}
-                  disabled={busy}
+                  disabled={busy || !online}
                   data-testid="take-payment"
                   onClick={() => void takePayment("manual")}
                 >
@@ -521,7 +524,7 @@ function Billing() {
                   type="button"
                   className="secondary"
                   style={{ alignSelf: "end" }}
-                  disabled={busy}
+                  disabled={busy || !online}
                   onClick={() => void takePayment("sandbox")}
                 >
                   {t("upi", lang)} (sandbox)
@@ -554,7 +557,7 @@ function Billing() {
                           <button
                             type="button"
                             className="primary"
-                            disabled={busy}
+                            disabled={busy || !online}
                             onClick={() => void confirmSandbox(pay.id)}
                           >
                             {t("payment", lang)} ✓
@@ -610,7 +613,7 @@ function Billing() {
                     type="button"
                     className="primary"
                     style={{ alignSelf: "end" }}
-                    disabled={busy}
+                    disabled={busy || !online}
                     onClick={() => void submitRefund()}
                   >
                     {t("refund", lang)}
