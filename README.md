@@ -4,12 +4,18 @@ Multi-tenant Hospital & Clinic Management System for Indian clinics and
 hospitals — offline-first mobile workflows (M4+), trilingual UI (English / मराठी / हिंदी),
 role-based access, audit trails and a commercial SaaS business layer.
 
-> **Status: M1–M6 modules + M7.0 security & correctness hardening
-> (development branch, under review).** Clinic OPD, pharmacy, laboratory,
-> IPD and operations modules exist with tenant isolation enforced in
-> PostgreSQL; M7.0 added MFA, rate limiting, session management, staff
-> invitations, PHI-read auditing, backups and a fully gated CI. See
-> [AUDIT_REPORT.md](AUDIT_REPORT.md) and [TASKS.md](TASKS.md).
+> **Status: M1–M6 modules + M7.0 hardening + M7.1 tenant administration &
+> SaaS foundation + AI-0 Business Copilot (development branch, under
+> review).** Clinic OPD, pharmacy, laboratory, IPD and operations modules
+> exist with tenant isolation enforced in PostgreSQL; M7.0 added MFA, rate
+> limiting, sessions, invitations, PHI-read auditing, backups and a gated CI;
+> M7.1 added tenant settings, 7 configurable editions (prices not set),
+> entitlements, limits, a vendor platform console and support; AI-0 added a
+> governed AI gateway and a trilingual Business Copilot that currently runs
+> on **mock (rule-based) inference only — no AI provider is connected**.
+> Payments are not connected. See [TASKS.md](TASKS.md),
+> [docs/COMMERCIAL_FEATURE_MATRIX.md](docs/COMMERCIAL_FEATURE_MATRIX.md) and
+> [docs/AI_ARCHITECTURE.md](docs/AI_ARCHITECTURE.md).
 > This software is **not production-ready, not certified and not clinically
 > validated** — independent security, clinical and legal (DPDP/ABDM/CDSCO)
 > validation is required first. **Synthetic data only — never enter real
@@ -64,10 +70,10 @@ docker compose -f infra/docker/docker-compose.yml up --build
 
 ```bash
 ruff check apps/api --select F,E --line-length 100
-cd apps/api && pytest                      # 164 tests: auth/MFA, RBAC, RLS, clinical, billing
-cd apps/web && npm run lint && npm test && npm run build   # ESLint, 43 unit tests
-cd apps/web && npx playwright test         # 5 E2E against a live API (see playwright.config.ts)
-cd apps/mobile && flutter analyze && flutter test          # 91 tests
+cd apps/api && pytest                      # 200 tests: auth/MFA, RBAC, RLS, clinical, billing, SaaS, AI
+cd apps/web && npm run lint && npm test && npm run build   # ESLint, 69 unit tests
+cd apps/web && npx playwright test         # 15 E2E against a live, seeded API (see playwright.config.ts)
+cd apps/mobile && flutter analyze && flutter test          # 121 tests
 ./scripts/backup_restore_drill.sh          # encrypted backup -> restore -> compare
 ```
 
@@ -77,11 +83,19 @@ cd apps/mobile && flutter analyze && flutter test          # 91 tests
 cd apps/api && python ../../scripts/seed_demo.py   # needs ENVIRONMENT=development
 ```
 
-Creates "Sunrise Demo Clinic" with one account per role
-(`owner@sunrise-demo.example.com`, `doctor@…`, `nurse@…`, `receptionist@…`,
-`pharmacist@…`, `labtechnician@…`, `billing@…`, `admin@…`, `auditor@…`),
-eight invented patients, appointments, a queue, ward/beds with an admission,
-stock and a lab order. The script prints the shared demo password. E-mails
+Creates three synthetic tenants, each on a different edition, plus the
+vendor console account:
+
+| Tenant | Edition | Accounts |
+|---|---|---|
+| Sunrise Demo Clinic | Clinic Plus + AI | `owner@sunrise-demo.example.com`, `doctor@…`, `nurse@…`, `receptionist@…`, `pharmacist@…`, `labtechnician@…`, `billing@…`, `admin@…`, `auditor@…` |
+| BioNova Demo Hospital | Hospital Advanced | `owner@demo-hospital.example.com` + staff roles; wards, beds, an admission |
+| Gram Arogya Rural Clinic | Rural Clinic | `owner@rural-demo.example.com`, `doctor@…` |
+| Platform console | — | `platform@aditya-bionova.example.com` (super-admin; MFA not enforced in development only) |
+
+Each tenant gets eight invented patients, appointments, a queue, paid
+synthetic invoices and (where the edition allows) stock, a lab order and
+expenses. The script prints the shared demo password. E-mails
 (password reset, invitations) go to the development-only mock outbox at
 `GET /api/v1/dev/outbox` — nothing is ever sent.
 

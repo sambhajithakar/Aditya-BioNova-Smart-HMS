@@ -207,19 +207,50 @@ sambhajithakar/Aditya-BioNova-Smart-HMS#1 — not merged.
       pharmacy sales billing (MRP + GST) in M9
 - [ ] ⏳ Device QA of the Android build (no Android SDK/devices in CI yet)
 - [ ] ⏳ Independent review of the M7.0 changes (owner/reviewer)
-- [ ] Mandatory-MFA policy per role/tenant (lands with M7.1 settings)
+- [x] Mandatory-MFA policy per role/tenant (delivered in M7.1)
+
+## M7.1 — Identity, tenant administration & commercial foundation ✅ (2026-10-20) — on review branch
+- [x] Organisation profile, onboarding checklist, branches (address/GSTIN),
+      audit-log viewer, data export, offboarding request/cancel
+- [x] Role-aware mandatory MFA (`mfa_required_roles`), enforced server-side
+- [x] 7 editions as data (Rural Clinic, Clinic Starter, Clinic Plus + AI,
+      Multi-Specialty Clinic, Hospital Core, Hospital Advanced, Enterprise);
+      34 features, 6 limits; **prices NULL** until the owner sets them
+- [x] Trials, read-only mode on lapse, user/branch/bed limits, feature gates
+- [x] Platform console for the vendor super-admin (MFA outside dev): tenants,
+      subscriptions, overrides, plan editor, support queue; aggregate counts
+      only — PHI tables stay tenant-only (raw RLS proof)
+- [x] Customer support tickets with internal notes
+- [x] Web settings/platform/support pages; Android mr/hi i18n + Rural mode
+- [x] `docs/COMMERCIAL_FEATURE_MATRIX.md` generated from the catalogue
+- [ ] ⏳ Owner: set plan prices / quotas (catalogue editor in the console)
+- [ ] Feature keys exist for modules not built yet (Scribe, agents, OT, ER,
+      TPA, ABDM, FHIR …) — switches only, **not features**; see the matrix
+
+## AI-0 — AI gateway governance + Business Copilot ✅ (2026-10-20) — mock inference
+- [x] Kill switches, tenant opt-in, data classes C0–C3 + provider ceiling,
+      append-only credit ledger with advisory lock, sealed request audit
+- [x] Business Copilot (EN/मराठी/हिंदी): whitelisted report catalogue (9),
+      figures computed from own records, mock/live label, "how computed"
+- [x] Live OpenAI-compatible adapter with redaction — tested with a fake
+      server only; **disabled** (`AI_LIVE_ENABLED=false`)
+- [x] `docs/AI_ARCHITECTURE.md` (architecture, evaluation, roadmap)
+- [ ] ⏳ Owner: approve an AI provider / India-hosted option before any live call
+- [ ] Scribe, agents, RAG, document AI, ML forecasting — not built
+
+## M7.2 — Payments & SaaS billing (next)
+- [ ] Razorpay **sandbox** subscriptions + webhook signature verification
+      (Cashfree adapter as alternative); trial → paid → grace → read-only
+- [ ] SaaS invoices (GST), AI credit packs, reseller/partner tracking
+- [ ] No live keys or real transactions without owner approval
 
 ## Roadmap after M7.0 (owner decisions of 2026-10-20 applied)
 Order and acceptance criteria: IMPLEMENTATION_PLAN.md.
-- **M7.1 Identity & tenant admin** — admin/settings UI (clinic profile,
-  letterhead, branches, masters), mandatory-MFA policy, branch-scoped access,
-  audit-log viewer
-- **M7.2 SaaS commercial layer** — configurable plans for the editions
-  *Rural Clinic, Clinic Starter, Clinic Plus + AI, Hospital Core, Enterprise*;
-  feature entitlements, user/branch/bed limits, **AI usage quotas**,
-  monthly/annual billing, trials, grace/read-only; **no hard-coded prices**
-  (plan catalogue is data); Razorpay subscriptions in **sandbox only**
-  (Cashfree adapter as alternative); vendor super-admin console; tenant export
+- ~~M7.1 Identity & tenant admin~~ ✅ (see above). Still open from the
+  original scope: letterhead/masters UI and branch-scoped data access in RLS
+- **M7.2 SaaS payments** — Razorpay subscriptions in **sandbox only**
+  (Cashfree as alternative), monthly/annual billing, SaaS invoices, AI
+  credit packs, reseller tracking (plans/entitlements/limits/console done)
 - **M8 Billing 2.0** — tariff master, GST invoice (GSTIN, SAC/HSN,
   CGST/SGST/IGST), FY invoice series, credit notes; Razorpay patient
   payments (sandbox, webhook signature verification)
@@ -248,7 +279,7 @@ Order and acceptance criteria: IMPLEMENTATION_PLAN.md.
 ## Backlog / decisions pending owner
 - Approve live comms vendors + DLT registration (Brevo vs Amazon SES; SMS
   vendor; Meta WhatsApp business verification) — sandbox/mock until then
-- Plan prices and quotas for the five editions (configured, not coded)
+- Plan prices and quotas for the seven editions (configured in the platform console, not coded)
 - AI provider shortlist + India data-residency decision
 - Hosting provider for private staging
 - Pilot BP/SpO2 device model for physical validation

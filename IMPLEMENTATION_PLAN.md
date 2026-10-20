@@ -1,7 +1,19 @@
 # IMPLEMENTATION PLAN — Aditya BioNova Smart HMS (Commercial)
 
 Inputs: [AUDIT_REPORT.md](AUDIT_REPORT.md), [GAP_ANALYSIS.md](GAP_ANALYSIS.md).
-Status: **proposal — awaiting product-owner approval before M7.0 starts.**
+Status (2026-10-20): **M7.0 ✅, M7.1 ✅ and AI-0 (governed AI gateway +
+Business Copilot, mock inference) ✅ on the review branch** — draft PR
+sambhajithakar/Aditya-BioNova-Smart-HMS#1, not merged. Next: **M7.2 Razorpay
+sandbox subscriptions, invoices and AI credit packs**, then M8–M11.
+Owner decisions of 2026-10-20 are applied (see TASKS.md).
+
+| Milestone | State |
+|---|---|
+| M7.0 hardening | ✅ done (C1–C3, H1–H24 except H10 → M9) |
+| M7.1 identity, tenant admin, editions, entitlements, platform console, support | ✅ done |
+| AI-0 AI gateway governance + Business Copilot | ✅ done — **mock inference only**; live provider awaits owner approval |
+| M7.2 payments (Razorpay sandbox), trials → paid, invoices, credits, reseller tracking | ⏭ next |
+| M8–M14 | planned, unchanged below |
 
 ## 1. Principles
 

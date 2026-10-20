@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | **Design proposal — not implemented.** No AI code exists in the repository today (GAP_ANALYSIS §7). |
+| Status | **Phase AI-0 implemented (2026-10-20), mock inference only**: gateway in `apps/api/app/ai/` (kill switches, tenant opt-in, C0–C3 ceilings, credit ledger, sealed `ai_requests` audit) and the Business Copilot (pattern-based redaction of e-mails/phones/UHIDs/ID numbers — **not names**; a `deid.py` NER pipeline is not built). Everything after AI-0 (Scribe, agents, RAG, document AI, ML, self-hosted models) remains a **design proposal — not implemented**. No AI provider is connected. |
 | Date | 2026-10-20 |
 | Scope | M13 "AI Intelligence (assistive)" in IMPLEMENTATION_PLAN.md / TASKS.md roadmap |
 | Depends on | M7.1/M7.2 entitlements (`ai_*` features, `ai_credits_monthly` limit), M10 lab model, M14 legal review for anything clinical |

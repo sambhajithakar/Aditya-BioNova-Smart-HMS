@@ -1,5 +1,43 @@
 # Changelog
 
+## M7.1 + AI-0 (2026-10-20) — tenant administration, editions, platform console, Business Copilot (review branch)
+
+### Tenant administration
+- Organisation profile, onboarding checklist, branches with address/GSTIN,
+  audit-log viewer, data export (zip, secrets excluded), offboarding
+  request/cancel with retention notice
+- Role-aware **mandatory MFA** policy per tenant (`mfa_required_roles`)
+- Customer support tickets (tenant) and support queue (platform)
+
+### Commercial foundation (configuration, no payments)
+- 7 editions as data: Rural Clinic, Clinic Starter, Clinic Plus + AI,
+  Multi-Specialty Clinic, Hospital Core, Hospital Advanced, Enterprise —
+  34 feature keys, 6 limits, **prices NULL until the owner sets them**
+- Trials, subscription status, read-only mode on lapse (402 on writes),
+  plan limits for users/branches/beds; feature gates per router
+- Vendor **platform console** (super-admin, MFA-required outside dev):
+  tenants, subscriptions, overrides, plan catalogue editor, support queue —
+  reads commercial tables and **aggregate counts only, never PHI**
+- `docs/COMMERCIAL_FEATURE_MATRIX.md` generated from the seeded catalogue
+
+### AI-0 governance gateway + Business Copilot
+- Gateway: global kill switches, tenant opt-in, data classes C0–C3 with a
+  provider ceiling enforced before any call, credit ledger (append-only),
+  sealed request audit
+- Business Copilot (EN/मराठी/हिंदी): a question selects ONE whitelisted
+  report; figures computed from the clinic's own records; every answer shows
+  **mock vs live inference** and how it was computed. Shipped with the
+  rule-based mock parser only; no AI provider connected
+- `docs/AI_ARCHITECTURE.md`: architecture, evaluation plan, roadmap for
+  Scribe/agents/RAG/document AI with safety gates
+
+### Android
+- English/मराठी/हिंदी localisation (gen-l10n, 195 keys); Rural Clinic mode;
+  edition-aware feature visibility
+
+### Fixed
+- Sliding-window rate limiting (lockout boundary escape); CI E2E dependency set
+
 ## M7.0 (2026-10-20) — security & correctness hardening (review branch)
 
 Driven by AUDIT_REPORT.md. Highlights (details in TASKS.md / TEST_RESULTS.md):

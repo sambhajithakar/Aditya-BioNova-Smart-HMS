@@ -1,3 +1,63 @@
+# Test Results — M7.1 tenant administration & SaaS foundation + AI-0 (2026-10-20)
+
+All results **executed** on commit `9bb5c28`+docs (synthetic data only). Same
+toolchain as M7.0 below. CI: GitHub Actions runs 30/31 (`9bb5c28`) — **all
+jobs green**, including Playwright E2E against a live API seeded by
+`scripts/seed_demo.py` and the Docker build + compose smoke.
+
+| Suite | Command | Result |
+|---|---|---|
+| API lint | `ruff check apps/api --select F,E --line-length 100` | ✅ clean |
+| API tests | `cd apps/api && pytest` | ✅ **200 passed, 0 failed** (167 after M7.0) |
+| API coverage | `pytest --cov=app` | ✅ **94 %** (6,463 statements) |
+| Migrations | `alembic heads` / `alembic check` | ✅ single head `0012`; no drift |
+| Backup/restore drill | `scripts/backup_restore_drill.sh` | ✅ 578/578 rows; RLS, policies, triggers, grants identical; tenant-scoped login after restore |
+| Web unit | `npm test` (Vitest) | ✅ **69 passed** (43 after M7.0) |
+| Web typecheck / lint | `npm run typecheck && npm run lint` | ✅ 0 errors, 0 warnings |
+| Web E2E | `npx playwright test` (live web + API + PostgreSQL) | ✅ **15 passed** locally and in CI |
+| Mobile | `flutter analyze && flutter test` | ✅ no issues, **121 passed** (91 after M7.0) |
+| Copilot golden set | `pytest tests/test_ai_copilot.py` | ✅ 24/24 EN/मराठी/हिंदी questions → correct report + period; 6/6 out-of-scope refused; prompt-injection set refused (**mock parser**, not a model) |
+
+### New API tests
+| File | Tests | Covers |
+|---|---|---|
+| test_m71_tenancy_saas.py | 20 | sign-up starts a trial on the default edition; public plan catalogue has no hard-coded prices; unknown/private plans refused; Rural Clinic features enforced server-side; user + branch limits; expired trial is read-only, not locked out; a tenant cannot change its own subscription even in SQL; role MFA policy blocks until enrolled; org profile + onboarding; export contains only own-tenant data; offboarding request/cancel; support tickets + isolation; plan-change request opens a billing ticket; platform needs super-admin **with MFA** (demo bypass dev-only); platform manages tenants/plans/subscriptions; **platform flag never exposes patient data**; internal support notes hidden from tenant; bed limit via override; overrides kept unless given + status filter |
+| test_ai_copilot.py | 12 | AI logs tenant-isolated + append-only; feature gate, opt-in, read-only; live calls consume credits up to the limit; concurrent requests never overspend; live disabled ⇒ zero outbound calls; provider ceiling rejects **before calling**; questions redacted before leaving the server; golden-set accuracy; injection cannot reach beyond the catalogue; answers match report figures; Copilot sees only its own tenant; Indian number formatting |
+| test_m7_security.py | +1 | lockout holds across a rate-limit window boundary (sliding-window fix) |
+
+### New E2E (Playwright)
+7. Owner edits the organisation profile
+8. Branch create, edit and deactivate
+9. Subscription page shows the plan, usage and plan comparison
+10. Support ticket create, then reply
+11. Feature-gated navigation hides Pharmacy for a Rural Clinic tenant
+12. A role under the MFA policy is redirected to /settings/security
+13. Platform admin: tenants list → open tenant → change plan (seeded super-admin)
+14. Owner switches on the Copilot and asks in मराठी → मराठी answer, "mock" label, "How this was computed"
+15. The Copilot is not offered on an edition without it
+
+### Defects found and fixed during M7.1 / AI-0
+- Rate-limit lockout could be escaped by failures straddling a fixed
+  window boundary → sliding-window estimate + conservative lockout count
+- Platform PUT of a subscription wiped existing overrides when the field was
+  omitted → `None` keeps, `{}` clears (tested)
+- Copilot keyword hazards (Hindi "आय" matched "आये", "net" matched
+  "internet") → padded tokens; golden set added
+- Copilot answered Devanagari questions in English when the UI language was
+  sent → answer language now detected from the question
+- CI E2E installed only the production lock (no httpx) so the seeder could
+  not import TestClient → dev lock in that job (reproduced in clean venvs)
+
+### Not verified (honest gaps)
+- **Android APK not built**: this environment's network policy blocks
+  `dl.google.com` (Android SDK). Dart tests only; no device QA
+- **AI is mock inference only** — no model provider is approved or called;
+  the OpenAI-compatible live adapter is tested against a fake server only
+- Marathi/Hindi strings need native-speaker review
+- Live comms, Razorpay, load/pentest, clinical validation — not done
+
+---
+
 # Test Results — M7.0 security & correctness hardening (2026-10-20)
 
 All results below were **executed**, not estimated. Synthetic data only.

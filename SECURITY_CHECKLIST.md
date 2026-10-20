@@ -1,4 +1,4 @@
-# Security Checklist — through M7.0 (OWASP ASVS 5.0-oriented)
+# Security Checklist — through M7.1 + AI-0 (OWASP ASVS 5.0-oriented)
 
 **Legend:** ✅ implemented + tested · 🟡 partial/documented limitation · ⬜ pending.
 This checklist is *engineering self-assessment only*. Independent security
@@ -29,8 +29,12 @@ review, DPDP/ABDM/CDSCO legal assessment and clinical safety review are
   login, MFA, register, refresh, password reset, invitation accept; 429 +
   Retry-After. Account lockout after 5 failures/15 min keyed by the submitted
   e-mail — identical for unknown e-mails, so lockout reveals nothing (tested)
-- 🟡 MFA is available to every user but not yet *mandatory* per role/tenant
-  (policy switch planned with the M7.1 admin settings)
+- ✅ Role-aware mandatory MFA per tenant (`mfa_required_roles`): until the
+  user enrols, every endpoint outside `/auth/` answers 403
+  `mfa_enrollment_required` (M7.1, tested + E2E)
+- ✅ Rate limits use a sliding-window estimate; the lockout check counts
+  conservatively across two windows so failures straddling a boundary
+  cannot escape it (M7.1 fix, deterministic boundary test)
 
 ## Authorization & tenancy
 - ✅ RBAC permission checks server-side per route (tested incl. negative 403s)
@@ -54,7 +58,38 @@ review, DPDP/ABDM/CDSCO legal assessment and clinical safety review are
   (no audit row → 500, no data) (H18, M7.0, tested)
 - ✅ `insert_audit_event` tenancy guard fixed (an empty org context no longer
   bypasses it — migration 0009, raw-SQL proof)
+- ✅ Platform (vendor) console: only `is_superadmin` users, MFA-enrolled
+  outside development; the transaction-local `app.platform_admin` flag opens
+  the commercial tables only (organisations, plans, subscriptions, support);
+  PHI tables keep tenant-only RLS — the console sees aggregate counts via a
+  SECURITY DEFINER function and reads 0 patient rows (raw proof). Platform
+  actions are audited. Super-admin can never be granted through the API
+- ✅ Tenants cannot alter their own plan/subscription, even with direct SQL
+  as the app role (tested)
+- ✅ Edition features and limits enforced server-side (403/409), lapsed
+  subscriptions are read-only (402 on writes) — UI hiding is cosmetic only
+- ✅ Tenant data export excludes secrets: token hashes are dropped and the
+  `users` table (password hashes, MFA seeds) is not exported
+- ⬜ Consented, audited support impersonation — not built (console has none)
 - ⬜ Purpose-of-use capture and periodic access reviews (later phases)
+
+## AI governance (AI-0)
+- ✅ Global kill switches `AI_ENABLED` / `AI_LIVE_ENABLED` (live **off** by
+  default — zero outbound calls, tested); per-tenant opt-in
+- ✅ Data classes C0–C3 with a per-provider ceiling, checked **before** any
+  call; C3 (identifiable clinical) only to an India self-hosted provider
+- ✅ Copilot never sends records to a model: the model only picks a
+  whitelisted function; figures are computed in the API from the tenant's
+  own data. Question text is redacted (e-mails, Indian mobile numbers,
+  UHIDs, 12-digit ID numbers) before any live call; prompt-injection set
+  cannot escape the catalogue
+- 🟡 Free-text **personal names are not redacted** by the pattern-based
+  redactor — a live provider must stay at data class ≤ C1 and a name/NER
+  redactor is required before enabling live Copilot
+- ✅ Append-only, AES-GCM-sealed `ai_requests` audit; append-only credit
+  ledger under an advisory lock (no overspend under concurrency, tested)
+- 🟡 Inference is **mock (rule-based)**; no AI provider contract, DPA or
+  residency review yet — owner approval required before live use
 
 ## Sessions & transport
 - ✅ Session-bound tokens; server-side revocation; expiry columns indexed
@@ -108,9 +143,9 @@ review, DPDP/ABDM/CDSCO legal assessment and clinical safety review are
 ## Application hardening
 - ✅ Input validation via Pydantic (`extra=forbid`, strict types, slug/code regexes)
 - ✅ Generic 500 handler (no stack traces to clients; logged server-side)
-- ✅ Ruff lint + 164 API tests (incl. failure paths, raw-SQL guard proofs,
-  concurrency tests), web ESLint + 43 unit + 5 Playwright E2E, 91 Flutter
-  tests — all CI gates (M7.0)
+- ✅ Ruff lint + 200 API tests (incl. failure paths, raw-SQL guard proofs,
+  concurrency tests), web ESLint + 69 unit + 15 Playwright E2E, 121 Flutter
+  tests — all CI gates, green on GitHub Actions runs 30/31 (M7.1)
 - ✅ Dependency licence register + SBOM (LICENSES.md); **no AGPL dependencies**
 - ✅ Python dependencies fully pinned with sha256 hashes
   (`apps/api/requirements*.lock`); CI and the API image install with
