@@ -727,7 +727,7 @@
           "patients"
         ],
         "summary": "Merge Patient",
-        "description": "Supervised duplicate resolution: source record is retired into target.\n\nNothing is deleted — the source keeps its UHID, points at the survivor\n(``merged_into_id``) and becomes read-only; both sides are audited.",
+        "description": "Supervised duplicate resolution: source record is retired into target.\n\nNothing is deleted — the source keeps its UHID, points at the survivor\n(``merged_into_id``) and becomes read-only; both sides are audited.\n\nClinical safety data travels with the merge (M7.0 / H3):\n* the source's allergies are unioned into the survivor's list (and the\n  allergy gate additionally reads every record merged into a patient);\n* OPEN work is re-pointed to the survivor: scheduled/checked-in\n  appointments, active queue entries, the open encounter, draft\n  prescriptions and draft invoices;\n* FROZEN history stays on the retired record, reachable through\n  ``merged_into_id``: completed encounters, signed prescriptions, issued\n  invoices, lab orders and admissions (their patient_id is frozen by DB\n  trigger — re-writing signed clinical/financial documents is exactly\n  what those triggers forbid). The counts are recorded in the audit event.",
         "operationId": "merge_patient_api_v1_patients__patient_id__merge_post",
         "security": [
           {
@@ -1901,6 +1901,24 @@
             "HTTPBearer": []
           }
         ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2248,6 +2266,24 @@
         "security": [
           {
             "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
           }
         ],
         "requestBody": {
@@ -7981,6 +8017,14 @@
             "format": "date-time",
             "title": "Created At"
           },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LabOrderItemOut"
+            },
+            "type": "array",
+            "title": "Items",
+            "default": []
+          },
           "specimens": {
             "items": {
               "$ref": "#/components/schemas/LabSpecimenOut"
@@ -8066,6 +8110,41 @@
           "test_ids"
         ],
         "title": "LabOrderIn"
+      },
+      "LabOrderItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "test_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Test Id"
+          },
+          "test_code": {
+            "type": "string",
+            "title": "Test Code"
+          },
+          "test_name": {
+            "type": "string",
+            "title": "Test Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "test_id",
+          "test_code",
+          "test_name",
+          "status"
+        ],
+        "title": "LabOrderItemOut"
       },
       "LabResultOut": {
         "properties": {
@@ -9277,6 +9356,36 @@
         ],
         "title": "PaymentOut"
       },
+      "PrescriberOut": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "registration_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registration Number"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "full_name"
+        ],
+        "title": "PrescriberOut"
+      },
       "PrescriptionDetailOut": {
         "properties": {
           "id": {
@@ -9382,6 +9491,16 @@
             "type": "array",
             "title": "Items",
             "default": []
+          },
+          "prescriber": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PrescriberOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -9977,6 +10096,19 @@
             "maxLength": 500,
             "title": "Instructions",
             "default": ""
+          },
+          "dispense_quantity": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dispense Quantity"
           }
         },
         "additionalProperties": false,
@@ -10033,6 +10165,32 @@
           "seq": {
             "type": "integer",
             "title": "Seq"
+          },
+          "dispense_quantity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dispense Quantity"
+          },
+          "drug_name": {
+            "type": "string",
+            "title": "Drug Name",
+            "default": ""
+          },
+          "generic_name": {
+            "type": "string",
+            "title": "Generic Name",
+            "default": ""
+          },
+          "strength": {
+            "type": "string",
+            "title": "Strength",
+            "default": ""
           }
         },
         "type": "object",
