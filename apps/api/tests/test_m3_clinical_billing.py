@@ -13,7 +13,7 @@ import itertools
 import uuid
 
 import psycopg2
-from tests.conftest import APP_PASSWORD, PG_HOST, PG_PORT, _auth
+from tests.conftest import APP_PASSWORD, PG_HOST, PG_PORT, TEST_DB, _auth
 
 _seq = itertools.count(1)
 
@@ -25,7 +25,7 @@ def _app_conn():
     local, and trigger errors need SAVEPOINT recovery inside one txn."""
     return psycopg2.connect(
         host=PG_HOST, port=PG_PORT, user="hms_app", password=APP_PASSWORD,
-        dbname="hms_test",
+        dbname=TEST_DB,
     )
 
 
