@@ -30,6 +30,10 @@ import { QUICK_SEARCH_ID } from "./ShellBits";
 
 const ShortcutsDialog = dynamic(() => import("./ShortcutsDialog"), { ssr: false });
 
+/** Next keeps a full prefetch for 5 minutes; refresh a little before that. */
+const PREFETCH_TTL_MS = 4 * 60_000;
+const prefetchedAt = new Map<string, number>();
+
 // ------------------------------------------------------- chrome / phones ---
 export default function DeviceChrome({
   nav,
@@ -71,8 +75,18 @@ export default function DeviceChrome({
   useEffect(() => {
     const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
     if (conn?.saveData) return;
-    const hrefs = prefetchKey.split(" ").filter((h) => h && h !== pathname);
-    const run = () => hrefs.forEach((h) => router.prefetch(h));
+    const now = Date.now();
+    // Once per route per PREFETCH_TTL_MS: every page mounts its own shell, and
+    // re-prefetching on each navigation competed with the page's own requests.
+    const hrefs = prefetchKey
+      .split(" ")
+      .filter((h) => h && h !== pathname && now - (prefetchedAt.get(h) ?? 0) > PREFETCH_TTL_MS);
+    if (hrefs.length === 0) return;
+    const run = () =>
+      hrefs.forEach((h) => {
+        prefetchedAt.set(h, Date.now());
+        router.prefetch(h);
+      });
     const w = window as Window & {
       requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
       cancelIdleCallback?: (id: number) => void;

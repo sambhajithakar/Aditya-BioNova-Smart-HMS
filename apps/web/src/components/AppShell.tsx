@@ -106,6 +106,12 @@ export function AppShell({
             return;
           }
           if (!m.mfa_enrollment_required) setMfaForced(false);
+          // Unchanged member → keep the same object, so pages whose effects
+          // depend on `me` do not refetch their data after re-validation.
+          if (cachedMe && JSON.stringify(cachedMe) === JSON.stringify(m)) {
+            setMe(cachedMe);
+            return;
+          }
           cachedMe = m;
           setMe(m);
         })

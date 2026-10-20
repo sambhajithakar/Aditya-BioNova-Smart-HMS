@@ -58,6 +58,21 @@ html, body {
   .app-header .quick-search input[type="search"] { width: 12rem; }
 }
 
+/* Grid/flex children may shrink below their content's min-content width, so a
+   wide (nowrap, scrollable) table scrolls inside its card instead of widening
+   the page. Without this, phones zoom the whole layout out (layout viewport
+   grows past 360 px) and the fixed bottom bar slides partly off-screen. */
+.grid > *, .row > * { min-width: 0; }
+.card { max-width: 100%; }
+/* Form controls inside table cells (e.g. invoice line items) fill their cell
+   instead of keeping the browser's ~20-character intrinsic width, which made
+   the Billing line table ~1440 px wide on 800–1280 px screens. */
+td > input:not([type="checkbox"]):not([type="radio"]),
+td > select {
+  width: 100%;
+  min-width: 3.5rem;
+}
+
 /* bottom navigation (phones only) */
 .bottom-nav { display: none; }
 @media (max-width: 767.98px) {

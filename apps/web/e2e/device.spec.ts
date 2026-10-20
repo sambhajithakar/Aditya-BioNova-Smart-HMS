@@ -62,8 +62,18 @@ function watchCsp(page: Page, sink: string[]) {
   page.on("pageerror", (e) => sink.push(`pageerror: ${e.message}`));
 }
 
+/**
+ * Page width beyond the DEVICE width. Compared with the configured viewport,
+ * not clientWidth: in mobile emulation (as on real phones) an overflowing page
+ * widens the layout viewport itself, so clientWidth grows with the content.
+ */
 async function noHorizontalOverflow(page: Page): Promise<number> {
-  return page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  const device = page.viewportSize()!.width;
+  return page.evaluate(
+    (w) =>
+      Math.max(document.documentElement.scrollWidth, document.documentElement.clientWidth, window.innerWidth) - w,
+    device,
+  );
 }
 
 /** Visible inputs/selects/textareas/buttons without an accessible name. */
@@ -190,6 +200,18 @@ test.describe("phone 360×640 (touch)", () => {
     watchCsp(page, csp);
     mkdirSync(SHOTS, { recursive: true });
     const c = await registerClinic(request, "phone");
+    // Real rows (synthetic people): an empty list hides table-width overflow.
+    for (const [name, phone] of [
+      ["Venkatesh Raghunath Kulkarni-Deshpande", "9000000101"],
+      ["Asha Patil", "9000000102"],
+      ["Mohammed Imran Shaikh", "9000000103"],
+    ]) {
+      const r = await request.post(`${API}/api/v1/patients`, {
+        data: { full_name: name, gender: "other", phone, allow_duplicates: true },
+        headers: { Authorization: `Bearer ${c.token}` },
+      });
+      expect(r.status(), await r.text()).toBe(201);
+    }
     await signIn(page, c);
 
     const bar = page.getByTestId("bottom-nav");
@@ -370,5 +392,34 @@ test("print: @page sizes A4 / A5 / 80 mm are what Chromium prints", async ({ pag
     else expect(Number(box[2]), "80 mm roll length").toBeLessThan(600);
     const pages = (pdf.match(/\/Type\s*\/Page[^s]/g) || []).length;
     expect(pages, `${paper} fits on one page`).toBe(1);
+  }
+});
+
+// ----------------------------------------------- tablet / netbook / laptop ---
+test("tablet 800×1280 (touch), netbook 1024×600, laptop 1366×768: top nav, no overflow", async ({
+  browser,
+  request,
+}) => {
+  const c = await registerClinic(request, "sizes");
+  mkdirSync(SHOTS, { recursive: true });
+  const sizes: [string, number, number, boolean][] = [
+    ["tablet", 800, 1280, true],
+    ["netbook", 1024, 600, false],
+    ["laptop", 1366, 768, false],
+  ];
+  for (const [name, width, height, touch] of sizes) {
+    const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch });
+    const page = await ctx.newPage();
+    await signIn(page, c);
+    await expect(page.locator(".layout-nav")).toBeVisible();
+    await expect(page.getByTestId("bottom-nav")).toBeHidden();
+    for (const path of ["/dashboard", "/patients", "/billing", "/consultation", "/ipd"]) {
+      await page.goto(path);
+      await expect(page.locator("main.page").first()).toBeVisible();
+      await page.waitForTimeout(200);
+      await page.screenshot({ path: `${SHOTS}/${name}-${width}x${height}${path.replace(/\//g, "_")}.png` });
+      expect(await noHorizontalOverflow(page), `overflow on ${path} at ${name}`).toBeLessThanOrEqual(1);
+    }
+    await ctx.close();
   }
 });
