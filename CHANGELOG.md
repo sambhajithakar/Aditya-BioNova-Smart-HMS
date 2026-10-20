@@ -1,5 +1,39 @@
 # Changelog
 
+## M7.2 + Comms v2 + Smart Setup + AI-1 + Offline v2 + Device/PWA (2026-10-20, review branch)
+
+- **SaaS billing (M7.2)**
+  - Payments: Razorpay TEST mode or a local simulator (development only).
+  - Pricing: server-computed prices with GST, FY invoice series, credit notes.
+  - Safety: idempotent orders, HMAC-verified checkout and webhook, exactly-once fulfilment.
+  - Recovery: retry after a failed payment; refunds need vendor approval (four-eyes).
+  - Lifecycle and accounts: trial → paid → past-due → read-only; reconciliation; AI credit packs; billing pages for clinics and for the vendor.
+  - Live payments are impossible by configuration.
+- **Communications v2**
+  - Templates in three languages, with no clinical content allowed.
+  - Consent and opt-out per patient and channel.
+  - Quiet hours, plan quotas and a spend cap.
+  - An append-only delivery log.
+  - Idempotent appointment reminders, clinician-directed follow-ups and missed-appointment tracking.
+  - Delivery is mock only.
+- **Smart Setup Wizard; QR check-in; printer profiles**
+  - QR check-in uses an opaque single-use code, with no patient data in the QR.
+  - Printer profiles for A4 / A5 / 80 mm / 58 mm, a test page, and printing with the saved profile.
+- **AI-1**
+  - Statistical forecasts for OPD, beds, pharmacy demand and no-show risk, with backtests.
+  - A BM25 knowledge assistant over approved standard operating procedures, with cited answers.
+  - Agent proposals that need human approval.
+  - A consent-gated Clinical Scribe that produces a draft SOAP note (transcription is mock).
+  - docs/AI_EVALUATION.md.
+- **Android offline-first v2**
+  - Eight sync states, a dependency-ordered outbox, and human conflict resolution.
+  - Device revocation, home screens per role, and finalising actions blocked while offline.
+  - Barcode scanning, draft and signed PDFs, and demo APKs that now build.
+- **Web device optimisation**
+  - Phone bottom navigation, keyboard shortcuts and a connectivity banner.
+  - An installable PWA whose service worker caches no patient data.
+  - A paper picker, plus emulated device and performance reports (17–29% faster across all module navigations).
+
 ## M7.1 + AI-0 (2026-10-20) — tenant administration, editions, platform console, Business Copilot (review branch)
 
 ### Tenant administration

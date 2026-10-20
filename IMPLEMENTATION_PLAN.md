@@ -12,7 +12,11 @@ Owner decisions of 2026-10-20 are applied (see TASKS.md).
 | M7.0 hardening | ✅ done (C1–C3, H1–H24 except H10 → M9) |
 | M7.1 identity, tenant admin, editions, entitlements, platform console, support | ✅ done |
 | AI-0 AI gateway governance + Business Copilot | ✅ done — **mock inference only**; live provider awaits owner approval |
-| M7.2 payments (Razorpay sandbox), trials → paid, invoices, credits, reseller tracking | ⏭ next |
+| M7.2 SaaS billing (Razorpay sandbox / simulator), trials → paid, GST invoices, refunds, credits | ✅ done (reseller tracking, auto-debit and proration not done) |
+| Comms v2, follow-up CRM, setup wizard, QR check-in, printers | ✅ done (mock delivery) |
+| AI-1 forecasting, knowledge assistant, agent proposals, scribe drafts | ✅ done (statistical models + mock inference) |
+| Android offline v2 + demo APK; web responsive/PWA | ✅ done (no real-device QA yet) |
+| **Next:** M8 GST patient billing 2.0 + pharmacy sales billing (H10), M11 hospital depth (OT/ER/TPA, IPD billing), real-device QA | ⏭ |
 | M8–M14 | planned, unchanged below |
 
 ## 1. Principles

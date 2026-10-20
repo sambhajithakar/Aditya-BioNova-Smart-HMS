@@ -13,7 +13,12 @@ role-based access, audit trails and a commercial SaaS business layer.
 > entitlements, limits, a vendor platform console and support; AI-0 added a
 > governed AI gateway and a trilingual Business Copilot that currently runs
 > on **mock (rule-based) inference only — no AI provider is connected**.
-> Payments are not connected. See [TASKS.md](TASKS.md),
+> M7.2 added SaaS billing (Razorpay **test mode / local simulator only**),
+> communications v2 (**mock delivery**), the setup wizard, QR check-in,
+> printer profiles, AI-1 (statistical forecasts + cited knowledge search +
+> human-approved agent proposals + scribe drafts), the offline-first Android
+> app v2 (demo APK builds) and a responsive/PWA web shell. Release gates:
+> [docs/RELEASE_READINESS.md](docs/RELEASE_READINESS.md). See [TASKS.md](TASKS.md),
 > [docs/COMMERCIAL_FEATURE_MATRIX.md](docs/COMMERCIAL_FEATURE_MATRIX.md) and
 > [docs/AI_ARCHITECTURE.md](docs/AI_ARCHITECTURE.md).
 > This software is **not production-ready, not certified and not clinically
@@ -70,10 +75,11 @@ docker compose -f infra/docker/docker-compose.yml up --build
 
 ```bash
 ruff check apps/api --select F,E --line-length 100
-cd apps/api && pytest                      # 200 tests: auth/MFA, RBAC, RLS, clinical, billing, SaaS, AI
-cd apps/web && npm run lint && npm test && npm run build   # ESLint, 69 unit tests
-cd apps/web && npx playwright test         # 15 E2E against a live, seeded API (see playwright.config.ts)
-cd apps/mobile && flutter analyze && flutter test          # 121 tests
+cd apps/api && pytest                      # 299 tests: auth/MFA, RBAC, RLS, clinical, billing, SaaS, comms, AI
+cd apps/web && npm run lint && npm test && npm run build   # ESLint, 150 unit tests
+cd apps/web && npx playwright test         # 27 E2E against a live, seeded API (see playwright.config.ts)
+cd apps/mobile && flutter analyze && flutter test          # 174 tests
+cd apps/mobile && flutter build apk --release --split-per-abi   # demo APKs (debug certificate)
 ./scripts/backup_restore_drill.sh          # encrypted backup -> restore -> compare
 ```
 

@@ -1,4 +1,4 @@
-# Security Checklist — through M7.1 + AI-0 (OWASP ASVS 5.0-oriented)
+# Security Checklist — through M7.2, comms v2, setup/check-in, AI-1, offline v2 (OWASP ASVS 5.0-oriented)
 
 **Legend:** ✅ implemented + tested · 🟡 partial/documented limitation · ⬜ pending.
 This checklist is *engineering self-assessment only*. Independent security
@@ -143,9 +143,9 @@ review, DPDP/ABDM/CDSCO legal assessment and clinical safety review are
 ## Application hardening
 - ✅ Input validation via Pydantic (`extra=forbid`, strict types, slug/code regexes)
 - ✅ Generic 500 handler (no stack traces to clients; logged server-side)
-- ✅ Ruff lint + 200 API tests (incl. failure paths, raw-SQL guard proofs,
-  concurrency tests), web ESLint + 69 unit + 15 Playwright E2E, 121 Flutter
-  tests — all CI gates, green on GitHub Actions runs 30/31 (M7.1)
+- ✅ Ruff lint + 299 API tests (incl. failure paths, raw-SQL guard proofs,
+  concurrency tests), web ESLint + 150 unit + 27 Playwright E2E, 174 Flutter
+  tests, APK build — all CI gates (M7.2 integration, 2026-10-20)
 - ✅ Dependency licence register + SBOM (LICENSES.md); **no AGPL dependencies**
 - ✅ Python dependencies fully pinned with sha256 hashes
   (`apps/api/requirements*.lock`); CI and the API image install with
@@ -166,6 +166,31 @@ review, DPDP/ABDM/CDSCO legal assessment and clinical safety review are
   secrets — hadolint clean; built and smoke-tested in CI (run 14)
 - ⬜ Container image scanning (Trivy), SBOM generation, CodeQL/SAST
 - ⬜ OWASP ASVS 5.0 full pass + independent penetration test (pre-launch gate)
+
+## SaaS billing (M7.2)
+- ✅ Amounts computed server-side only; client amounts rejected (extra=forbid)
+- ✅ Checkout and webhook HMAC signatures verified (constant-time); webhook
+  events de-duplicated; amount/currency must match the order
+- ✅ Exactly-once fulfilment (row lock + unique payment id), tested with 4
+  concurrent captures; webhook DB work off the event loop (deadlock fixed)
+- ✅ Live Razorpay keys refused at startup; simulator refused outside dev
+- ✅ Payments, invoices, webhook events append-only; orders/refunds forward-
+  only (triggers); refund four-eyes enforced in API and DB
+- ✅ Tenant RLS on billing tables; tenants can only create fresh orders and
+  refund requests; state changes only under the platform flag
+- 🟡 The platform flag is an application-level GUC (same model as M7.1);
+  a DB-level SECURITY DEFINER fulfilment function would be stronger
+
+## Communications, check-in, offline
+- ✅ Messages need explicit per-channel consent; opt-out wins; no clinical
+  placeholders; delivery log append-only; mock-only delivery
+- ✅ QR check-in: opaque random code, only SHA-256 stored, single-use,
+  cross-tenant indistinguishable 404, rate-limited, audited; QR has no PHI
+- ✅ Android: cached PHI bounded + encrypted; wiped on revocation; unsynced
+  drafts sealed until the same user signs in; finalisation never offline
+- ✅ Web PWA: service worker never caches /api or HTML; caches cleared on
+  logout; offline page has its own script-free CSP
+- 🟡 Android scanner pulls Google ML Kit (proprietary, free) and adds CAMERA
 
 ## Clinical safety boundaries
 - ✅ No clinical decision support, no AI prescribing in this codebase

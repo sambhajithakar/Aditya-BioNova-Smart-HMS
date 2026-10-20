@@ -1,3 +1,101 @@
+# Test Results — M7.2 billing, comms v2, setup/QR check-in, AI-1, offline-first Android, device/PWA (2026-10-20)
+
+All of the following were **executed** on the merged branch, using synthetic data only. All but the last two rows were run on 2026-10-20 at commit `0a8d1c7`. The CI row is a different run, on commit `0a2424d`.
+
+| Suite | Command | Result |
+|---|---|---|
+| API lint | `ruff check apps/api --select F,E --line-length 100` | ✅ clean |
+| API tests | `cd apps/api && pytest` | ✅ **299 passed, 0 failed** (200 after M7.1); coverage **94%** (11,683 statements) |
+| Migrations | upgrade → downgrade base → upgrade, `alembic check` | ✅ single head `0016`, no drift |
+| Backup/restore drill | `scripts/backup_restore_drill.sh` | ✅ **668/668 rows**; RLS, policies, triggers and grants identical |
+| Web | `npm run typecheck && npm run lint && npm test` | ✅ 0 errors; **150 unit tests passed** |
+| Web E2E (live API + PostgreSQL + Chromium) | `npx playwright test` | ✅ **27/27** |
+| Mobile | `flutter analyze && flutter test` | ✅ no issues; **174 passed** |
+| Android APK | `flutter build apk --release` (+ `--split-per-abi`) | ✅ built; `apksigner verify` OK. Universal 75.3 MB, armeabi-v7a 23.3 MB, arm64-v8a 27.3 MB. Debug certificate; **not run on a device** |
+| Secret scan | gitleaks, full history | ✅ after allow-listing 2 reviewed synthetic test codes |
+| GitHub Actions | run 44 (`0a2424d`) | ✅ API, web, E2E, mobile, Docker, contracts, drill, audit and the APK artifact. Gitleaks was red there and is fixed in `181803f` |
+
+### New automated coverage
+| Area | Tests | Highlights |
+|---|---|---|
+| SaaS billing (M7.2) | 18 API + 8 web unit + 1 E2E | see below |
+| Comms v2 + follow-ups | 16 API + web unit + 2 E2E | see below |
+| Setup wizard / QR check-in / printers | 20 API + web unit (QR encoder checked against segno) + E2E | see below |
+| AI-1 | 45 API (engines, API, evaluation) + web unit | see below |
+| Android offline v2 | +53 Flutter | see below |
+| Device / PWA | 39 web unit + 7 E2E | see below |
+
+SaaS billing (M7.2):
+- GST maths, and pricing computed only on the server
+- idempotent orders
+- forged signatures rejected
+- webhook replay, amount mismatch, and 4 concurrent captures → exactly one fulfilment
+- failed-payment retry, and a read-only clinic can still pay
+- AI credit packs
+- refund four-eyes rule (API and database)
+- append-only financial records
+- tenant RLS
+- lifecycle past-due → read-only
+- reconciliation
+- Razorpay adapter against a fake HTTP server
+- live keys and production simulator refused
+
+Comms v2 + follow-ups:
+- placeholder whitelist
+- opt-out wins
+- quiet hours
+- quota and spend cap
+- reminder idempotency
+- append-only delivery log
+- follow-up lifecycle
+- missed appointments
+
+Setup wizard / QR check-in / printers:
+- the QR code is opaque and stored hashed
+- single use; duplicate and concurrent confirm return one queue entry
+- a code from another clinic gets 404
+- expiry
+- printer profiles
+
+AI-1:
+- forecasts beat the naive baselines, except pharmacy demand (reported)
+- no-show risk, AUC 0.686 vs 0.643
+- knowledge search hit@3 = 1.00
+- 13/13 prompt-injection attempts resisted
+- scribe section accuracy 0.842 on held-out transcripts
+
+Android offline v2:
+- dependency ordering, id rewrite
+- crash recovery with a stable idempotency key
+- backoff, poison isolation
+- conflicts, revocation wipe
+- 5,000-operation run
+- QR client matches the real `/checkin/confirm`
+
+Device / PWA:
+- shortcut parser
+- service worker never caches `/api`
+- offline fallback
+- 360 px layout
+- print sizes
+
+### Defects found and fixed during integration
+- **Webhook deadlock.** Async webhook handlers ran blocking database work on the event loop; under concurrent webhooks a lock wait froze the server. The work now runs in the threadpool, and the concurrency test proved the fix.
+- **APK had never built.** The Android namespace and application id literally contained `` `in` `` (a Kotlin escape), which AGP 9 rejects. Fixed to `com.adityabionova.smarthms`.
+- **Migration drift.** The comms, setup and AI-1 models did not declare their indexes, so `alembic check` would have failed CI. The indexes are now declared.
+- **Check-in contract mismatch.** The mobile check-in client targeted a hypothetical `/opd/check-in`; it now calls the real `/checkin/confirm`.
+- **Plan usage showed zero sends.** SMS/WhatsApp usage was hard-coded to 0; it now counts real sends from the delivery log.
+- **Duplicate printer test pages.** Both workstreams built one; `/print/test` now uses the saved printer profile and `/print/paper-test` is the paper-size sheet.
+- **Production settings rejected.** Production would have refused to start because of the simulator default; the provider now defaults to razorpay outside development.
+
+### Not verified (honest gaps)
+- **No real devices.** There was no physical Android device, Windows laptop or printer. Device results come from Chromium emulation (docs/DEVICE_COMPATIBILITY.md).
+- **Razorpay test mode** was not exercised against Razorpay's servers: there were no test keys, and api.razorpay.com was unreachable from here.
+- **No live AI, ASR, OCR, e-mail, SMS or WhatsApp.**
+- **Not done yet:** load test, penetration test, clinical validation, legal review.
+
+---
+
 # Test Results — M7.1 tenant administration & SaaS foundation + AI-0 (2026-10-20)
 
 All results **executed** on commit `9bb5c28`+docs (synthetic data only). Same
