@@ -165,6 +165,9 @@ jobs:
       MIGRATION_DATABASE_URL: postgresql+psycopg2://hms:change_me@127.0.0.1:5433/hms_dev
       ENVIRONMENT: development   # synthetic data; enables the mock comms outbox
       CORS_ORIGINS: '["http://localhost:3000"]'
+      # every E2E test registers its own clinic from one IP; throttling itself
+      # is covered by the API suite (test_m7_security.py)
+      RL_REGISTER_PER_IP: "10000"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:

@@ -90,7 +90,7 @@ Database at Alembic head **0010** (catalog read from PostgreSQL 16). Files in `a
 |---|---|---|---|---|
 | [admission_transfers](#admission_transfers) | yes | 1 | 1 | SELECT, INSERT |
 | [admissions](#admissions) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
-| [alembic_version](#alembic_version) | **no** | 0 | 0 | SELECT, INSERT, UPDATE, DELETE |
+| [alembic_version](#alembic_version) | **no** | 0 | 0 | SELECT |
 | [appointments](#appointments) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [audit_events](#audit_events) | yes | 2 | 1 | SELECT, INSERT |
 | [auth_sessions](#auth_sessions) | **no** | 0 | 0 | SELECT, INSERT, UPDATE, DELETE |
@@ -247,7 +247,7 @@ Database at Alembic head **0010** (catalog read from PostgreSQL 16). Files in `a
 ### alembic_version
 
 - Row-level security: **disabled**
-- Grants for hms_app: SELECT, INSERT, UPDATE, DELETE
+- Grants for hms_app: SELECT
 
 | Column | Type | Nullable | Default |
 |---|---|---|---|

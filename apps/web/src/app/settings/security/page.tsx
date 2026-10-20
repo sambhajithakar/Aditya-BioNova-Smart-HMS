@@ -29,6 +29,9 @@ function SecurityBody() {
   const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [regNo, setRegNo] = useState("");
+  // the field stays disabled until the stored value has loaded, so a late
+  // response can never overwrite what the user has started typing
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -42,6 +45,7 @@ function SecurityBody() {
       setStatus(s);
       setSessions(list);
       setRegNo(me.user.registration_number ?? "");
+      setProfileLoaded(true);
     } catch (err) {
       setError(msg(err, t("loadFailed")));
     }
@@ -265,12 +269,13 @@ function SecurityBody() {
               type="text"
               maxLength={60}
               value={regNo}
+              disabled={!profileLoaded}
               onChange={(e) => setRegNo(e.target.value)}
               pattern="^[A-Za-z0-9][A-Za-z0-9 ./\-]{1,59}$"
             />
           </label>
           <p className="muted">{t("registrationHint")}</p>
-          <button type="submit" className="primary" disabled={busy}>
+          <button type="submit" className="primary" disabled={busy || !profileLoaded}>
             {t("saveProfile")}
           </button>
         </form>

@@ -86,7 +86,7 @@ it does not exist in staging or production builds.
 
 ## Endpoints
 
-Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 113 operations in 18 tags.
+Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 114 operations in 18 tags.
 
 ### Summary
 
@@ -101,6 +101,7 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 113 op
 | auth | POST | `/api/v1/auth/login` | public |  |
 | auth | POST | `/api/v1/auth/logout` | authenticated |  |
 | auth | GET | `/api/v1/auth/me` | authenticated |  |
+| auth | PATCH | `/api/v1/auth/me` | authenticated |  |
 | auth | POST | `/api/v1/auth/mfa/disable` | authenticated |  |
 | auth | GET | `/api/v1/auth/mfa/status` | authenticated |  |
 | auth | POST | `/api/v1/auth/mfa/totp/enable` | authenticated |  |
@@ -314,6 +315,15 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 113 op
 - Permission: authenticated
 - operationId: `me_api_v1_auth_me_get`
 - Request body: -
+- Response: `200 MeOut`
+
+#### `PATCH /api/v1/auth/me`
+
+**Update Me** - Self-service profile: display name and professional registration
+
+- Permission: authenticated
+- operationId: `update_me_api_v1_auth_me_patch`
+- Request body: `ProfileUpdateIn`
 - Response: `200 MeOut`
 
 #### `POST /api/v1/auth/mfa/disable`
@@ -2323,6 +2333,7 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `user_id`* | string(uuid) |
 | `email`* | string(email) |
 | `full_name`* | string |
+| `registration_number` | string \| null |
 | `role_key`* | string |
 | `branch_id`* | string(uuid) \| null |
 | `status`* | string |
@@ -2332,6 +2343,7 @@ Field lists of the request/response schemas referenced above (`*` = required).
 
 | Field | Type |
 |---|---|
+| `registration_number` | string \| null |
 | `role_key` | string \| null |
 | `status` | string \| null |
 | `branch_id` | string(uuid) \| null |
@@ -2570,6 +2582,13 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `advice` | string |
 | `follow_up` | string |
 | `items`* | list[RxItemIn] |
+
+### ProfileUpdateIn
+
+| Field | Type |
+|---|---|
+| `full_name` | string \| null |
+| `registration_number` | string \| null |
 
 ### QueueEntryOut
 
@@ -2827,6 +2846,7 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `email`* | string(email) |
 | `full_name`* | string |
 | `status`* | string |
+| `registration_number` | string \| null |
 
 ### ValidationError
 
