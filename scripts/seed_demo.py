@@ -158,6 +158,25 @@ def seed_tenant(c: TestClient, idx: int, slug: str, name: str, plan: str, domain
             "test_ids": [t["id"] for t in tests[:2]], "clinical_notes": "Routine check (demo)",
         }, headers=h), 201, "lab order")
 
+    # synthetic OPD billing: a few paid consultations (feeds reports & Copilot)
+    for k, p in enumerate(patients[:4]):
+        fee = 300 + 100 * k
+        inv = ok(c.post("/api/v1/billing/invoices", json={
+            "patient_id": p["id"], "branch_id": b,
+            "items": [{"item_type": "consultation", "description": "OPD consultation (demo)",
+                       "quantity": 1, "unit_price": fee, "tax_rate": 0}],
+        }, headers=h), 201, "invoice")
+        ok(c.post(f"/api/v1/billing/invoices/{inv['id']}/issue", headers=h), 200, "issue")
+        ok(c.post(f"/api/v1/billing/invoices/{inv['id']}/payments",
+                  json={"amount": fee, "method": "upi" if k % 2 else "cash"}, headers=h),
+           201, "payment")
+    if "pharmacy" in modules:  # editions with the expenses module
+        for cat, amt in (("supplies", 1200), ("utilities", 2500)):
+            ok(c.post("/api/v1/expenses", json={
+                "branch_id": b, "category": cat, "amount": amt,
+                "expense_date": date.today().isoformat(),
+                "description": f"{cat.title()} (synthetic demo)"}, headers=h), 201, "expense")
+
     ok(c.post("/api/v1/support/tickets", json={
         "subject": "How do I print an A5 receipt? (demo)", "category": "technical",
         "body": "Synthetic demo ticket — no patient data."}, headers=h), 201, "ticket")

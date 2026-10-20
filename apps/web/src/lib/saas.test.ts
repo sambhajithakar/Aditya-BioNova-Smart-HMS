@@ -194,6 +194,7 @@ describe("feature-gated navigation", () => {
       inventory: "inventory",
       expenses: "expenses",
       reports: "reports_basic",
+      copilot: "ai_copilot",
     });
     for (const f of Object.values(map)) expect(FEATURE_KEYS).toContain(f);
   });
