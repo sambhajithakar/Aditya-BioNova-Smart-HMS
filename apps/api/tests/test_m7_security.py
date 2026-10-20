@@ -713,3 +713,47 @@ def test_comms_outbox_is_append_only_for_app_role(client):
     finally:
         db.rollback()
         db.close()
+
+
+# --- profile / registration number (printed on prescriptions) ------------------------
+def test_registration_number_self_service_and_admin(client):
+    org = _fresh_org(client)
+    h = _auth(org)
+    r = client.patch("/api/v1/auth/me", json={"registration_number": "MMC 2014/05/1234"},
+                     headers=h)
+    assert r.status_code == 200, r.text
+    assert r.json()["user"]["registration_number"] == "MMC 2014/05/1234"
+    assert client.patch("/api/v1/auth/me", json={"registration_number": "<script>"},
+                        headers=h).status_code == 422
+    email = f"doc{next(_seq)}@staff.example.com"
+    mid = client.post("/api/v1/members", json={
+        "email": email, "full_name": "Dr Synthetic", "password": PASSWORD,
+        "role_key": "doctor"}, headers=h).json()["membership_id"]
+    upd = client.patch(f"/api/v1/members/{mid}", json={"registration_number": "KMC-778899"},
+                       headers=h)
+    assert upd.status_code == 200 and upd.json()["registration_number"] == "KMC-778899"
+    actions = [a for a, *_ in _audit_actions(org["organization"]["id"])]
+    assert "user.profile_updated" in actions
+
+
+def test_error_bodies_carry_correlation_id_and_keep_headers(client):
+    r = client.get("/api/v1/auth/me", headers={"X-Request-ID": "corr-401"})
+    assert r.status_code == 401
+    assert r.json() == {"detail": "Not authenticated", "correlation_id": "corr-401"}
+    assert r.headers.get("WWW-Authenticate") == "Bearer"
+    v = client.post("/api/v1/auth/login", json={"email": "not-an-email"},
+                    headers={"X-Request-ID": "corr-422"})
+    assert v.status_code == 422
+    assert isinstance(v.json()["detail"], list) and v.json()["correlation_id"] == "corr-422"
+
+
+def test_runtime_role_cannot_rewrite_schema_revision(client):
+    conn = psycopg2.connect(host=PG_HOST, port=PG_PORT, user="hms_app",
+                            password=APP_PASSWORD, dbname=TEST_DB)
+    with conn.cursor() as cur:
+        cur.execute("SELECT version_num FROM alembic_version")
+        assert cur.fetchone()[0]
+        with pytest.raises(psycopg2.Error):
+            cur.execute("UPDATE alembic_version SET version_num = 'forged'")
+    conn.rollback()
+    conn.close()

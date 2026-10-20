@@ -89,7 +89,13 @@ export const api = {
 };
 
 // --- auth / session ----------------------------------------------------------
-export type UserOut = { id: string; email: string; full_name: string; status: string };
+export type UserOut = {
+  id: string;
+  email: string;
+  full_name: string;
+  status: string;
+  registration_number?: string | null;
+};
 export type OrganizationOut = { id: string; name: string; slug: string; status: string };
 
 export type Me = {

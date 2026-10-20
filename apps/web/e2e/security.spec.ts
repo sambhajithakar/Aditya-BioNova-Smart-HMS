@@ -139,3 +139,25 @@ test("forgot password → reset link → sign in with the new password", async (
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
 });
+
+test("doctor records their council registration number for prescriptions", async ({
+  page,
+  request,
+}) => {
+  const { email, password, token } = await registerClinic(request, "regno");
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+
+  await page.goto("/settings/security");
+  await page.getByLabel("Professional registration number").fill("MMC 2014/05/1234");
+  await page.getByRole("button", { name: "Save profile" }).click();
+  await expect(page.getByText("Profile saved.")).toBeVisible();
+
+  const me = await request.get(`${API}/api/v1/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect((await me.json()).user.registration_number).toBe("MMC 2014/05/1234");
+});

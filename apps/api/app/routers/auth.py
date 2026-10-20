@@ -53,6 +53,7 @@ from ..schemas import (
     PasswordChangeIn,
     PasswordForgotIn,
     PasswordResetIn,
+    ProfileUpdateIn,
     RecoveryCodesOut,
     RefreshIn,
     RegisterIn,
@@ -635,6 +636,41 @@ def me(
         role=principal.role_key,
         permissions=sorted(principal.permissions),
     )
+
+
+@router.patch("/me", response_model=MeOut)
+def update_me(
+    payload: ProfileUpdateIn,
+    request: Request,
+    principal: Principal = Depends(get_current_principal),
+    db: Session = Depends(get_db, scope="function"),
+) -> MeOut:
+    """Self-service profile: display name and professional registration
+    number (printed on prescriptions)."""
+    user = principal.user
+    changes: dict = {}
+    if payload.full_name is not None and payload.full_name != user.full_name:
+        changes["full_name"] = payload.full_name
+        user.full_name = payload.full_name
+    if (
+        "registration_number" in payload.model_fields_set
+        and payload.registration_number != user.registration_number
+    ):
+        changes["registration_number"] = payload.registration_number
+        user.registration_number = payload.registration_number
+    if changes:
+        record_event(
+            db,
+            action="user.profile_updated",
+            organization_id=str(principal.organization_id),
+            actor_user_id=str(user.id),
+            resource_type="user",
+            resource_id=str(user.id),
+            metadata=changes,
+            correlation_id=get_correlation_id(request),
+            ip_address=get_client_ip(request),
+        )
+    return me(principal=principal, db=db)
 
 
 # --- MFA enrolment -------------------------------------------------------------

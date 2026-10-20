@@ -7,7 +7,7 @@
  */
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { ApiError, MfaStatus, SessionInfo, TotpSetup, api } from "@/lib/api";
+import { ApiError, Me, MfaStatus, SessionInfo, TotpSetup, api } from "@/lib/api";
 import { useLang } from "@/lib/lang";
 import { useInFlight } from "@/lib/idempotency";
 import { PASSWORD_MAX, PASSWORD_MIN, passwordProblem } from "@/lib/password";
@@ -28,17 +28,20 @@ function SecurityBody() {
   const [disableCode, setDisableCode] = useState("");
   const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
+  const [regNo, setRegNo] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [s, list] = await Promise.all([
+      const [s, list, me] = await Promise.all([
         api.get<MfaStatus>("/auth/mfa/status"),
         api.get<SessionInfo[]>("/auth/sessions"),
+        api.get<Me>("/auth/me"),
       ]);
       setStatus(s);
       setSessions(list);
+      setRegNo(me.user.registration_number ?? "");
     } catch (err) {
       setError(msg(err, t("loadFailed")));
     }
@@ -239,6 +242,38 @@ function SecurityBody() {
             </button>
           </form>
         )}
+      </section>
+
+      <section className="card" style={{ marginTop: "1.25rem" }}>
+        <h2 style={{ marginTop: 0 }}>{t("profile")}</h2>
+        <form
+          className="stack"
+          onSubmit={(e: FormEvent) => {
+            e.preventDefault();
+            void act(async () => {
+              const me = await api.patch<Me>("/auth/me", {
+                registration_number: regNo.trim() || null,
+              });
+              setRegNo(me.user.registration_number ?? "");
+              setNotice(t("profileSaved"));
+            });
+          }}
+        >
+          <label className="field">
+            {t("registrationNumber")}
+            <input
+              type="text"
+              maxLength={60}
+              value={regNo}
+              onChange={(e) => setRegNo(e.target.value)}
+              pattern="^[A-Za-z0-9][A-Za-z0-9 ./\-]{1,59}$"
+            />
+          </label>
+          <p className="muted">{t("registrationHint")}</p>
+          <button type="submit" className="primary" disabled={busy}>
+            {t("saveProfile")}
+          </button>
+        </form>
       </section>
 
       <section className="card" style={{ marginTop: "1.25rem" }}>

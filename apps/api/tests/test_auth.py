@@ -86,7 +86,9 @@ def test_login_success_and_bad_credentials(client):
     unknown = login(client, email="nobody@login-clinic.example.com", password="Whatever123!")
     assert unknown.status_code == 401
     # identical bodies: no account enumeration
-    assert bad.json() == unknown.json()
+    # identical apart from the per-request random correlation id
+    strip = lambda body: {k: v for k, v in body.items() if k != "correlation_id"}  # noqa: E731
+    assert strip(bad.json()) == strip(unknown.json())
 
 
 def test_login_multiple_orgs_requires_slug(client):

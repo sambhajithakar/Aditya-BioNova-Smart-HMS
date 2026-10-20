@@ -6,10 +6,16 @@ import re
 import uuid
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import (
+    http_exception_handler,
+    request_validation_exception_handler,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import DBAPIError
 from starlette.concurrency import run_in_threadpool
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import __version__
 from .config import get_settings
@@ -134,6 +140,26 @@ def create_app() -> FastAPI:
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["Cache-Control"] = "no-store"
         return response
+
+    async def _with_correlation(request: Request, response: JSONResponse) -> JSONResponse:
+        """Add ``correlation_id`` to FastAPI's standard error bodies (same
+        ``detail`` shape as before, so existing clients are unaffected)."""
+        import json
+
+        body = json.loads(response.body)
+        body["correlation_id"] = getattr(request.state, "correlation_id", "")
+        return JSONResponse(status_code=response.status_code, content=body,
+                            headers={k: v for k, v in response.headers.items()
+                                     if k.lower() not in ("content-length", "content-type")})
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+        return await _with_correlation(request, await http_exception_handler(request, exc))
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+        return await _with_correlation(
+            request, await request_validation_exception_handler(request, exc))
 
     @app.exception_handler(DBAPIError)
     async def db_error(request: Request, exc: DBAPIError) -> JSONResponse:

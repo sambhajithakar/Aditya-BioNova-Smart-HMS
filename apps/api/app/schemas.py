@@ -52,6 +52,8 @@ class UserOut(BaseModel):
     email: EmailStr
     full_name: str
     status: str
+    # medical/pharmacy council registration printed on prescriptions
+    registration_number: str | None = None
 
 
 class OrganizationOut(BaseModel):
@@ -191,13 +193,24 @@ class MemberOut(BaseModel):
     user_id: uuid.UUID
     email: EmailStr
     full_name: str
+    registration_number: str | None = None
     role_key: str
     branch_id: uuid.UUID | None
     status: str
     created_at: datetime
 
 
+_REGNO = r"^[A-Za-z0-9][A-Za-z0-9 ./-]{1,59}$"
+
+
+class ProfileUpdateIn(StrictModel):
+    full_name: str | None = Field(default=None, min_length=2, max_length=200)
+    # e.g. "MMC 2014/05/1234"; null clears it
+    registration_number: str | None = Field(default=None, pattern=_REGNO)
+
+
 class MemberUpdateIn(StrictModel):
+    registration_number: str | None = Field(default=None, pattern=_REGNO)
     role_key: str | None = Field(default=None, min_length=2, max_length=40)
     status: Literal["active", "suspended"] | None = None
     branch_id: uuid.UUID | None = None

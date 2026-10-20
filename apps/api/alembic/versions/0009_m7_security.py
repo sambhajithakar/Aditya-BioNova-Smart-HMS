@@ -16,6 +16,7 @@ Revises: 0008
 * comms_messages: outbound message log for the mock/suppressed providers.
 * insert_audit_event(): the tenancy guard compared with ``<>``, which is NULL
   (= pass) when no org context is set; now ``IS DISTINCT FROM``.
+* alembic_version: the runtime role keeps SELECT only.
 """
 from __future__ import annotations
 
@@ -186,9 +187,13 @@ def upgrade() -> None:
     op.execute("GRANT USAGE, SELECT ON SEQUENCE comms_messages_id_seq TO hms_app;")
 
     op.execute(_AUDIT_FN.replace("{op}", "DISTINCT FROM"))
+    # Default privileges (0001) gave the runtime role DML on alembic_version,
+    # letting it fake the schema revision; it only ever needs to read it.
+    op.execute("REVOKE INSERT, UPDATE, DELETE ON alembic_version FROM hms_app;")
 
 
 def downgrade() -> None:
+    op.execute("GRANT INSERT, UPDATE, DELETE ON alembic_version TO hms_app;")
     op.execute(_AUDIT_FN.replace("IS {op}", "<>"))
     op.drop_table("comms_messages")
     op.drop_table("rate_limit_counters")

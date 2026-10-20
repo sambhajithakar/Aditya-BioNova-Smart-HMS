@@ -4,12 +4,16 @@ Multi-tenant Hospital & Clinic Management System for Indian clinics and
 hospitals — offline-first mobile workflows (M4+), trilingual UI (English / मराठी / हिंदी),
 role-based access, audit trails and a commercial SaaS business layer.
 
-> **Status: Milestone M1 — Foundation (this repository).**
-> Authentication, multi-tenancy, RBAC and audit logging are implemented and
-> tested. Clinical modules (patients, OPD, prescriptions, billing) are **not
-> built yet**. This software is **not production-ready, not certified and not
-> clinically validated**. Synthetic test data only — never enter real patient
-> data at this stage.
+> **Status: M1–M6 modules + M7.0 security & correctness hardening
+> (development branch, under review).** Clinic OPD, pharmacy, laboratory,
+> IPD and operations modules exist with tenant isolation enforced in
+> PostgreSQL; M7.0 added MFA, rate limiting, session management, staff
+> invitations, PHI-read auditing, backups and a fully gated CI. See
+> [AUDIT_REPORT.md](AUDIT_REPORT.md) and [TASKS.md](TASKS.md).
+> This software is **not production-ready, not certified and not clinically
+> validated** — independent security, clinical and legal (DPDP/ABDM/CDSCO)
+> validation is required first. **Synthetic data only — never enter real
+> patient data.**
 
 ## Repository layout
 
@@ -20,7 +24,8 @@ Aditya-BioNova-Smart-HMS/
 │   │   ├── app/        application code (routers, models, security, RLS context)
 │   │   ├── alembic/    database migrations (schema, RLS policies, RBAC seed)
 │   │   └── tests/      pytest suite incl. raw PostgreSQL RLS proofs
-│   └── web/            Next.js 15 + TypeScript web portal (login/dashboard shell)
+│   ├── web/            Next.js 15 + TypeScript web portal (EN / मराठी / हिंदी)
+│   └── mobile/         Flutter Android app (offline-first, encrypted outbox)
 ├── packages/contracts/ OpenAPI snapshot (single source of truth; generated)
 ├── infra/docker/       Dockerfiles + docker-compose (local/staging stack)
 ├── scripts/            setup_local_db.sh, generate-contracts.sh
@@ -55,13 +60,30 @@ export JWT_SECRET=$(python3 -c "import secrets;print(secrets.token_urlsafe(48))"
 docker compose -f infra/docker/docker-compose.yml up --build
 ```
 
-## Tests
+## Tests (all run in CI on every push/PR)
 
 ```bash
-ruff check apps/api --select F,E --line-length 100   # lint
-cd apps/api && ../../.venv/bin/python -m pytest      # 33 tests (auth, RBAC, RLS, audit)
-cd apps/web && npm run typecheck && npm run build    # type-safe production build
+ruff check apps/api --select F,E --line-length 100
+cd apps/api && pytest                      # 164 tests: auth/MFA, RBAC, RLS, clinical, billing
+cd apps/web && npm run lint && npm test && npm run build   # ESLint, 43 unit tests
+cd apps/web && npx playwright test         # 5 E2E against a live API (see playwright.config.ts)
+cd apps/mobile && flutter analyze && flutter test          # 91 tests
+./scripts/backup_restore_drill.sh          # encrypted backup -> restore -> compare
 ```
+
+## Demo (synthetic data, local only)
+
+```bash
+cd apps/api && python ../../scripts/seed_demo.py   # needs ENVIRONMENT=development
+```
+
+Creates "Sunrise Demo Clinic" with one account per role
+(`owner@sunrise-demo.example.com`, `doctor@…`, `nurse@…`, `receptionist@…`,
+`pharmacist@…`, `labtechnician@…`, `billing@…`, `admin@…`, `auditor@…`),
+eight invented patients, appointments, a queue, ward/beds with an admission,
+stock and a lab order. The script prints the shared demo password. E-mails
+(password reset, invitations) go to the development-only mock outbox at
+`GET /api/v1/dev/outbox` — nothing is ever sent.
 
 ## Project rules
 

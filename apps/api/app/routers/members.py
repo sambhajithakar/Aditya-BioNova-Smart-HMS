@@ -57,6 +57,7 @@ def _member_out(db: Session, m: Membership) -> MemberOut:
         user_id=user.id,
         email=user.email,
         full_name=user.full_name,
+        registration_number=user.registration_number,
         role_key=role.key,
         branch_id=m.branch_id,
         status=m.status,
@@ -286,6 +287,11 @@ def update_member(
         if payload.branch_id != m.branch_id:
             changes["branch_id"] = str(payload.branch_id) if payload.branch_id else None
             m.branch_id = payload.branch_id
+    if "registration_number" in payload.model_fields_set:
+        user = db.get(User, m.user_id)
+        if user is not None and user.registration_number != payload.registration_number:
+            changes["registration_number"] = payload.registration_number
+            user.registration_number = payload.registration_number
     revoked = 0
     if payload.status is not None and payload.status != m.status:
         changes["status"] = payload.status
