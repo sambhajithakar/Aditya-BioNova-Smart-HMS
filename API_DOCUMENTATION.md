@@ -86,7 +86,7 @@ it does not exist in staging or production builds.
 
 ## Endpoints
 
-Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 194 operations in 26 tags.
+Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 247 operations in 34 tags.
 
 ### Summary
 
@@ -98,8 +98,39 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 194 op
 | ai | GET | `/api/v1/ai/settings` | `ai.settings.manage` |  |
 | ai | PATCH | `/api/v1/ai/settings` | `ai.settings.manage` |  |
 | ai | GET | `/api/v1/ai/usage` | `ai.audit.read` |  |
+| ai-agents | GET | `/api/v1/ai/agents/catalog` | `ai.agents.use` |  |
+| ai-agents | GET | `/api/v1/ai/agents/proposals` | `ai.agents.use` |  |
+| ai-agents | GET | `/api/v1/ai/agents/proposals/{pid}` | `ai.agents.use` |  |
+| ai-agents | POST | `/api/v1/ai/agents/proposals/{pid}/approve` | `ai.agents.approve` |  |
+| ai-agents | POST | `/api/v1/ai/agents/proposals/{pid}/reject` | `ai.agents.approve` |  |
+| ai-agents | GET | `/api/v1/ai/agents/reorder-drafts` | `ai.agents.use` |  |
+| ai-agents | POST | `/api/v1/ai/agents/run` | `ai.agents.use` |  |
+| ai-agents | GET | `/api/v1/ai/agents/tasks` | `appointment.read` |  |
+| ai-agents | POST | `/api/v1/ai/agents/tasks/{task_id}/done` | `appointment.write` |  |
+| ai-forecast | GET | `/api/v1/ai/forecast/beds` | `ai.forecast.read` |  |
+| ai-forecast | GET | `/api/v1/ai/forecast/inventory` | `ai.forecast.read` |  |
+| ai-forecast | GET | `/api/v1/ai/forecast/model-runs` | `ai.forecast.read` |  |
+| ai-forecast | GET | `/api/v1/ai/forecast/no-show` | `ai.forecast.read` |  |
+| ai-forecast | GET | `/api/v1/ai/forecast/opd` | `ai.forecast.read` |  |
+| ai-forecast | GET | `/api/v1/ai/forecast/pharmacy` | `ai.forecast.read` |  |
+| ai-governance | GET | `/api/v1/ai/governance/usage` | `ai.audit.read` |  |
+| ai-knowledge | POST | `/api/v1/ai/knowledge/ask` | `ai.knowledge.use` |  |
+| ai-knowledge | GET | `/api/v1/ai/knowledge/documents` | `ai.knowledge.use` |  |
+| ai-knowledge | POST | `/api/v1/ai/knowledge/documents` | `ai.knowledge.manage` |  |
+| ai-knowledge | GET | `/api/v1/ai/knowledge/documents/{doc_id}` | `ai.knowledge.use` |  |
+| ai-knowledge | POST | `/api/v1/ai/knowledge/documents/{doc_id}/approve` | `ai.knowledge.manage` |  |
+| ai-knowledge | POST | `/api/v1/ai/knowledge/documents/{doc_id}/archive` | `ai.knowledge.manage` |  |
+| ai-knowledge | GET | `/api/v1/ai/knowledge/stats` | `ai.knowledge.use` |  |
+| ai-scribe | GET | `/api/v1/ai/scribe/info` | `ai.scribe.use` |  |
+| ai-scribe | GET | `/api/v1/ai/scribe/sessions` | `ai.scribe.use` |  |
+| ai-scribe | POST | `/api/v1/ai/scribe/sessions` | `ai.scribe.use` |  |
+| ai-scribe | GET | `/api/v1/ai/scribe/sessions/{sid}` | `ai.scribe.use` |  |
+| ai-scribe | POST | `/api/v1/ai/scribe/sessions/{sid}/accept` | `ai.scribe.use` |  |
+| ai-scribe | POST | `/api/v1/ai/scribe/sessions/{sid}/discard` | `ai.scribe.use` |  |
+| ai-scribe | POST | `/api/v1/ai/scribe/sessions/{sid}/transcript` | `ai.scribe.use` |  |
 | appointments | GET | `/api/v1/appointments` | `appointment.read` |  |
 | appointments | POST | `/api/v1/appointments` | `appointment.write` |  |
+| appointments | GET | `/api/v1/appointments/slots` | `appointment.read` |  |
 | appointments | GET | `/api/v1/appointments/{appointment_id}` | `appointment.read` |  |
 | appointments | PATCH | `/api/v1/appointments/{appointment_id}` | `appointment.write` |  |
 | audit | GET | `/api/v1/audit-events` | `audit.read` |  |
@@ -137,6 +168,10 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 194 op
 | branches | POST | `/api/v1/branches` | `branch.manage` |  |
 | branches | GET | `/api/v1/branches/{branch_id}` | `branch.read` |  |
 | branches | PATCH | `/api/v1/branches/{branch_id}` | `branch.manage` |  |
+| checkin | POST | `/api/v1/checkin/appointments/{appointment_id}/token` | `checkin.manage` |  |
+| checkin | POST | `/api/v1/checkin/confirm` | `checkin.manage` |  |
+| checkin | POST | `/api/v1/checkin/kiosk` | `checkin.manage` |  |
+| checkin | POST | `/api/v1/checkin/verify` | `checkin.manage` |  |
 | communications | GET | `/api/v1/comms/delivery-log` | `comms.read` |  |
 | communications | GET | `/api/v1/comms/overview` | `comms.read` |  |
 | communications | GET | `/api/v1/comms/patients/{patient_id}` | `patient.read` |  |
@@ -262,6 +297,12 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 194 op
 | prescriptions | POST | `/api/v1/prescriptions/{rx_id}/amend` | `prescription.sign` |  |
 | prescriptions | POST | `/api/v1/prescriptions/{rx_id}/sign` | `prescription.sign` |  |
 | prescriptions | POST | `/api/v1/prescriptions/{rx_id}/warnings` | `prescription.sign` |  |
+| printers | GET | `/api/v1/setup/printers` | `setup.read` |  |
+| printers | POST | `/api/v1/setup/printers` | `setup.manage` |  |
+| printers | GET | `/api/v1/setup/printers/defaults` | `setup.read` |  |
+| printers | GET | `/api/v1/setup/printers/{profile_id}` | `setup.read` |  |
+| printers | PATCH | `/api/v1/setup/printers/{profile_id}` | `setup.manage` |  |
+| printers | DELETE | `/api/v1/setup/printers/{profile_id}` | `setup.manage` |  |
 | reports | GET | `/api/v1/reports/summary` | `report.read` |  |
 | saas-billing | GET | `/api/v1/saas/catalog` | - |  |
 | saas-billing | GET | `/api/v1/saas/credits` | - |  |
@@ -276,6 +317,18 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 194 op
 | saas-billing | GET | `/api/v1/saas/refunds` | - |  |
 | saas-billing | POST | `/api/v1/saas/refunds` | - |  |
 | saas-billing | POST | `/api/v1/saas/webhooks/razorpay` | - |  |
+| setup | GET | `/api/v1/setup/branches/{branch_id}/working-hours` | `setup.read` |  |
+| setup | PUT | `/api/v1/setup/branches/{branch_id}/working-hours` | `setup.manage` |  |
+| setup | GET | `/api/v1/setup/fees` | `setup.read` |  |
+| setup | PUT | `/api/v1/setup/fees/default` | `setup.manage` |  |
+| setup | GET | `/api/v1/setup/fees/effective` | `setup.read` |  |
+| setup | PUT | `/api/v1/setup/fees/providers/{user_id}` | `setup.manage` |  |
+| setup | DELETE | `/api/v1/setup/fees/providers/{user_id}` | `setup.manage` |  |
+| setup | GET | `/api/v1/setup/settings` | `setup.read` |  |
+| setup | PATCH | `/api/v1/setup/settings` | `setup.manage` |  |
+| setup | GET | `/api/v1/setup/wizard` | `setup.read` |  |
+| setup | PATCH | `/api/v1/setup/wizard` | `setup.manage` |  |
+| setup | POST | `/api/v1/setup/wizard/steps/{step_key}` | `setup.manage` |  |
 | subscription | GET | `/api/v1/plans` | public |  |
 | subscription | GET | `/api/v1/subscription` | `subscription.read` |  |
 | subscription | POST | `/api/v1/subscription/change-request` | `subscription.manage` |  |
@@ -347,6 +400,383 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 194 op
 - Request body: -
 - Response: `200 AiUsageOut`
 
+### ai-agents
+
+#### `GET /api/v1/ai/agents/catalog`
+
+**Catalog**
+
+- Permission: `ai.agents.use`
+- operationId: `catalog_api_v1_ai_agents_catalog_get`
+- Request body: -
+- Response: `200 list[object]`
+
+#### `GET /api/v1/ai/agents/proposals`
+
+**List Proposals**
+
+- Permission: `ai.agents.use`
+- operationId: `list_proposals_api_v1_ai_agents_proposals_get`
+- Request body: -
+- Response: `200 list[ProposalOut]`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `limit` | query | integer | no |
+| `status` | query | string \| null | no |
+
+#### `GET /api/v1/ai/agents/proposals/{pid}`
+
+**Get Proposal**
+
+- Permission: `ai.agents.use`
+- operationId: `get_proposal_api_v1_ai_agents_proposals__pid__get`
+- Request body: -
+- Response: `200 object`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `pid` | path | string(uuid) | yes |
+
+#### `POST /api/v1/ai/agents/proposals/{pid}/approve`
+
+**Approve**
+
+- Permission: `ai.agents.approve`
+- operationId: `approve_api_v1_ai_agents_proposals__pid__approve_post`
+- Request body: `ProposalDecisionIn`
+- Response: `200 ProposalOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `pid` | path | string(uuid) | yes |
+
+#### `POST /api/v1/ai/agents/proposals/{pid}/reject`
+
+**Reject**
+
+- Permission: `ai.agents.approve`
+- operationId: `reject_api_v1_ai_agents_proposals__pid__reject_post`
+- Request body: `ProposalDecisionIn`
+- Response: `200 ProposalOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `pid` | path | string(uuid) | yes |
+
+#### `GET /api/v1/ai/agents/reorder-drafts`
+
+**List Reorder Drafts**
+
+- Permission: `ai.agents.use`
+- operationId: `list_reorder_drafts_api_v1_ai_agents_reorder_drafts_get`
+- Request body: -
+- Response: `200 list[ReorderDraftOut]`
+
+#### `POST /api/v1/ai/agents/run`
+
+**Run Agent**
+
+- Permission: `ai.agents.use`
+- operationId: `run_agent_api_v1_ai_agents_run_post`
+- Request body: `AgentRunIn`
+- Response: `200 AgentRunOut`
+
+#### `GET /api/v1/ai/agents/tasks`
+
+**List Tasks**
+
+- Permission: `appointment.read`
+- operationId: `list_tasks_api_v1_ai_agents_tasks_get`
+- Request body: -
+- Response: `200 list[StaffTaskOut]`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `status` | query | string | no |
+
+#### `POST /api/v1/ai/agents/tasks/{task_id}/done`
+
+**Complete Task**
+
+- Permission: `appointment.write`
+- operationId: `complete_task_api_v1_ai_agents_tasks__task_id__done_post`
+- Request body: -
+- Response: `200 StaffTaskOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `task_id` | path | string(uuid) | yes |
+
+### ai-forecast
+
+#### `GET /api/v1/ai/forecast/beds`
+
+**Beds**
+
+- Permission: `ai.forecast.read`
+- operationId: `beds_api_v1_ai_forecast_beds_get`
+- Request body: -
+- Response: `200 ForecastOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `branch_id` | query | string(uuid) \| null | no |
+| `horizon` | query | integer | no |
+
+#### `GET /api/v1/ai/forecast/inventory`
+
+**Inventory**
+
+- Permission: `ai.forecast.read`
+- operationId: `inventory_api_v1_ai_forecast_inventory_get`
+- Request body: -
+- Response: `200 list[ForecastOut]`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `branch_id` | query | string(uuid) \| null | no |
+| `lead_time_days` | query | integer | no |
+| `review_days` | query | integer | no |
+
+#### `GET /api/v1/ai/forecast/model-runs`
+
+**Model Runs**
+
+- Permission: `ai.forecast.read`
+- operationId: `model_runs_api_v1_ai_forecast_model_runs_get`
+- Request body: -
+- Response: `200 list[ModelRunOut]`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `kind` | query | string \| null | no |
+| `limit` | query | integer | no |
+
+#### `GET /api/v1/ai/forecast/no-show`
+
+**No Show**
+
+- Permission: `ai.forecast.read`
+- operationId: `no_show_api_v1_ai_forecast_no_show_get`
+- Request body: -
+- Response: `200 ForecastOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `branch_id` | query | string(uuid) \| null | no |
+| `days_ahead` | query | integer | no |
+
+#### `GET /api/v1/ai/forecast/opd`
+
+**Opd**
+
+- Permission: `ai.forecast.read`
+- operationId: `opd_api_v1_ai_forecast_opd_get`
+- Request body: -
+- Response: `200 list[ForecastOut]`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `branch_id` | query | string(uuid) \| null | no |
+| `horizon` | query | integer | no |
+
+#### `GET /api/v1/ai/forecast/pharmacy`
+
+**Pharmacy**
+
+- Permission: `ai.forecast.read`
+- operationId: `pharmacy_api_v1_ai_forecast_pharmacy_get`
+- Request body: -
+- Response: `200 list[ForecastOut]`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `branch_id` | query | string(uuid) \| null | no |
+| `lead_time_days` | query | integer | no |
+| `review_days` | query | integer | no |
+
+### ai-governance
+
+#### `GET /api/v1/ai/governance/usage`
+
+**Usage Breakdown**
+
+- Permission: `ai.audit.read`
+- operationId: `usage_breakdown_api_v1_ai_governance_usage_get`
+- Request body: -
+- Response: `200 UsageBreakdownOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `period` | query | string \| null | no |
+
+### ai-knowledge
+
+#### `POST /api/v1/ai/knowledge/ask`
+
+**Ask**
+
+- Permission: `ai.knowledge.use`
+- operationId: `ask_api_v1_ai_knowledge_ask_post`
+- Request body: `KbAskIn`
+- Response: `200 KbAnswerOut`
+
+#### `GET /api/v1/ai/knowledge/documents`
+
+**List Documents**
+
+- Permission: `ai.knowledge.use`
+- operationId: `list_documents_api_v1_ai_knowledge_documents_get`
+- Request body: -
+- Response: `200 list[KbDocumentOut]`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `status` | query | string \| null | no |
+
+#### `POST /api/v1/ai/knowledge/documents`
+
+**Upload**
+
+- Permission: `ai.knowledge.manage`
+- operationId: `upload_api_v1_ai_knowledge_documents_post`
+- Request body: `KbDocumentIn`
+- Response: `201 KbDocumentOut`
+
+#### `GET /api/v1/ai/knowledge/documents/{doc_id}`
+
+**Get Document**
+
+- Permission: `ai.knowledge.use`
+- operationId: `get_document_api_v1_ai_knowledge_documents__doc_id__get`
+- Request body: -
+- Response: `200 KbDocumentDetailOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `doc_id` | path | string(uuid) | yes |
+
+#### `POST /api/v1/ai/knowledge/documents/{doc_id}/approve`
+
+**Approve**
+
+- Permission: `ai.knowledge.manage`
+- operationId: `approve_api_v1_ai_knowledge_documents__doc_id__approve_post`
+- Request body: -
+- Response: `200 KbDocumentOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `doc_id` | path | string(uuid) | yes |
+
+#### `POST /api/v1/ai/knowledge/documents/{doc_id}/archive`
+
+**Archive**
+
+- Permission: `ai.knowledge.manage`
+- operationId: `archive_api_v1_ai_knowledge_documents__doc_id__archive_post`
+- Request body: -
+- Response: `200 KbDocumentOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `doc_id` | path | string(uuid) | yes |
+
+#### `GET /api/v1/ai/knowledge/stats`
+
+**Stats**
+
+- Permission: `ai.knowledge.use`
+- operationId: `stats_api_v1_ai_knowledge_stats_get`
+- Request body: -
+- Response: `200 object`
+
+### ai-scribe
+
+#### `GET /api/v1/ai/scribe/info`
+
+**Info**
+
+- Permission: `ai.scribe.use`
+- operationId: `info_api_v1_ai_scribe_info_get`
+- Request body: -
+- Response: `200 object`
+
+#### `GET /api/v1/ai/scribe/sessions`
+
+**List Sessions**
+
+- Permission: `ai.scribe.use`
+- operationId: `list_sessions_api_v1_ai_scribe_sessions_get`
+- Request body: -
+- Response: `200 list[ScribeSessionOut]`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `encounter_id` | query | string(uuid) | yes |
+
+#### `POST /api/v1/ai/scribe/sessions`
+
+**Start**
+
+- Permission: `ai.scribe.use`
+- operationId: `start_api_v1_ai_scribe_sessions_post`
+- Request body: `ScribeSessionIn`
+- Response: `201 ScribeSessionOut`
+
+#### `GET /api/v1/ai/scribe/sessions/{sid}`
+
+**Get Session**
+
+- Permission: `ai.scribe.use`
+- operationId: `get_session_api_v1_ai_scribe_sessions__sid__get`
+- Request body: -
+- Response: `200 ScribeSessionOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `sid` | path | string(uuid) | yes |
+
+#### `POST /api/v1/ai/scribe/sessions/{sid}/accept`
+
+**Accept**
+
+- Permission: `ai.scribe.use`
+- operationId: `accept_api_v1_ai_scribe_sessions__sid__accept_post`
+- Request body: `ScribeAcceptIn`
+- Response: `200 ScribeSessionOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `sid` | path | string(uuid) | yes |
+
+#### `POST /api/v1/ai/scribe/sessions/{sid}/discard`
+
+**Discard**
+
+- Permission: `ai.scribe.use`
+- operationId: `discard_api_v1_ai_scribe_sessions__sid__discard_post`
+- Request body: -
+- Response: `200 ScribeSessionOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `sid` | path | string(uuid) | yes |
+
+#### `POST /api/v1/ai/scribe/sessions/{sid}/transcript`
+
+**Transcript**
+
+- Permission: `ai.scribe.use`
+- operationId: `transcript_api_v1_ai_scribe_sessions__sid__transcript_post`
+- Request body: `ScribeTranscriptIn`
+- Response: `200 ScribeSessionOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `sid` | path | string(uuid) | yes |
+
 ### appointments
 
 #### `GET /api/v1/appointments`
@@ -375,6 +805,21 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 194 op
 - operationId: `create_appointment_api_v1_appointments_post`
 - Request body: `AppointmentIn`
 - Response: `201 AppointmentOut`
+
+#### `GET /api/v1/appointments/slots`
+
+**Suggest Slots**
+
+- Permission: `appointment.read`
+- operationId: `suggest_slots_api_v1_appointments_slots_get`
+- Request body: -
+- Response: `200 SlotsOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `branch_id` | query | string(uuid) | yes |
+| `date` | query | string(date) | yes |
+| `provider_user_id` | query | string(uuid) \| null | no |
 
 #### `GET /api/v1/appointments/{appointment_id}`
 
@@ -792,6 +1237,48 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 194 op
 | Parameter | In | Type | Required |
 |---|---|---|---|
 | `branch_id` | path | string(uuid) | yes |
+
+### checkin
+
+#### `POST /api/v1/checkin/appointments/{appointment_id}/token`
+
+**Issue Token** - Create (or replace) the appointment's check-in QR token. The raw token
+
+- Permission: `checkin.manage`
+- operationId: `issue_token_api_v1_checkin_appointments__appointment_id__token_post`
+- Request body: -
+- Response: `201 CheckinIssueOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `appointment_id` | path | string(uuid) | yes |
+
+#### `POST /api/v1/checkin/confirm`
+
+**Confirm**
+
+- Permission: `checkin.manage`
+- operationId: `confirm_api_v1_checkin_confirm_post`
+- Request body: `CheckinCodeIn`
+- Response: `200 CheckinConfirmOut`
+
+#### `POST /api/v1/checkin/kiosk`
+
+**Kiosk** - Self check-in on a reception-owned kiosk: confirm and show ONLY the
+
+- Permission: `checkin.manage`
+- operationId: `kiosk_api_v1_checkin_kiosk_post`
+- Request body: `CheckinCodeIn`
+- Response: `200 KioskCheckinOut`
+
+#### `POST /api/v1/checkin/verify`
+
+**Verify** - Look a scanned code up WITHOUT checking in: minimal context so staff
+
+- Permission: `checkin.manage`
+- operationId: `verify_api_v1_checkin_verify_post`
+- Request body: `CheckinCodeIn`
+- Response: `200 CheckinVerifyOut`
 
 ### communications
 
@@ -2369,6 +2856,74 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 194 op
 |---|---|---|---|
 | `rx_id` | path | string(uuid) | yes |
 
+### printers
+
+#### `GET /api/v1/setup/printers`
+
+**List Profiles**
+
+- Permission: `setup.read`
+- operationId: `list_profiles_api_v1_setup_printers_get`
+- Request body: -
+- Response: `200 list[PrinterProfileOut]`
+
+#### `POST /api/v1/setup/printers`
+
+**Create Profile**
+
+- Permission: `setup.manage`
+- operationId: `create_profile_api_v1_setup_printers_post`
+- Request body: `PrinterProfileIn`
+- Response: `201 PrinterProfileOut`
+
+#### `GET /api/v1/setup/printers/defaults`
+
+**Defaults**
+
+- Permission: `setup.read`
+- operationId: `defaults_api_v1_setup_printers_defaults_get`
+- Request body: -
+- Response: `200 PrinterDefaultsOut`
+
+#### `GET /api/v1/setup/printers/{profile_id}`
+
+**Get Profile**
+
+- Permission: `setup.read`
+- operationId: `get_profile_api_v1_setup_printers__profile_id__get`
+- Request body: -
+- Response: `200 PrinterProfileOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `profile_id` | path | string(uuid) | yes |
+
+#### `PATCH /api/v1/setup/printers/{profile_id}`
+
+**Update Profile**
+
+- Permission: `setup.manage`
+- operationId: `update_profile_api_v1_setup_printers__profile_id__patch`
+- Request body: `PrinterProfileUpdateIn`
+- Response: `200 PrinterProfileOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `profile_id` | path | string(uuid) | yes |
+
+#### `DELETE /api/v1/setup/printers/{profile_id}`
+
+**Delete Profile**
+
+- Permission: `setup.manage`
+- operationId: `delete_profile_api_v1_setup_printers__profile_id__delete`
+- Request body: -
+- Response: `204 (no body)`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `profile_id` | path | string(uuid) | yes |
+
 ### reports
 
 #### `GET /api/v1/reports/summary`
@@ -2526,6 +3081,140 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 194 op
 - Request body: -
 - Response: `200 (no body)`
 
+### setup
+
+#### `GET /api/v1/setup/branches/{branch_id}/working-hours`
+
+**Get Working Hours**
+
+- Permission: `setup.read`
+- operationId: `get_working_hours_api_v1_setup_branches__branch_id__working_hours_get`
+- Request body: -
+- Response: `200 WorkingHoursOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `branch_id` | path | string(uuid) | yes |
+
+#### `PUT /api/v1/setup/branches/{branch_id}/working-hours`
+
+**Put Working Hours** - Replace the branch's whole week (validated: ranges, breaks, overlaps).
+
+- Permission: `setup.manage`
+- operationId: `put_working_hours_api_v1_setup_branches__branch_id__working_hours_put`
+- Request body: `WorkingHoursIn`
+- Response: `200 WorkingHoursOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `branch_id` | path | string(uuid) | yes |
+
+#### `GET /api/v1/setup/fees`
+
+**List Fees**
+
+- Permission: `setup.read`
+- operationId: `list_fees_api_v1_setup_fees_get`
+- Request body: -
+- Response: `200 FeesOut`
+
+#### `PUT /api/v1/setup/fees/default`
+
+**Put Default Fee**
+
+- Permission: `setup.manage`
+- operationId: `put_default_fee_api_v1_setup_fees_default_put`
+- Request body: `FeeIn`
+- Response: `200 FeeOut`
+
+#### `GET /api/v1/setup/fees/effective`
+
+**Effective Fee** - The fee to pre-fill on a consultation invoice: the doctor's own fee,
+
+- Permission: `setup.read`
+- operationId: `effective_fee_api_v1_setup_fees_effective_get`
+- Request body: -
+- Response: `200 EffectiveFeeOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `provider_user_id` | query | string(uuid) \| null | no |
+
+#### `PUT /api/v1/setup/fees/providers/{user_id}`
+
+**Put Provider Fee**
+
+- Permission: `setup.manage`
+- operationId: `put_provider_fee_api_v1_setup_fees_providers__user_id__put`
+- Request body: `FeeIn`
+- Response: `200 FeeOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `user_id` | path | string(uuid) | yes |
+
+#### `DELETE /api/v1/setup/fees/providers/{user_id}`
+
+**Delete Provider Fee**
+
+- Permission: `setup.manage`
+- operationId: `delete_provider_fee_api_v1_setup_fees_providers__user_id__delete`
+- Request body: -
+- Response: `204 (no body)`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `user_id` | path | string(uuid) | yes |
+
+#### `GET /api/v1/setup/settings`
+
+**Get Settings Doc**
+
+- Permission: `setup.read`
+- operationId: `get_settings_doc_api_v1_setup_settings_get`
+- Request body: -
+- Response: `200 OrgSettingsOut`
+
+#### `PATCH /api/v1/setup/settings`
+
+**Patch Settings Doc**
+
+- Permission: `setup.manage`
+- operationId: `patch_settings_doc_api_v1_setup_settings_patch`
+- Request body: `OrgSettingsPatch`
+- Response: `200 OrgSettingsOut`
+
+#### `GET /api/v1/setup/wizard`
+
+**Get Wizard**
+
+- Permission: `setup.read`
+- operationId: `get_wizard_api_v1_setup_wizard_get`
+- Request body: -
+- Response: `200 WizardOut`
+
+#### `PATCH /api/v1/setup/wizard`
+
+**Patch Wizard**
+
+- Permission: `setup.manage`
+- operationId: `patch_wizard_api_v1_setup_wizard_patch`
+- Request body: `WizardPatchIn`
+- Response: `200 WizardOut`
+
+#### `POST /api/v1/setup/wizard/steps/{step_key}`
+
+**Mark Step**
+
+- Permission: `setup.manage`
+- operationId: `mark_step_api_v1_setup_wizard_steps__step_key__post`
+- Request body: `WizardStepIn`
+- Response: `200 WizardOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `step_key` | path | string (identity, branch, staff, language, working_hours, fees, prescription, billing, printer, schedule, edition) | yes |
+
 ### subscription
 
 #### `GET /api/v1/plans`
@@ -2675,6 +3364,24 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `patient_uhid` | string |
 | `patient_full_name` | string |
 
+### AgentRunIn
+
+| Field | Type |
+|---|---|
+| `agent`* | string (appointment_followups, inventory_monitor, billing_reconciliation, ops_daily_report) |
+| `branch_id` | string(uuid) \| null |
+| `older_than_days` | integer |
+
+### AgentRunOut
+
+| Field | Type |
+|---|---|
+| `agent`* | string |
+| `created`* | list[ProposalOut] |
+| `skipped_duplicates`* | integer |
+| `inference` | string |
+| `note`* | string |
+
 ### AiRequestOut
 
 | Field | Type |
@@ -2774,6 +3481,13 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `notes` | string \| null |
 | `status` | string \| null |
 
+### AudioMetaIn
+
+| Field | Type |
+|---|---|
+| `duration_s`* | number |
+| `mime`* | string |
+
 ### AuthSessionOut
 
 | Field | Type |
@@ -2820,6 +3534,15 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `plans`* | list[CatalogPlan] |
 | `credit_packs`* | list[CatalogPack] |
 | `notice`* | string |
+
+### BillingSettings
+
+| Field | Type |
+|---|---|
+| `invoice_prefix` | string |
+| `show_gstin` | boolean |
+| `default_payment_methods` | list[string] |
+| `receipt_footer` | string |
 
 ### BranchIn
 
@@ -2917,6 +3640,48 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `limit`* | integer \| null |
 | `cost_paise`* | integer |
 | `cost_per_message_paise`* | integer |
+
+### CheckinCodeIn
+
+| Field | Type |
+|---|---|
+| `code`* | string |
+
+### CheckinConfirmOut
+
+| Field | Type |
+|---|---|
+| `status`* | string (checked_in, already_checked_in) |
+| `appointment_id`* | string(uuid) |
+| `queue_entry`* | CheckinQueueOut |
+
+### CheckinIssueOut
+
+| Field | Type |
+|---|---|
+| `appointment_id`* | string(uuid) |
+| `token`* | string |
+| `expires_at`* | string(date-time) |
+
+### CheckinQueueOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `token_number`* | integer |
+| `status`* | string |
+| `service_date`* | string(date) |
+
+### CheckinVerifyOut
+
+| Field | Type |
+|---|---|
+| `status`* | string (ready, already_checked_in) |
+| `appointment_id`* | string(uuid) |
+| `patient_display_name`* | string |
+| `appointment_starts_at`* | string(date-time) |
+| `branch_name`* | string |
+| `queue_token_number`* | integer \| null |
 
 ### CheckoutParams
 
@@ -3179,6 +3944,16 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `code`* | string |
 | `name`* | string |
 
+### EffectiveFeeOut
+
+| Field | Type |
+|---|---|
+| `provider_user_id`* | string(uuid) \| null |
+| `source`* | string (provider, default, none) |
+| `consultation_fee`* | string \| null |
+| `follow_up_fee`* | string \| null |
+| `follow_up_valid_days`* | integer \| null |
+
 ### EncounterDetailOut
 
 | Field | Type |
@@ -3280,6 +4055,31 @@ Field lists of the request/response schemas referenced above (`*` = required).
 |---|---|
 | `reason`* | string |
 
+### FeeIn
+
+| Field | Type |
+|---|---|
+| `consultation_fee`* | number \| string |
+| `follow_up_fee` | number \| string \| null |
+| `follow_up_valid_days` | integer \| null |
+
+### FeeOut
+
+| Field | Type |
+|---|---|
+| `provider_user_id`* | string(uuid) \| null |
+| `consultation_fee`* | string |
+| `follow_up_fee`* | string \| null |
+| `follow_up_valid_days`* | integer \| null |
+| `updated_at`* | string(date-time) |
+
+### FeesOut
+
+| Field | Type |
+|---|---|
+| `default`* | FeeOut \| null |
+| `providers`* | list[FeeOut] |
+
 ### FinanceCategoryRow
 
 | Field | Type |
@@ -3342,6 +4142,15 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `reminded_at`* | string(date-time) \| null |
 | `closed_at`* | string(date-time) \| null |
 | `created_at`* | string(date-time) |
+
+### ForecastOut
+
+| Field | Type |
+|---|---|
+| `status`* | string (ok, insufficient_data) |
+| `kind`* | string |
+| `label`* | string |
+| `inference`* | string |
 
 ### HTTPValidationError
 
@@ -3525,6 +4334,104 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `beds_total` | integer |
 | `beds_occupied` | integer |
 | `beds_maintenance` | integer |
+
+### KbAnswerOut
+
+| Field | Type |
+|---|---|
+| `request_id`* | string(uuid) \| null |
+| `answered`* | boolean |
+| `language`* | string |
+| `answer`* | list[KbSentence] |
+| `refusal`* | string \| null |
+| `retrieved`* | list[KbCitation] |
+| `inference`* | string |
+| `provider`* | string |
+| `model`* | string |
+| `method`* | string |
+| `grounded`* | boolean |
+| `note` | string \| null |
+
+### KbAskIn
+
+| Field | Type |
+|---|---|
+| `question`* | string |
+| `language` | string \| null |
+
+### KbCitation
+
+| Field | Type |
+|---|---|
+| `chunk_id`* | string(uuid) |
+| `document_id`* | string(uuid) |
+| `document_title`* | string |
+| `section`* | string |
+| `version`* | integer |
+| `score`* | number |
+
+### KbDocumentDetailOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `title`* | string |
+| `doc_type`* | string |
+| `language`* | string |
+| `version`* | integer |
+| `status`* | string |
+| `visibility_roles`* | list[string] |
+| `injection_flags`* | integer |
+| `chunk_count`* | integer |
+| `uploaded_by`* | string(uuid) \| null |
+| `approved_by`* | string(uuid) \| null |
+| `approved_at`* | string(date-time) \| null |
+| `created_at`* | string(date-time) |
+| `body`* | string |
+
+### KbDocumentIn
+
+| Field | Type |
+|---|---|
+| `title`* | string |
+| `doc_type` | string (sop, manual, policy, training, other) |
+| `language` | string \| null |
+| `text`* | string |
+| `visibility_roles` | list[string] |
+| `contains_patient_data`* | boolean |
+| `file_name` | string \| null |
+
+### KbDocumentOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `title`* | string |
+| `doc_type`* | string |
+| `language`* | string |
+| `version`* | integer |
+| `status`* | string |
+| `visibility_roles`* | list[string] |
+| `injection_flags`* | integer |
+| `chunk_count`* | integer |
+| `uploaded_by`* | string(uuid) \| null |
+| `approved_by`* | string(uuid) \| null |
+| `approved_at`* | string(date-time) \| null |
+| `created_at`* | string(date-time) |
+
+### KbSentence
+
+| Field | Type |
+|---|---|
+| `text`* | string |
+| `citation`* | KbCitation |
+
+### KioskCheckinOut
+
+| Field | Type |
+|---|---|
+| `status`* | string (checked_in, already_checked_in) |
+| `token_number`* | integer |
 
 ### LabOrderDetailOut
 
@@ -3739,6 +4646,24 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `notified`* | boolean |
 | `open_follow_up_id`* | string(uuid) \| null |
 
+### ModelRunOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `kind`* | string |
+| `scope`* | string |
+| `engine_version`* | string |
+| `method`* | string |
+| `status`* | string |
+| `params`* | object |
+| `metrics`* | object |
+| `baseline_metrics`* | object |
+| `data_start`* | string(date) \| null |
+| `data_end`* | string(date) \| null |
+| `n_obs`* | integer |
+| `trained_at`* | string(date-time) |
+
 ### NotifyIn
 
 | Field | Type |
@@ -3838,6 +4763,31 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `failure_reason`* | string \| null |
 | `created_at`* | string(date-time) |
 | `paid_at`* | string(date-time) \| null |
+
+### OrgSettings
+
+| Field | Type |
+|---|---|
+| `version` | integer |
+| `prescription` | PrescriptionSettings |
+| `billing` | BillingSettings |
+| `schedule` | ScheduleSettings |
+
+### OrgSettingsOut
+
+| Field | Type |
+|---|---|
+| `schema_version`* | integer |
+| `settings`* | OrgSettings |
+| `updated_at`* | string(date-time) \| null |
+
+### OrgSettingsPatch
+
+| Field | Type |
+|---|---|
+| `prescription` | PrescriptionSettings \| null |
+| `billing` | BillingSettings \| null |
+| `schedule` | ScheduleSettings \| null |
 
 ### OrganizationOut
 
@@ -4207,6 +5157,16 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `follow_up` | string |
 | `items`* | list[RxItemIn] |
 
+### PrescriptionSettings
+
+| Field | Type |
+|---|---|
+| `header_text` | string |
+| `footer_text` | string |
+| `show_registration_number` | boolean |
+| `paper_size` | string (A4, A5) |
+| `language` | string (en, mr, hi, trilingual) |
+
 ### PreviewIn
 
 | Field | Type |
@@ -4226,12 +5186,96 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `sms_segments`* | integer |
 | `sample_values`* | dict[str, string] |
 
+### PrinterDefaultsOut
+
+| Field | Type |
+|---|---|
+| `prescription`* | PrinterProfileOut \| null |
+| `receipt`* | PrinterProfileOut \| null |
+| `lab_report`* | PrinterProfileOut \| null |
+
+### PrinterProfileIn
+
+| Field | Type |
+|---|---|
+| `name`* | string |
+| `kind`* | string (a4, a5, thermal_80mm, thermal_58mm) |
+| `default_for` | list[string] |
+| `margin_top_mm` | number \| string |
+| `margin_right_mm` | number \| string |
+| `margin_bottom_mm` | number \| string |
+| `margin_left_mm` | number \| string |
+| `font_scale` | number \| string |
+| `notes` | string |
+
+### PrinterProfileOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `name`* | string |
+| `kind`* | string |
+| `default_for`* | list[string] |
+| `margin_top_mm`* | string |
+| `margin_right_mm`* | string |
+| `margin_bottom_mm`* | string |
+| `margin_left_mm`* | string |
+| `font_scale`* | string |
+| `notes`* | string |
+| `created_at`* | string(date-time) |
+| `updated_at`* | string(date-time) |
+
+### PrinterProfileUpdateIn
+
+| Field | Type |
+|---|---|
+| `name` | string \| null |
+| `kind` | string \| null |
+| `default_for` | list[string] \| null |
+| `margin_top_mm` | number \| string \| null |
+| `margin_right_mm` | number \| string \| null |
+| `margin_bottom_mm` | number \| string \| null |
+| `margin_left_mm` | number \| string \| null |
+| `font_scale` | number \| string \| null |
+| `notes` | string \| null |
+
 ### ProfileUpdateIn
 
 | Field | Type |
 |---|---|
 | `full_name` | string \| null |
 | `registration_number` | string \| null |
+
+### ProposalDecisionIn
+
+| Field | Type |
+|---|---|
+| `note` | string |
+
+### ProposalOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `agent`* | string |
+| `kind`* | string |
+| `status`* | string |
+| `branch_id`* | string(uuid) \| null |
+| `title`* | string |
+| `payload`* | object |
+| `rationale`* | string |
+| `evidence`* | list[-] |
+| `args_sha256`* | string |
+| `created_by`* | string(uuid) \| null |
+| `created_at`* | string(date-time) |
+| `expires_at`* | string(date-time) |
+| `decided_by`* | string(uuid) \| null |
+| `decided_at`* | string(date-time) \| null |
+| `decision_note`* | string |
+| `executed_at`* | string(date-time) \| null |
+| `result`* | object \| null |
+| `approve_requires` | list[string] |
+| `executable` | boolean |
 
 ### QueueEntryOut
 
@@ -4358,6 +5402,17 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `by_status`* | dict[str, integer] |
 | `mock_notice`* | string |
 
+### ReorderDraftOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `branch_id`* | string(uuid) |
+| `proposal_id`* | string(uuid) \| null |
+| `lines`* | list[-] |
+| `status`* | string |
+| `created_at`* | string(date-time) |
+
 ### ReportSummaryOut
 
 | Field | Type |
@@ -4415,6 +5470,75 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `warnings` | list[RxWarning] |
 | `blocking` | boolean |
 
+### ScheduleSettings
+
+| Field | Type |
+|---|---|
+| `slot_minutes` | integer |
+| `max_per_slot` | integer |
+| `online_booking_enabled` | boolean |
+
+### ScribeAcceptIn
+
+| Field | Type |
+|---|---|
+| `chief_complaint` | string |
+| `history` | string |
+| `examination` | string |
+| `assessment` | string |
+| `plan` | string |
+| `reviewed`* | boolean |
+
+### ScribeConsentIn
+
+| Field | Type |
+|---|---|
+| `patient_verbal_consent`* | boolean |
+| `notice_language` | string (en, mr, hi) |
+
+### ScribeSessionIn
+
+| Field | Type |
+|---|---|
+| `encounter_id`* | string(uuid) |
+| `consent`* | ScribeConsentIn |
+
+### ScribeSessionOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `encounter_id`* | string(uuid) |
+| `patient_id`* | string(uuid) |
+| `clinician_id`* | string(uuid) |
+| `consent_id`* | string(uuid) |
+| `consent_given_at`* | string(date-time) |
+| `consent_obtained_by`* | string(uuid) |
+| `status`* | string |
+| `transcriber`* | string |
+| `transcriber_label`* | string |
+| `segments` | list[object] |
+| `draft` | object \| null |
+| `draft_valid` | boolean \| null |
+| `validation_problems` | list[string] |
+| `prefill` | object \| null |
+| `inference`* | string |
+| `provider`* | string |
+| `model`* | string |
+| `audio_stored`* | boolean |
+| `audio_retention`* | string |
+| `accepted_by` | string(uuid) \| null |
+| `accepted_at` | string(date-time) \| null |
+| `accepted_fields` | list[string] |
+| `disclaimer`* | string |
+
+### ScribeTranscriptIn
+
+| Field | Type |
+|---|---|
+| `transcript` | string \| null |
+| `audio` | AudioMetaIn \| null |
+
 ### SendResultOut
 
 | Field | Type |
@@ -4444,6 +5568,43 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | Field | Type |
 |---|---|
 | `outcome` | string (success, failure) |
+
+### SlotOut
+
+| Field | Type |
+|---|---|
+| `starts_at`* | string(date-time) |
+| `ends_at`* | string(date-time) |
+| `booked`* | integer |
+| `available`* | boolean |
+
+### SlotsOut
+
+| Field | Type |
+|---|---|
+| `branch_id`* | string(uuid) |
+| `date`* | string(date) |
+| `provider_user_id`* | string(uuid) \| null |
+| `configured`* | boolean |
+| `slot_minutes`* | integer |
+| `max_per_slot`* | integer |
+| `slots`* | list[SlotOut] |
+
+### StaffTaskOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `branch_id`* | string(uuid) \| null |
+| `proposal_id`* | string(uuid) \| null |
+| `kind`* | string |
+| `title`* | string |
+| `subject_type`* | string \| null |
+| `subject_id`* | string(uuid) \| null |
+| `due_date`* | string(date) \| null |
+| `priority`* | string |
+| `status`* | string |
+| `created_at`* | string(date-time) |
 
 ### StockAlertOut
 
@@ -4639,6 +5800,27 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `to_bed_id`* | string(uuid) |
 | `reason`* | string |
 
+### UsageBreakdownOut
+
+| Field | Type |
+|---|---|
+| `period`* | string |
+| `used_credits`* | integer |
+| `limit_credits`* | integer \| null |
+| `rows`* | list[UsageBreakdownRow] |
+| `features`* | object |
+
+### UsageBreakdownRow
+
+| Field | Type |
+|---|---|
+| `feature`* | string |
+| `task`* | string |
+| `inference`* | string |
+| `requests`* | integer |
+| `ok`* | integer |
+| `credits`* | integer |
+
 ### UsageOut
 
 | Field | Type |
@@ -4727,6 +5909,71 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `bed_count` | integer |
 | `occupied_count` | integer |
 | `available_count` | integer |
+
+### WizardOut
+
+| Field | Type |
+|---|---|
+| `steps`* | list[WizardStepOut] |
+| `current_step`* | string |
+| `finished`* | boolean |
+| `finished_at`* | string(date-time) \| null |
+| `should_show`* | boolean |
+| `progress_percent`* | integer |
+
+### WizardPatchIn
+
+| Field | Type |
+|---|---|
+| `current_step` | string \| null |
+| `finished` | boolean \| null |
+
+### WizardStepIn
+
+| Field | Type |
+|---|---|
+| `status`* | string (done, skipped, todo) |
+
+### WizardStepOut
+
+| Field | Type |
+|---|---|
+| `key`* | string |
+| `status`* | string (done, skipped, todo) |
+| `data_ready`* | boolean |
+
+### WorkingHoursIn
+
+| Field | Type |
+|---|---|
+| `sessions`* | list[WorkingSessionIn] |
+
+### WorkingHoursOut
+
+| Field | Type |
+|---|---|
+| `branch_id`* | string(uuid) |
+| `sessions`* | list[WorkingSessionOut] |
+
+### WorkingSessionIn
+
+| Field | Type |
+|---|---|
+| `weekday`* | integer |
+| `opens_at`* | string(time) |
+| `closes_at`* | string(time) |
+| `break_starts_at` | string(time) \| null |
+| `break_ends_at` | string(time) \| null |
+
+### WorkingSessionOut
+
+| Field | Type |
+|---|---|
+| `weekday`* | integer |
+| `opens_at`* | string(time) |
+| `closes_at`* | string(time) |
+| `break_starts_at`* | string(time) \| null |
+| `break_ends_at`* | string(time) \| null |
 
 ### app__schemas__InvoiceOut
 

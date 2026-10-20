@@ -65,7 +65,7 @@
 
 ## Migrations
 
-Database at Alembic head **0014** (catalog read from PostgreSQL 16). Files in `apps/api/alembic/versions/`.
+Database at Alembic head **0016** (catalog read from PostgreSQL 16). Files in `apps/api/alembic/versions/`.
 
 | Revision | Down | File | Summary |
 |---|---|---|---|
@@ -83,6 +83,8 @@ Database at Alembic head **0014** (catalog read from PostgreSQL 16). Files in `a
 | 0012 | 0011 | `0012_ai_gateway.py` | AI-0: AI gateway governance — tenant opt-in, AI request audit, credit ledger. |
 | 0013 | 0012 | `0013_saas_billing.py` | M7.2: SaaS subscription billing — orders, payments, webhooks, invoices, refunds and AI credit packs (Razorpay sandbox / local payment simulator). |
 | 0014 | 0013 | `0014_comms_followups.py` | Communications framework v2 + clinician-directed follow-up CRM. |
+| 0015 | 0014 | `0015_setup_checkin_print.py` | Smart Setup Wizard, Smart Patient QR Check-In and Smart Printer Setup. |
+| 0016 | 0015 | `0016_ai1.py` | AI-1: forecasting model runs, knowledge base (RAG), agent proposals with human approval, Clinical Scribe draft workflow. |
 
 ## Application role
 
@@ -96,14 +98,21 @@ Database at Alembic head **0014** (catalog read from PostgreSQL 16). Files in `a
 | [admissions](#admissions) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
 | [ai_credit_ledger](#ai_credit_ledger) | yes | 1 | 1 | SELECT, INSERT |
 | [ai_credit_packs](#ai_credit_packs) | yes | 2 | 0 | SELECT, INSERT, UPDATE, DELETE |
+| [ai_model_runs](#ai_model_runs) | yes | 1 | 1 | SELECT, INSERT |
+| [ai_proposal_events](#ai_proposal_events) | yes | 1 | 1 | SELECT, INSERT |
+| [ai_proposals](#ai_proposals) | yes | 1 | 1 | SELECT, INSERT, UPDATE |
+| [ai_reorder_drafts](#ai_reorder_drafts) | yes | 1 | 0 | SELECT, INSERT, UPDATE |
 | [ai_requests](#ai_requests) | yes | 1 | 1 | SELECT, INSERT |
+| [ai_staff_tasks](#ai_staff_tasks) | yes | 1 | 0 | SELECT, INSERT, UPDATE |
 | [ai_tenant_settings](#ai_tenant_settings) | yes | 1 | 0 | SELECT, INSERT, UPDATE |
 | [alembic_version](#alembic_version) | **no** | 0 | 0 | SELECT |
 | [appointments](#appointments) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [audit_events](#audit_events) | yes | 2 | 1 | SELECT, INSERT |
 | [auth_sessions](#auth_sessions) | **no** | 0 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [beds](#beds) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
+| [branch_working_hours](#branch_working_hours) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [branches](#branches) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
+| [checkin_tokens](#checkin_tokens) | yes | 1 | 0 | SELECT, INSERT, UPDATE |
 | [comms_consent_events](#comms_consent_events) | yes | 1 | 1 | SELECT, INSERT |
 | [comms_consents](#comms_consents) | yes | 1 | 0 | SELECT, INSERT, UPDATE |
 | [comms_delivery_log](#comms_delivery_log) | yes | 1 | 1 | SELECT, INSERT |
@@ -118,12 +127,15 @@ Database at Alembic head **0014** (catalog read from PostgreSQL 16). Files in `a
 | [encounter_vitals](#encounter_vitals) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [encounters](#encounters) | yes | 1 | 2 | SELECT, INSERT, UPDATE, DELETE |
 | [expenses](#expenses) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
+| [fee_schedule](#fee_schedule) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [follow_ups](#follow_ups) | yes | 1 | 0 | SELECT, INSERT, UPDATE |
 | [idempotency_keys](#idempotency_keys) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [inventory_items](#inventory_items) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [inventory_movements](#inventory_movements) | yes | 1 | 2 | SELECT, INSERT |
 | [invoice_items](#invoice_items) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
 | [invoices](#invoices) | yes | 1 | 2 | SELECT, INSERT, UPDATE, DELETE |
+| [kb_chunks](#kb_chunks) | yes | 1 | 1 | SELECT, INSERT |
+| [kb_documents](#kb_documents) | yes | 1 | 1 | SELECT, INSERT, UPDATE |
 | [lab_order_items](#lab_order_items) | yes | 1 | 1 | SELECT, INSERT, UPDATE |
 | [lab_orders](#lab_orders) | yes | 1 | 2 | SELECT, INSERT, UPDATE, DELETE |
 | [lab_results](#lab_results) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
@@ -135,6 +147,7 @@ Database at Alembic head **0014** (catalog read from PostgreSQL 16). Files in `a
 | [mfa_recovery_codes](#mfa_recovery_codes) | **no** | 0 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [nursing_records](#nursing_records) | yes | 1 | 2 | SELECT, INSERT |
 | [opd_queue](#opd_queue) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
+| [org_settings](#org_settings) | yes | 1 | 0 | SELECT, INSERT, UPDATE |
 | [organizations](#organizations) | yes | 5 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [password_reset_tokens](#password_reset_tokens) | **no** | 0 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [patients](#patients) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
@@ -145,6 +158,7 @@ Database at Alembic head **0014** (catalog read from PostgreSQL 16). Files in `a
 | [plans](#plans) | yes | 2 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [prescription_items](#prescription_items) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
 | [prescriptions](#prescriptions) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
+| [printer_profiles](#printer_profiles) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [rate_limit_counters](#rate_limit_counters) | **no** | 0 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [refunds](#refunds) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
 | [role_permissions](#role_permissions) | **no** | 0 | 0 | SELECT |
@@ -154,6 +168,8 @@ Database at Alembic head **0014** (catalog read from PostgreSQL 16). Files in `a
 | [saas_payments](#saas_payments) | yes | 2 | 1 | SELECT, INSERT, UPDATE, DELETE |
 | [saas_refunds](#saas_refunds) | yes | 3 | 1 | SELECT, INSERT, UPDATE, DELETE |
 | [saas_webhook_events](#saas_webhook_events) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
+| [scribe_consents](#scribe_consents) | yes | 1 | 1 | SELECT, INSERT |
+| [scribe_sessions](#scribe_sessions) | yes | 1 | 1 | SELECT, INSERT, UPDATE |
 | [stock_batches](#stock_batches) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
 | [stock_movements](#stock_movements) | yes | 1 | 2 | SELECT, INSERT |
 | [subscription_events](#subscription_events) | yes | 1 | 0 | SELECT, INSERT |
@@ -350,6 +366,185 @@ Database at Alembic head **0014** (catalog read from PostgreSQL 16). Files in `a
 - `aipack_read` FOR SELECT TO public
   - USING `true`
 
+### ai_model_runs
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `kind` | character varying(30) | no |  |
+| `scope` | character varying(80) | no | `'all'::character varying` |
+| `engine_version` | character varying(40) | no |  |
+| `method` | character varying(40) | no | `''::character varying` |
+| `status` | character varying(20) | no |  |
+| `params` | jsonb | no | `'{}'::jsonb` |
+| `metrics` | jsonb | no | `'{}'::jsonb` |
+| `baseline_metrics` | jsonb | no | `'{}'::jsonb` |
+| `data_start` | date | yes |  |
+| `data_end` | date | yes |  |
+| `n_obs` | integer | no | `0` |
+| `trained_by` | uuid | yes |  |
+| `trained_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `ai_model_runs_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `ai_model_runs_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `ai_model_runs_trained_by_fkey`: `FOREIGN KEY (trained_by) REFERENCES users(id) ON DELETE SET NULL`
+
+**Check constraints**
+
+- `ck_modelrun_kind`: `CHECK (kind::text = ANY (ARRAY['opd_demand'::character varying, 'no_show'::character varying, 'pharmacy_demand'::character varying, 'bed_occupancy'::character varying]::text[]))`
+- `ck_modelrun_status`: `CHECK (status::text = ANY (ARRAY['ok'::character varying, 'insufficient_data'::character varying]::text[]))`
+
+**Indexes**
+
+- `ix_modelrun_org_kind`: `btree (organization_id, kind, trained_at)`
+
+**RLS policies**
+
+- `ai_model_runs_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
+**Triggers**
+
+- `trg_ai_model_runs_append_only`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `forbid_ai_log_mutation()`
+
+### ai_proposal_events
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | bigint | no | `identity BY DEFAULT` |
+| `organization_id` | uuid | no |  |
+| `proposal_id` | uuid | no |  |
+| `from_status` | character varying(20) | yes |  |
+| `to_status` | character varying(20) | no |  |
+| `actor_user_id` | uuid | yes |  |
+| `note` | character varying(500) | no | `''::character varying` |
+| `created_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `ai_proposal_events_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `ai_proposal_events_actor_user_id_fkey`: `FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL`
+- `ai_proposal_events_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `ai_proposal_events_proposal_id_fkey`: `FOREIGN KEY (proposal_id) REFERENCES ai_proposals(id) ON DELETE RESTRICT`
+
+**Indexes**
+
+- `ix_propevent_org_prop`: `btree (organization_id, proposal_id)`
+
+**RLS policies**
+
+- `ai_proposal_events_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
+**Triggers**
+
+- `trg_ai_proposal_events_append_only`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `forbid_ai_log_mutation()`
+
+### ai_proposals
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `agent` | character varying(40) | no |  |
+| `kind` | character varying(40) | no |  |
+| `status` | character varying(20) | no | `'proposed'::character varying` |
+| `branch_id` | uuid | yes |  |
+| `title` | character varying(300) | no |  |
+| `payload` | jsonb | no |  |
+| `rationale` | text | no | `''::text` |
+| `evidence` | jsonb | no | `'[]'::jsonb` |
+| `args_sha256` | character varying(64) | no |  |
+| `dedupe_key` | character varying(200) | no |  |
+| `created_by` | uuid | yes |  |
+| `created_at` | timestamp with time zone | no | `now()` |
+| `expires_at` | timestamp with time zone | no |  |
+| `decided_by` | uuid | yes |  |
+| `decided_at` | timestamp with time zone | yes |  |
+| `decision_note` | character varying(500) | no | `''::character varying` |
+| `executed_at` | timestamp with time zone | yes |  |
+| `result` | jsonb | yes |  |
+
+**Primary key** `ai_proposals_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `ai_proposals_branch_id_fkey`: `FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE RESTRICT`
+- `ai_proposals_created_by_fkey`: `FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL`
+- `ai_proposals_decided_by_fkey`: `FOREIGN KEY (decided_by) REFERENCES users(id) ON DELETE SET NULL`
+- `ai_proposals_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+
+**Check constraints**
+
+- `ck_proposal_kind`: `CHECK (kind::text = ANY (ARRAY['followup_tasks'::character varying, 'inventory_reorder'::character varying, 'billing_reconciliation'::character varying, 'ops_daily_report'::character varying]::text[]))`
+- `ck_proposal_status`: `CHECK (status::text = ANY (ARRAY['proposed'::character varying, 'approved'::character varying, 'rejected'::character varying, 'expired'::character varying, 'executed'::character varying, 'failed'::character varying]::text[]))`
+
+**Indexes**
+
+- `ix_proposal_org_status`: `btree (organization_id, status, created_at)`
+- `uq_proposal_open_dedupe` (UNIQUE, partial): `btree (organization_id, dedupe_key)` WHERE `((status)::text = 'proposed'::text)`
+
+**RLS policies**
+
+- `ai_proposals_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
+**Triggers**
+
+- `trg_ai_proposals_guard`: BEFORE UPDATE FOR EACH ROW -> `guard_ai_proposal()`
+
+### ai_reorder_drafts
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `branch_id` | uuid | no |  |
+| `proposal_id` | uuid | yes |  |
+| `lines` | jsonb | no |  |
+| `status` | character varying(20) | no | `'draft'::character varying` |
+| `created_by` | uuid | yes |  |
+| `created_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `ai_reorder_drafts_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `ai_reorder_drafts_branch_id_fkey`: `FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE RESTRICT`
+- `ai_reorder_drafts_created_by_fkey`: `FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL`
+- `ai_reorder_drafts_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `ai_reorder_drafts_proposal_id_fkey`: `FOREIGN KEY (proposal_id) REFERENCES ai_proposals(id) ON DELETE RESTRICT`
+
+**Check constraints**
+
+- `ck_reorder_status`: `CHECK (status::text = ANY (ARRAY['draft'::character varying, 'ordered'::character varying, 'cancelled'::character varying]::text[]))`
+
+**RLS policies**
+
+- `ai_reorder_drafts_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
 ### ai_requests
 
 - Row-level security: enabled
@@ -407,6 +602,55 @@ Database at Alembic head **0014** (catalog read from PostgreSQL 16). Files in `a
 **Triggers**
 
 - `trg_ai_requests_append_only`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `forbid_ai_log_mutation()`
+
+### ai_staff_tasks
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `branch_id` | uuid | yes |  |
+| `proposal_id` | uuid | yes |  |
+| `kind` | character varying(30) | no |  |
+| `title` | character varying(300) | no |  |
+| `subject_type` | character varying(30) | yes |  |
+| `subject_id` | uuid | yes |  |
+| `due_date` | date | yes |  |
+| `priority` | character varying(10) | no | `'normal'::character varying` |
+| `status` | character varying(20) | no | `'open'::character varying` |
+| `created_by` | uuid | yes |  |
+| `created_at` | timestamp with time zone | no | `now()` |
+| `completed_by` | uuid | yes |  |
+| `completed_at` | timestamp with time zone | yes |  |
+
+**Primary key** `ai_staff_tasks_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `ai_staff_tasks_branch_id_fkey`: `FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE RESTRICT`
+- `ai_staff_tasks_completed_by_fkey`: `FOREIGN KEY (completed_by) REFERENCES users(id) ON DELETE SET NULL`
+- `ai_staff_tasks_created_by_fkey`: `FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL`
+- `ai_staff_tasks_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `ai_staff_tasks_proposal_id_fkey`: `FOREIGN KEY (proposal_id) REFERENCES ai_proposals(id) ON DELETE RESTRICT`
+
+**Check constraints**
+
+- `ck_stafftask_kind`: `CHECK (kind::text = 'reminder_call'::text)`
+- `ck_stafftask_priority`: `CHECK (priority::text = ANY (ARRAY['high'::character varying, 'normal'::character varying]::text[]))`
+- `ck_stafftask_status`: `CHECK (status::text = ANY (ARRAY['open'::character varying, 'done'::character varying, 'cancelled'::character varying]::text[]))`
+
+**Indexes**
+
+- `ix_stafftask_org_status`: `btree (organization_id, status, due_date)`
+
+**RLS policies**
+
+- `ai_staff_tasks_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
 
 ### ai_tenant_settings
 
@@ -610,6 +854,50 @@ Database at Alembic head **0014** (catalog read from PostgreSQL 16). Files in `a
   - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
   - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
 
+### branch_working_hours
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE, DELETE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `branch_id` | uuid | no |  |
+| `weekday` | smallint | no |  |
+| `opens_at` | time without time zone | no |  |
+| `closes_at` | time without time zone | no |  |
+| `break_starts_at` | time without time zone | yes |  |
+| `break_ends_at` | time without time zone | yes |  |
+| `created_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `branch_working_hours_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `branch_working_hours_branch_id_fkey`: `FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE`
+- `branch_working_hours_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+
+**Unique constraints**
+
+- `uq_bwh_session`: `UNIQUE (organization_id, branch_id, weekday, opens_at)`
+
+**Check constraints**
+
+- `ck_bwh_break`: `CHECK (break_starts_at IS NULL AND break_ends_at IS NULL OR break_starts_at IS NOT NULL AND break_ends_at IS NOT NULL AND opens_at < break_starts_at AND break_starts_at < break_ends_at AND break_ends_at < closes_at)`
+- `ck_bwh_range`: `CHECK (opens_at < closes_at)`
+- `ck_bwh_weekday`: `CHECK (weekday >= 0 AND weekday <= 6)`
+
+**Indexes**
+
+- `ix_bwh_org_branch`: `btree (organization_id, branch_id, weekday)`
+
+**RLS policies**
+
+- `branch_working_hours_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
 ### branches
 
 - Row-level security: enabled
@@ -650,6 +938,56 @@ Database at Alembic head **0014** (catalog read from PostgreSQL 16). Files in `a
 **RLS policies**
 
 - `branch_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
+### checkin_tokens
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `appointment_id` | uuid | no |  |
+| `token_hash` | character varying(64) | no |  |
+| `expires_at` | timestamp with time zone | no |  |
+| `used_at` | timestamp with time zone | yes |  |
+| `used_by` | uuid | yes |  |
+| `queue_entry_id` | uuid | yes |  |
+| `revoked_at` | timestamp with time zone | yes |  |
+| `created_by` | uuid | yes |  |
+| `created_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `checkin_tokens_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `checkin_tokens_appointment_id_fkey`: `FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE`
+- `checkin_tokens_created_by_fkey`: `FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL`
+- `checkin_tokens_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `checkin_tokens_queue_entry_id_fkey`: `FOREIGN KEY (queue_entry_id) REFERENCES opd_queue(id) ON DELETE SET NULL`
+- `checkin_tokens_used_by_fkey`: `FOREIGN KEY (used_by) REFERENCES users(id) ON DELETE SET NULL`
+
+**Unique constraints**
+
+- `checkin_tokens_token_hash_key`: `UNIQUE (token_hash)`
+
+**Check constraints**
+
+- `ck_checkin_hash`: `CHECK (token_hash::text ~ '^[0-9a-f]{64}$'::text)`
+- `ck_checkin_state`: `CHECK (used_at IS NULL OR revoked_at IS NULL)`
+
+**Indexes**
+
+- `ix_checkin_org_appt`: `btree (organization_id, appointment_id)`
+- `uq_checkin_live_per_appt` (UNIQUE, partial): `btree (appointment_id)` WHERE `((used_at IS NULL) AND (revoked_at IS NULL))`
+- `uq_checkin_used_per_appt` (UNIQUE, partial): `btree (appointment_id)` WHERE `(used_at IS NOT NULL)`
+
+**RLS policies**
+
+- `checkin_tokens_tenant` FOR ALL TO public
   - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
   - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
 
@@ -1251,6 +1589,47 @@ Database at Alembic head **0014** (catalog read from PostgreSQL 16). Files in `a
 
 - `trg_expense_immutable`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `forbid_expense_mutation()`
 
+### fee_schedule
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE, DELETE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `provider_user_id` | uuid | yes |  |
+| `consultation_fee` | numeric(12,2) | no |  |
+| `follow_up_fee` | numeric(12,2) | yes |  |
+| `follow_up_valid_days` | integer | yes |  |
+| `updated_by` | uuid | yes |  |
+| `created_at` | timestamp with time zone | no | `now()` |
+| `updated_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `fee_schedule_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `fee_schedule_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `fee_schedule_provider_user_id_fkey`: `FOREIGN KEY (provider_user_id) REFERENCES users(id) ON DELETE CASCADE`
+- `fee_schedule_updated_by_fkey`: `FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL`
+
+**Check constraints**
+
+- `ck_fee_consultation`: `CHECK (consultation_fee >= 0::numeric AND consultation_fee <= 1000000::numeric)`
+- `ck_fee_follow_up`: `CHECK (follow_up_fee IS NULL OR follow_up_fee >= 0::numeric AND follow_up_fee <= 1000000::numeric)`
+- `ck_fee_follow_up_days`: `CHECK (follow_up_valid_days IS NULL OR follow_up_valid_days >= 0 AND follow_up_valid_days <= 365)`
+
+**Indexes**
+
+- `uq_fee_org_provider` (UNIQUE): `btree (organization_id, COALESCE(provider_user_id, '00000000-0000-0000-0000-000000000000'::uuid))`
+
+**RLS policies**
+
+- `fee_schedule_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
 ### follow_ups
 
 - Row-level security: enabled
@@ -1536,6 +1915,105 @@ Database at Alembic head **0014** (catalog read from PostgreSQL 16). Files in `a
 
 - `trg_inv_issued_frozen`: BEFORE UPDATE FOR EACH ROW -> `forbid_issued_invoice_change()`
 - `trg_inv_status_forward`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `forbid_invoice_regression()`
+
+### kb_chunks
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `document_id` | uuid | no |  |
+| `ordinal` | integer | no |  |
+| `section` | character varying(300) | no | `''::character varying` |
+| `text` | text | no |  |
+| `tokens` | text[] | no | `'{}'::text[]` |
+| `created_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `kb_chunks_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `kb_chunks_document_id_fkey`: `FOREIGN KEY (document_id) REFERENCES kb_documents(id) ON DELETE RESTRICT`
+- `kb_chunks_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+
+**Unique constraints**
+
+- `uq_kbchunk_doc_ord`: `UNIQUE (document_id, ordinal)`
+
+**Indexes**
+
+- `ix_kbchunk_org_doc`: `btree (organization_id, document_id)`
+
+**RLS policies**
+
+- `kb_chunks_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
+**Triggers**
+
+- `trg_kb_chunks_append_only`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `forbid_ai_log_mutation()`
+
+### kb_documents
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `title` | character varying(200) | no |  |
+| `doc_type` | character varying(20) | no |  |
+| `language` | character varying(5) | no |  |
+| `version` | integer | no | `1` |
+| `status` | character varying(20) | no | `'draft'::character varying` |
+| `visibility_roles` | character varying(40)[] | no | `'{}'::character varying[]` |
+| `body` | text | no |  |
+| `sha256` | character varying(64) | no |  |
+| `injection_flags` | integer | no | `0` |
+| `chunk_count` | integer | no | `0` |
+| `uploaded_by` | uuid | yes |  |
+| `created_at` | timestamp with time zone | no | `now()` |
+| `approved_by` | uuid | yes |  |
+| `approved_at` | timestamp with time zone | yes |  |
+| `updated_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `kb_documents_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `kb_documents_approved_by_fkey`: `FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL`
+- `kb_documents_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `kb_documents_uploaded_by_fkey`: `FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL`
+
+**Unique constraints**
+
+- `uq_kbdoc_title_ver`: `UNIQUE (organization_id, title, version)`
+
+**Check constraints**
+
+- `ck_kbdoc_lang`: `CHECK (language::text = ANY (ARRAY['en'::character varying, 'mr'::character varying, 'hi'::character varying, 'mixed'::character varying]::text[]))`
+- `ck_kbdoc_size`: `CHECK (length(body) <= 200000)`
+- `ck_kbdoc_status`: `CHECK (status::text = ANY (ARRAY['draft'::character varying, 'approved'::character varying, 'superseded'::character varying, 'archived'::character varying]::text[]))`
+- `ck_kbdoc_type`: `CHECK (doc_type::text = ANY (ARRAY['sop'::character varying, 'manual'::character varying, 'policy'::character varying, 'training'::character varying, 'other'::character varying]::text[]))`
+
+**Indexes**
+
+- `ix_kbdoc_org_status`: `btree (organization_id, status)`
+
+**RLS policies**
+
+- `kb_documents_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
+**Triggers**
+
+- `trg_kb_documents_guard`: BEFORE UPDATE FOR EACH ROW -> `guard_kb_document()`
 
 ### lab_order_items
 
@@ -2055,6 +2533,38 @@ Database at Alembic head **0014** (catalog read from PostgreSQL 16). Files in `a
   - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
   - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
 
+### org_settings
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `organization_id` | uuid | no |  |
+| `schema_version` | integer | no | `1` |
+| `settings` | jsonb | no | `'{}'::jsonb` |
+| `wizard` | jsonb | no | `'{}'::jsonb` |
+| `updated_by` | uuid | yes |  |
+| `updated_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `org_settings_pkey`: `PRIMARY KEY (organization_id)`
+
+**Foreign keys**
+
+- `org_settings_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `org_settings_updated_by_fkey`: `FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL`
+
+**Check constraints**
+
+- `ck_orgsettings_objects`: `CHECK (jsonb_typeof(settings) = 'object'::text AND jsonb_typeof(wizard) = 'object'::text)`
+- `ck_orgsettings_version`: `CHECK (schema_version >= 1)`
+
+**RLS policies**
+
+- `org_settings_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
 ### organizations
 
 - Row-level security: enabled
@@ -2460,6 +2970,52 @@ Database at Alembic head **0014** (catalog read from PostgreSQL 16). Files in `a
 
 - `trg_rx_immutable`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `forbid_rx_mutation()`
 
+### printer_profiles
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE, DELETE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `name` | character varying(80) | no |  |
+| `kind` | character varying(20) | no |  |
+| `default_for` | character varying(20)[] | no | `'{}'::character varying[]` |
+| `margin_top_mm` | numeric(4,1) | no | `'10'::numeric` |
+| `margin_right_mm` | numeric(4,1) | no | `'10'::numeric` |
+| `margin_bottom_mm` | numeric(4,1) | no | `'10'::numeric` |
+| `margin_left_mm` | numeric(4,1) | no | `'10'::numeric` |
+| `font_scale` | numeric(3,2) | no | `1.00` |
+| `notes` | character varying(300) | no | `''::character varying` |
+| `created_by` | uuid | yes |  |
+| `created_at` | timestamp with time zone | no | `now()` |
+| `updated_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `printer_profiles_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `printer_profiles_created_by_fkey`: `FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL`
+- `printer_profiles_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+
+**Check constraints**
+
+- `ck_printer_default_for`: `CHECK (default_for <@ ARRAY['prescription'::character varying, 'receipt'::character varying, 'lab_report'::character varying])`
+- `ck_printer_font_scale`: `CHECK (font_scale >= 0.5 AND font_scale <= 2.0)`
+- `ck_printer_kind`: `CHECK (kind::text = ANY (ARRAY['a4'::character varying, 'a5'::character varying, 'thermal_80mm'::character varying, 'thermal_58mm'::character varying]::text[]))`
+- `ck_printer_margins`: `CHECK (margin_top_mm >= 0::numeric AND margin_top_mm <= 50::numeric AND margin_right_mm >= 0::numeric AND margin_right_mm <= 50::numeric AND margin_bottom_mm >= 0::numeric AND margin_bottom_mm <= 50::numeric AND margin_left_mm >= 0::numeric AND margin_left_mm <= 50::numeric)`
+
+**Indexes**
+
+- `uq_printer_org_name` (UNIQUE): `btree (organization_id, lower((name)::text))`
+
+**RLS policies**
+
+- `printer_profiles_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
 ### rate_limit_counters
 
 - Row-level security: **disabled**
@@ -2833,6 +3389,106 @@ Database at Alembic head **0014** (catalog read from PostgreSQL 16). Files in `a
 
 - `trg_saas_webhook_events_append_only`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `forbid_billing_record_mutation()`
 
+### scribe_consents
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `patient_id` | uuid | no |  |
+| `encounter_id` | uuid | no |  |
+| `obtained_by` | uuid | no |  |
+| `method` | character varying(20) | no |  |
+| `notice_language` | character varying(5) | no |  |
+| `notice_version` | character varying(20) | no |  |
+| `given_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `scribe_consents_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `scribe_consents_encounter_id_fkey`: `FOREIGN KEY (encounter_id) REFERENCES encounters(id) ON DELETE RESTRICT`
+- `scribe_consents_obtained_by_fkey`: `FOREIGN KEY (obtained_by) REFERENCES users(id) ON DELETE SET NULL`
+- `scribe_consents_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `scribe_consents_patient_id_fkey`: `FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE RESTRICT`
+
+**Check constraints**
+
+- `ck_scribeconsent_lang`: `CHECK (notice_language::text = ANY (ARRAY['en'::character varying, 'mr'::character varying, 'hi'::character varying]::text[]))`
+- `ck_scribeconsent_method`: `CHECK (method::text = 'verbal'::text)`
+
+**RLS policies**
+
+- `scribe_consents_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
+**Triggers**
+
+- `trg_scribe_consents_append_only`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `forbid_ai_log_mutation()`
+
+### scribe_sessions
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `encounter_id` | uuid | no |  |
+| `patient_id` | uuid | no |  |
+| `clinician_id` | uuid | no |  |
+| `consent_id` | uuid | no |  |
+| `status` | character varying(20) | no | `'consented'::character varying` |
+| `transcriber` | character varying(40) | no | `''::character varying` |
+| `transcript_sealed` | text | yes |  |
+| `segment_count` | integer | no | `0` |
+| `draft_sealed` | text | yes |  |
+| `draft_valid` | boolean | yes |  |
+| `ai_request_id` | uuid | yes |  |
+| `audio_stored` | boolean | no | `false` |
+| `accepted_by` | uuid | yes |  |
+| `accepted_at` | timestamp with time zone | yes |  |
+| `accepted_fields` | character varying(30)[] | no | `'{}'::character varying[]` |
+| `edit_ratio` | numeric(5,4) | yes |  |
+| `created_at` | timestamp with time zone | no | `now()` |
+| `updated_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `scribe_sessions_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `scribe_sessions_accepted_by_fkey`: `FOREIGN KEY (accepted_by) REFERENCES users(id) ON DELETE SET NULL`
+- `scribe_sessions_ai_request_id_fkey`: `FOREIGN KEY (ai_request_id) REFERENCES ai_requests(id) ON DELETE SET NULL`
+- `scribe_sessions_clinician_id_fkey`: `FOREIGN KEY (clinician_id) REFERENCES users(id) ON DELETE SET NULL`
+- `scribe_sessions_consent_id_fkey`: `FOREIGN KEY (consent_id) REFERENCES scribe_consents(id) ON DELETE RESTRICT`
+- `scribe_sessions_encounter_id_fkey`: `FOREIGN KEY (encounter_id) REFERENCES encounters(id) ON DELETE RESTRICT`
+- `scribe_sessions_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `scribe_sessions_patient_id_fkey`: `FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE RESTRICT`
+
+**Check constraints**
+
+- `ck_scribesession_no_audio`: `CHECK (audio_stored = false)`
+- `ck_scribesession_status`: `CHECK (status::text = ANY (ARRAY['consented'::character varying, 'drafted'::character varying, 'accepted'::character varying, 'discarded'::character varying]::text[]))`
+
+**Indexes**
+
+- `ix_scribesession_org_enc`: `btree (organization_id, encounter_id)`
+
+**RLS policies**
+
+- `scribe_sessions_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
+**Triggers**
+
+- `trg_scribe_sessions_guard`: BEFORE UPDATE FOR EACH ROW -> `guard_scribe_session()`
+
 ### stock_batches
 
 - Row-level security: enabled
@@ -3189,6 +3845,7 @@ Database at Alembic head **0014** (catalog read from PostgreSQL 16). Files in `a
 |---|---|
 | `admission_transfers_id_seq` | (none) |
 | `ai_credit_ledger_id_seq` | (none) |
+| `ai_proposal_events_id_seq` | (none) |
 | `audit_events_id_seq` | SELECT, USAGE |
 | `comms_consent_events_id_seq` | (none) |
 | `comms_delivery_log_id_seq` | (none) |
@@ -3243,24 +3900,27 @@ Database at Alembic head **0014** (catalog read from PostgreSQL 16). Files in `a
 | `forbid_rxitem_mutation()` | trigger | plpgsql |
 | `forbid_specimen_mutation()` | trigger | plpgsql |
 | `forbids_audit_mutation()` | trigger | plpgsql |
+| `guard_ai_proposal()` | trigger | plpgsql |
+| `guard_kb_document()` | trigger | plpgsql |
 | `guard_saas_order_transition()` | trigger | plpgsql |
 | `guard_saas_refund_transition()` | trigger | plpgsql |
+| `guard_scribe_session()` | trigger | plpgsql |
 
 ## Seeded RBAC catalogue
 
-60 permission keys (seeded by migrations):
+69 permission keys (seeded by migrations):
 
-`admission.manage`, `ai.audit.read`, `ai.copilot.use`, `ai.settings.manage`, `appointment.read`, `appointment.write`, `audit.read`, `bed.manage`, `bed.read`, `billing.invoice`, `billing.payment`, `billing.read`, `billing.refund`, `billing.saas.pay`, `billing.saas.read`, `billing.saas.refund_request`, `branch.manage`, `branch.read`, `comms.consent`, `comms.manage`, `comms.read`, `comms.send`, `discharge`, `encounter.read`, `encounter.write`, `expense.manage`, `expense.read`, `followup.create`, `followup.read`, `followup.write`, `inventory.manage`, `inventory.read`, `lab.import`, `lab.order`, `lab.read`, `lab.release`, `lab.verify`, `member.manage`, `member.read`, `nursing.read`, `nursing.write`, `org.manage`, `org.offboard`, `org.read`, `org.transfer_ownership`, `patient.merge`, `patient.read`, `patient.write`, `pharmacy.dispense`, `pharmacy.manage`, `pharmacy.read`, `prescription.read`, `prescription.sign`, `queue.manage`, `queue.read`, `report.read`, `subscription.manage`, `subscription.read`, `support.read`, `support.write`
+`admission.manage`, `ai.agents.approve`, `ai.agents.use`, `ai.audit.read`, `ai.copilot.use`, `ai.forecast.read`, `ai.knowledge.manage`, `ai.knowledge.use`, `ai.scribe.use`, `ai.settings.manage`, `appointment.read`, `appointment.write`, `audit.read`, `bed.manage`, `bed.read`, `billing.invoice`, `billing.payment`, `billing.read`, `billing.refund`, `billing.saas.pay`, `billing.saas.read`, `billing.saas.refund_request`, `branch.manage`, `branch.read`, `checkin.manage`, `comms.consent`, `comms.manage`, `comms.read`, `comms.send`, `discharge`, `encounter.read`, `encounter.write`, `expense.manage`, `expense.read`, `followup.create`, `followup.read`, `followup.write`, `inventory.manage`, `inventory.read`, `lab.import`, `lab.order`, `lab.read`, `lab.release`, `lab.verify`, `member.manage`, `member.read`, `nursing.read`, `nursing.write`, `org.manage`, `org.offboard`, `org.read`, `org.transfer_ownership`, `patient.merge`, `patient.read`, `patient.write`, `pharmacy.dispense`, `pharmacy.manage`, `pharmacy.read`, `prescription.read`, `prescription.sign`, `queue.manage`, `queue.read`, `report.read`, `setup.manage`, `setup.read`, `subscription.manage`, `subscription.read`, `support.read`, `support.write`
 
 | System role | Permissions |
 |---|---|
-| `admin` | admission.manage, ai.audit.read, ai.copilot.use, ai.settings.manage, appointment.read, appointment.write, audit.read, bed.manage, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, billing.saas.pay, billing.saas.read, branch.manage, branch.read, comms.consent, comms.manage, comms.read, comms.send, discharge, encounter.read, encounter.write, expense.manage, expense.read, followup.create, followup.read, followup.write, inventory.manage, inventory.read, lab.import, lab.order, lab.read, lab.release, lab.verify, member.manage, member.read, nursing.read, nursing.write, org.manage, org.read, patient.merge, patient.read, patient.write, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, subscription.manage, subscription.read, support.read, support.write |
+| `admin` | admission.manage, ai.agents.approve, ai.agents.use, ai.audit.read, ai.copilot.use, ai.forecast.read, ai.knowledge.manage, ai.knowledge.use, ai.settings.manage, appointment.read, appointment.write, audit.read, bed.manage, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, billing.saas.pay, billing.saas.read, branch.manage, branch.read, checkin.manage, comms.consent, comms.manage, comms.read, comms.send, discharge, encounter.read, encounter.write, expense.manage, expense.read, followup.create, followup.read, followup.write, inventory.manage, inventory.read, lab.import, lab.order, lab.read, lab.release, lab.verify, member.manage, member.read, nursing.read, nursing.write, org.manage, org.read, patient.merge, patient.read, patient.write, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, setup.manage, setup.read, subscription.manage, subscription.read, support.read, support.write |
 | `auditor` | ai.audit.read, audit.read, billing.saas.read, branch.read, comms.read, member.read, org.read, subscription.read |
-| `billing` | ai.copilot.use, appointment.read, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, billing.saas.read, branch.read, expense.manage, expense.read, lab.read, member.read, org.read, patient.read, pharmacy.read, report.read, subscription.read |
-| `doctor` | admission.manage, ai.copilot.use, appointment.read, bed.read, billing.read, branch.read, comms.consent, comms.send, discharge, encounter.read, encounter.write, expense.read, followup.create, followup.read, followup.write, inventory.read, lab.order, lab.read, lab.release, lab.verify, member.read, nursing.read, nursing.write, org.read, patient.read, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read |
-| `lab_technician` | bed.read, branch.read, lab.import, lab.order, lab.read, lab.verify, member.read, org.read, patient.read |
-| `nurse` | admission.manage, appointment.read, bed.read, branch.read, encounter.read, encounter.write, followup.read, inventory.read, lab.order, lab.read, member.read, nursing.read, nursing.write, org.read, patient.read, pharmacy.read, prescription.read, queue.read, report.read |
-| `owner` | admission.manage, ai.audit.read, ai.copilot.use, ai.settings.manage, appointment.read, appointment.write, audit.read, bed.manage, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, billing.saas.pay, billing.saas.read, billing.saas.refund_request, branch.manage, branch.read, comms.consent, comms.manage, comms.read, comms.send, discharge, encounter.read, encounter.write, expense.manage, expense.read, followup.create, followup.read, followup.write, inventory.manage, inventory.read, lab.import, lab.order, lab.read, lab.release, lab.verify, member.manage, member.read, nursing.read, nursing.write, org.manage, org.offboard, org.read, org.transfer_ownership, patient.merge, patient.read, patient.write, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, subscription.manage, subscription.read, support.read, support.write |
-| `pharmacist` | bed.read, branch.read, inventory.read, lab.read, member.read, org.read, patient.read, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read |
-| `receptionist` | admission.manage, appointment.read, appointment.write, bed.read, billing.invoice, billing.payment, billing.read, branch.read, comms.consent, comms.read, comms.send, followup.read, followup.write, lab.read, member.read, org.read, patient.read, patient.write, pharmacy.read, prescription.read, queue.manage, queue.read |
+| `billing` | ai.copilot.use, ai.knowledge.use, appointment.read, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, billing.saas.read, branch.read, expense.manage, expense.read, lab.read, member.read, org.read, patient.read, pharmacy.read, report.read, setup.read, subscription.read |
+| `doctor` | admission.manage, ai.copilot.use, ai.forecast.read, ai.knowledge.use, ai.scribe.use, appointment.read, bed.read, billing.read, branch.read, comms.consent, comms.send, discharge, encounter.read, encounter.write, expense.read, followup.create, followup.read, followup.write, inventory.read, lab.order, lab.read, lab.release, lab.verify, member.read, nursing.read, nursing.write, org.read, patient.read, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, setup.read |
+| `lab_technician` | ai.knowledge.use, bed.read, branch.read, lab.import, lab.order, lab.read, lab.verify, member.read, org.read, patient.read, setup.read |
+| `nurse` | admission.manage, ai.forecast.read, ai.knowledge.use, appointment.read, bed.read, branch.read, encounter.read, encounter.write, followup.read, inventory.read, lab.order, lab.read, member.read, nursing.read, nursing.write, org.read, patient.read, pharmacy.read, prescription.read, queue.read, report.read, setup.read |
+| `owner` | admission.manage, ai.agents.approve, ai.agents.use, ai.audit.read, ai.copilot.use, ai.forecast.read, ai.knowledge.manage, ai.knowledge.use, ai.scribe.use, ai.settings.manage, appointment.read, appointment.write, audit.read, bed.manage, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, billing.saas.pay, billing.saas.read, billing.saas.refund_request, branch.manage, branch.read, checkin.manage, comms.consent, comms.manage, comms.read, comms.send, discharge, encounter.read, encounter.write, expense.manage, expense.read, followup.create, followup.read, followup.write, inventory.manage, inventory.read, lab.import, lab.order, lab.read, lab.release, lab.verify, member.manage, member.read, nursing.read, nursing.write, org.manage, org.offboard, org.read, org.transfer_ownership, patient.merge, patient.read, patient.write, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, setup.manage, setup.read, subscription.manage, subscription.read, support.read, support.write |
+| `pharmacist` | ai.forecast.read, ai.knowledge.use, bed.read, branch.read, inventory.read, lab.read, member.read, org.read, patient.read, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, setup.read |
+| `receptionist` | admission.manage, ai.forecast.read, ai.knowledge.use, appointment.read, appointment.write, bed.read, billing.invoice, billing.payment, billing.read, branch.read, checkin.manage, comms.consent, comms.read, comms.send, followup.read, followup.write, lab.read, member.read, org.read, patient.read, patient.write, pharmacy.read, prescription.read, queue.manage, queue.read, setup.read |
 | `support` | org.read, support.read, support.write |

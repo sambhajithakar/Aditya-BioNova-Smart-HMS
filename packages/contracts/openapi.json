@@ -3756,6 +3756,1053 @@
         }
       }
     },
+    "/api/v1/setup/settings": {
+      "get": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Get Settings Doc",
+        "operationId": "get_settings_doc_api_v1_setup_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgSettingsOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Patch Settings Doc",
+        "operationId": "patch_settings_doc_api_v1_setup_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrgSettingsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgSettingsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/setup/wizard": {
+      "get": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Get Wizard",
+        "operationId": "get_wizard_api_v1_setup_wizard_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WizardOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Patch Wizard",
+        "operationId": "patch_wizard_api_v1_setup_wizard_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WizardPatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WizardOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/setup/wizard/steps/{step_key}": {
+      "post": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Mark Step",
+        "operationId": "mark_step_api_v1_setup_wizard_steps__step_key__post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "step_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "identity",
+                "branch",
+                "staff",
+                "language",
+                "working_hours",
+                "fees",
+                "prescription",
+                "billing",
+                "printer",
+                "schedule",
+                "edition"
+              ],
+              "type": "string",
+              "title": "Step Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WizardStepIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WizardOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setup/branches/{branch_id}/working-hours": {
+      "get": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Get Working Hours",
+        "operationId": "get_working_hours_api_v1_setup_branches__branch_id__working_hours_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "branch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Branch Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkingHoursOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Put Working Hours",
+        "description": "Replace the branch's whole week (validated: ranges, breaks, overlaps).",
+        "operationId": "put_working_hours_api_v1_setup_branches__branch_id__working_hours_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "branch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Branch Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkingHoursIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkingHoursOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setup/fees": {
+      "get": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "List Fees",
+        "operationId": "list_fees_api_v1_setup_fees_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeesOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/setup/fees/default": {
+      "put": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Put Default Fee",
+        "operationId": "put_default_fee_api_v1_setup_fees_default_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/setup/fees/providers/{user_id}": {
+      "put": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Put Provider Fee",
+        "operationId": "put_provider_fee_api_v1_setup_fees_providers__user_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeeIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Delete Provider Fee",
+        "operationId": "delete_provider_fee_api_v1_setup_fees_providers__user_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setup/fees/effective": {
+      "get": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Effective Fee",
+        "description": "The fee to pre-fill on a consultation invoice: the doctor's own fee,\nelse the clinic default (billing staff can still edit the line).",
+        "operationId": "effective_fee_api_v1_setup_fees_effective_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "provider_user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EffectiveFeeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setup/printers": {
+      "get": {
+        "tags": [
+          "printers"
+        ],
+        "summary": "List Profiles",
+        "operationId": "list_profiles_api_v1_setup_printers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PrinterProfileOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Profiles Api V1 Setup Printers Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "printers"
+        ],
+        "summary": "Create Profile",
+        "operationId": "create_profile_api_v1_setup_printers_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrinterProfileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrinterProfileOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/setup/printers/defaults": {
+      "get": {
+        "tags": [
+          "printers"
+        ],
+        "summary": "Defaults",
+        "operationId": "defaults_api_v1_setup_printers_defaults_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrinterDefaultsOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/setup/printers/{profile_id}": {
+      "get": {
+        "tags": [
+          "printers"
+        ],
+        "summary": "Get Profile",
+        "operationId": "get_profile_api_v1_setup_printers__profile_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Profile Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrinterProfileOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "printers"
+        ],
+        "summary": "Update Profile",
+        "operationId": "update_profile_api_v1_setup_printers__profile_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Profile Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrinterProfileUpdateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrinterProfileOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "printers"
+        ],
+        "summary": "Delete Profile",
+        "operationId": "delete_profile_api_v1_setup_printers__profile_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Profile Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/appointments/slots": {
+      "get": {
+        "tags": [
+          "appointments"
+        ],
+        "summary": "Suggest Slots",
+        "operationId": "suggest_slots_api_v1_appointments_slots_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Branch Id"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Date"
+            }
+          },
+          {
+            "name": "provider_user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlotsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/checkin/appointments/{appointment_id}/token": {
+      "post": {
+        "tags": [
+          "checkin"
+        ],
+        "summary": "Issue Token",
+        "description": "Create (or replace) the appointment's check-in QR token. The raw token\nis returned once; only its hash is kept.",
+        "operationId": "issue_token_api_v1_checkin_appointments__appointment_id__token_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "appointment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Appointment Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckinIssueOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/checkin/verify": {
+      "post": {
+        "tags": [
+          "checkin"
+        ],
+        "summary": "Verify",
+        "description": "Look a scanned code up WITHOUT checking in: minimal context so staff\ncan confirm the patient's identity verbally before confirming.",
+        "operationId": "verify_api_v1_checkin_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckinCodeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckinVerifyOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/checkin/confirm": {
+      "post": {
+        "tags": [
+          "checkin"
+        ],
+        "summary": "Confirm",
+        "operationId": "confirm_api_v1_checkin_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckinCodeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckinConfirmOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/checkin/kiosk": {
+      "post": {
+        "tags": [
+          "checkin"
+        ],
+        "summary": "Kiosk",
+        "description": "Self check-in on a reception-owned kiosk: confirm and show ONLY the\nqueue number. Errors are generic so nothing is learned from a code.",
+        "operationId": "kiosk_api_v1_checkin_kiosk_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckinCodeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KioskCheckinOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/appointments": {
       "post": {
         "tags": [
@@ -10225,6 +11272,1600 @@
         }
       }
     },
+    "/api/v1/ai/governance/usage": {
+      "get": {
+        "tags": [
+          "ai-governance"
+        ],
+        "summary": "Usage Breakdown",
+        "operationId": "usage_breakdown_api_v1_ai_governance_usage_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageBreakdownOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/forecast/opd": {
+      "get": {
+        "tags": [
+          "ai-forecast"
+        ],
+        "summary": "Opd",
+        "operationId": "opd_api_v1_ai_forecast_opd_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Branch Id"
+            }
+          },
+          {
+            "name": "horizon",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 28,
+              "minimum": 7,
+              "default": 14,
+              "title": "Horizon"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ForecastOut"
+                  },
+                  "title": "Response Opd Api V1 Ai Forecast Opd Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/forecast/no-show": {
+      "get": {
+        "tags": [
+          "ai-forecast"
+        ],
+        "summary": "No Show",
+        "operationId": "no_show_api_v1_ai_forecast_no_show_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Branch Id"
+            }
+          },
+          {
+            "name": "days_ahead",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 30,
+              "minimum": 1,
+              "default": 7,
+              "title": "Days Ahead"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForecastOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/forecast/pharmacy": {
+      "get": {
+        "tags": [
+          "ai-forecast"
+        ],
+        "summary": "Pharmacy",
+        "operationId": "pharmacy_api_v1_ai_forecast_pharmacy_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Branch Id"
+            }
+          },
+          {
+            "name": "lead_time_days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 60,
+              "minimum": 1,
+              "default": 7,
+              "title": "Lead Time Days"
+            }
+          },
+          {
+            "name": "review_days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 90,
+              "minimum": 1,
+              "default": 14,
+              "title": "Review Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ForecastOut"
+                  },
+                  "title": "Response Pharmacy Api V1 Ai Forecast Pharmacy Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/forecast/inventory": {
+      "get": {
+        "tags": [
+          "ai-forecast"
+        ],
+        "summary": "Inventory",
+        "operationId": "inventory_api_v1_ai_forecast_inventory_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Branch Id"
+            }
+          },
+          {
+            "name": "lead_time_days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 60,
+              "minimum": 1,
+              "default": 7,
+              "title": "Lead Time Days"
+            }
+          },
+          {
+            "name": "review_days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 90,
+              "minimum": 1,
+              "default": 14,
+              "title": "Review Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ForecastOut"
+                  },
+                  "title": "Response Inventory Api V1 Ai Forecast Inventory Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/forecast/beds": {
+      "get": {
+        "tags": [
+          "ai-forecast"
+        ],
+        "summary": "Beds",
+        "operationId": "beds_api_v1_ai_forecast_beds_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "branch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Branch Id"
+            }
+          },
+          {
+            "name": "horizon",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 28,
+              "minimum": 7,
+              "default": 14,
+              "title": "Horizon"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForecastOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/forecast/model-runs": {
+      "get": {
+        "tags": [
+          "ai-forecast"
+        ],
+        "summary": "Model Runs",
+        "operationId": "model_runs_api_v1_ai_forecast_model_runs_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ModelRunOut"
+                  },
+                  "title": "Response Model Runs Api V1 Ai Forecast Model Runs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/knowledge/documents": {
+      "post": {
+        "tags": [
+          "ai-knowledge"
+        ],
+        "summary": "Upload",
+        "operationId": "upload_api_v1_ai_knowledge_documents_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbDocumentIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KbDocumentOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "ai-knowledge"
+        ],
+        "summary": "List Documents",
+        "operationId": "list_documents_api_v1_ai_knowledge_documents_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/KbDocumentOut"
+                  },
+                  "title": "Response List Documents Api V1 Ai Knowledge Documents Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/knowledge/documents/{doc_id}": {
+      "get": {
+        "tags": [
+          "ai-knowledge"
+        ],
+        "summary": "Get Document",
+        "operationId": "get_document_api_v1_ai_knowledge_documents__doc_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "doc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Doc Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KbDocumentDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/knowledge/documents/{doc_id}/approve": {
+      "post": {
+        "tags": [
+          "ai-knowledge"
+        ],
+        "summary": "Approve",
+        "operationId": "approve_api_v1_ai_knowledge_documents__doc_id__approve_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "doc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Doc Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KbDocumentOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/knowledge/documents/{doc_id}/archive": {
+      "post": {
+        "tags": [
+          "ai-knowledge"
+        ],
+        "summary": "Archive",
+        "operationId": "archive_api_v1_ai_knowledge_documents__doc_id__archive_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "doc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Doc Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KbDocumentOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/knowledge/ask": {
+      "post": {
+        "tags": [
+          "ai-knowledge"
+        ],
+        "summary": "Ask",
+        "operationId": "ask_api_v1_ai_knowledge_ask_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbAskIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KbAnswerOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ai/knowledge/stats": {
+      "get": {
+        "tags": [
+          "ai-knowledge"
+        ],
+        "summary": "Stats",
+        "operationId": "stats_api_v1_ai_knowledge_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Stats Api V1 Ai Knowledge Stats Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ai/agents/catalog": {
+      "get": {
+        "tags": [
+          "ai-agents"
+        ],
+        "summary": "Catalog",
+        "operationId": "catalog_api_v1_ai_agents_catalog_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response Catalog Api V1 Ai Agents Catalog Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ai/agents/run": {
+      "post": {
+        "tags": [
+          "ai-agents"
+        ],
+        "summary": "Run Agent",
+        "operationId": "run_agent_api_v1_ai_agents_run_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentRunIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ai/agents/proposals": {
+      "get": {
+        "tags": [
+          "ai-agents"
+        ],
+        "summary": "List Proposals",
+        "operationId": "list_proposals_api_v1_ai_agents_proposals_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProposalOut"
+                  },
+                  "title": "Response List Proposals Api V1 Ai Agents Proposals Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/agents/proposals/{pid}": {
+      "get": {
+        "tags": [
+          "ai-agents"
+        ],
+        "summary": "Get Proposal",
+        "operationId": "get_proposal_api_v1_ai_agents_proposals__pid__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Proposal Api V1 Ai Agents Proposals  Pid  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/agents/proposals/{pid}/approve": {
+      "post": {
+        "tags": [
+          "ai-agents"
+        ],
+        "summary": "Approve",
+        "operationId": "approve_api_v1_ai_agents_proposals__pid__approve_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposalDecisionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/agents/proposals/{pid}/reject": {
+      "post": {
+        "tags": [
+          "ai-agents"
+        ],
+        "summary": "Reject",
+        "operationId": "reject_api_v1_ai_agents_proposals__pid__reject_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposalDecisionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/agents/tasks": {
+      "get": {
+        "tags": [
+          "ai-agents"
+        ],
+        "summary": "List Tasks",
+        "operationId": "list_tasks_api_v1_ai_agents_tasks_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "open",
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StaffTaskOut"
+                  },
+                  "title": "Response List Tasks Api V1 Ai Agents Tasks Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/agents/tasks/{task_id}/done": {
+      "post": {
+        "tags": [
+          "ai-agents"
+        ],
+        "summary": "Complete Task",
+        "operationId": "complete_task_api_v1_ai_agents_tasks__task_id__done_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffTaskOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/agents/reorder-drafts": {
+      "get": {
+        "tags": [
+          "ai-agents"
+        ],
+        "summary": "List Reorder Drafts",
+        "operationId": "list_reorder_drafts_api_v1_ai_agents_reorder_drafts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReorderDraftOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Reorder Drafts Api V1 Ai Agents Reorder Drafts Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ai/scribe/info": {
+      "get": {
+        "tags": [
+          "ai-scribe"
+        ],
+        "summary": "Info",
+        "operationId": "info_api_v1_ai_scribe_info_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Info Api V1 Ai Scribe Info Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ai/scribe/sessions": {
+      "post": {
+        "tags": [
+          "ai-scribe"
+        ],
+        "summary": "Start",
+        "operationId": "start_api_v1_ai_scribe_sessions_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScribeSessionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScribeSessionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "ai-scribe"
+        ],
+        "summary": "List Sessions",
+        "operationId": "list_sessions_api_v1_ai_scribe_sessions_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "encounter_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Encounter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScribeSessionOut"
+                  },
+                  "title": "Response List Sessions Api V1 Ai Scribe Sessions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/scribe/sessions/{sid}": {
+      "get": {
+        "tags": [
+          "ai-scribe"
+        ],
+        "summary": "Get Session",
+        "operationId": "get_session_api_v1_ai_scribe_sessions__sid__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScribeSessionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/scribe/sessions/{sid}/transcript": {
+      "post": {
+        "tags": [
+          "ai-scribe"
+        ],
+        "summary": "Transcript",
+        "operationId": "transcript_api_v1_ai_scribe_sessions__sid__transcript_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Sid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScribeTranscriptIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScribeSessionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/scribe/sessions/{sid}/accept": {
+      "post": {
+        "tags": [
+          "ai-scribe"
+        ],
+        "summary": "Accept",
+        "operationId": "accept_api_v1_ai_scribe_sessions__sid__accept_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Sid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScribeAcceptIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScribeSessionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/scribe/sessions/{sid}/discard": {
+      "post": {
+        "tags": [
+          "ai-scribe"
+        ],
+        "summary": "Discard",
+        "operationId": "discard_api_v1_ai_scribe_sessions__sid__discard_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScribeSessionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/dev/outbox": {
       "get": {
         "tags": [
@@ -10456,6 +13097,82 @@
           "discharged_at"
         ],
         "title": "AdmissionOut"
+      },
+      "AgentRunIn": {
+        "properties": {
+          "agent": {
+            "type": "string",
+            "enum": [
+              "appointment_followups",
+              "inventory_monitor",
+              "billing_reconciliation",
+              "ops_daily_report"
+            ],
+            "title": "Agent"
+          },
+          "branch_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch Id"
+          },
+          "older_than_days": {
+            "type": "integer",
+            "maximum": 365.0,
+            "minimum": 0.0,
+            "title": "Older Than Days",
+            "default": 7
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "agent"
+        ],
+        "title": "AgentRunIn"
+      },
+      "AgentRunOut": {
+        "properties": {
+          "agent": {
+            "type": "string",
+            "title": "Agent"
+          },
+          "created": {
+            "items": {
+              "$ref": "#/components/schemas/ProposalOut"
+            },
+            "type": "array",
+            "title": "Created"
+          },
+          "skipped_duplicates": {
+            "type": "integer",
+            "title": "Skipped Duplicates"
+          },
+          "inference": {
+            "type": "string",
+            "const": "deterministic",
+            "title": "Inference",
+            "default": "deterministic"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent",
+          "created",
+          "skipped_duplicates",
+          "note"
+        ],
+        "title": "AgentRunOut"
       },
       "AiRequestOut": {
         "properties": {
@@ -10915,6 +13632,28 @@
         "type": "object",
         "title": "AppointmentUpdateIn"
       },
+      "AudioMetaIn": {
+        "properties": {
+          "duration_s": {
+            "type": "number",
+            "maximum": 7200.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Duration S"
+          },
+          "mime": {
+            "type": "string",
+            "maxLength": 60,
+            "title": "Mime"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "duration_s",
+          "mime"
+        ],
+        "title": "AudioMetaIn"
+      },
       "AuthSessionOut": {
         "properties": {
           "user": {
@@ -11098,6 +13837,47 @@
           "notice"
         ],
         "title": "BillingCatalog"
+      },
+      "BillingSettings": {
+        "properties": {
+          "invoice_prefix": {
+            "type": "string",
+            "pattern": "^[A-Z0-9][A-Z0-9/-]{0,11}$",
+            "title": "Invoice Prefix",
+            "default": "INV"
+          },
+          "show_gstin": {
+            "type": "boolean",
+            "title": "Show Gstin",
+            "default": true
+          },
+          "default_payment_methods": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "cash",
+                "upi",
+                "card",
+                "insurance",
+                "other"
+              ]
+            },
+            "type": "array",
+            "maxItems": 5,
+            "minItems": 1,
+            "title": "Default Payment Methods"
+          },
+          "receipt_footer": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "Receipt Footer",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BillingSettings",
+        "description": "Clinic (patient) billing defaults — unrelated to the SaaS subscription."
       },
       "BranchIn": {
         "properties": {
@@ -11543,6 +14323,156 @@
           "cost_per_message_paise"
         ],
         "title": "ChannelUsage"
+      },
+      "CheckinCodeIn": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 10,
+            "title": "Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "CheckinCodeIn"
+      },
+      "CheckinConfirmOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "checked_in",
+              "already_checked_in"
+            ],
+            "title": "Status"
+          },
+          "appointment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Appointment Id"
+          },
+          "queue_entry": {
+            "$ref": "#/components/schemas/CheckinQueueOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "appointment_id",
+          "queue_entry"
+        ],
+        "title": "CheckinConfirmOut"
+      },
+      "CheckinIssueOut": {
+        "properties": {
+          "appointment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Appointment Id"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "appointment_id",
+          "token",
+          "expires_at"
+        ],
+        "title": "CheckinIssueOut"
+      },
+      "CheckinQueueOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "token_number": {
+            "type": "integer",
+            "title": "Token Number"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "service_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Service Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "token_number",
+          "status",
+          "service_date"
+        ],
+        "title": "CheckinQueueOut"
+      },
+      "CheckinVerifyOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "already_checked_in"
+            ],
+            "title": "Status"
+          },
+          "appointment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Appointment Id"
+          },
+          "patient_display_name": {
+            "type": "string",
+            "title": "Patient Display Name"
+          },
+          "appointment_starts_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Appointment Starts At"
+          },
+          "branch_name": {
+            "type": "string",
+            "title": "Branch Name"
+          },
+          "queue_token_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue Token Number"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "appointment_id",
+          "patient_display_name",
+          "appointment_starts_at",
+          "branch_name",
+          "queue_token_number"
+        ],
+        "title": "CheckinVerifyOut",
+        "description": "Minimal context for AUTHENTICATED staff to confirm identity verbally."
       },
       "CheckoutParams": {
         "properties": {
@@ -12695,6 +15625,73 @@
         ],
         "title": "EditionRef"
       },
+      "EffectiveFeeOut": {
+        "properties": {
+          "provider_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider User Id"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "provider",
+              "default",
+              "none"
+            ],
+            "title": "Source"
+          },
+          "consultation_fee": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consultation Fee"
+          },
+          "follow_up_fee": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Up Fee"
+          },
+          "follow_up_valid_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Up Valid Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider_user_id",
+          "source",
+          "consultation_fee",
+          "follow_up_fee",
+          "follow_up_valid_days"
+        ],
+        "title": "EffectiveFeeOut"
+      },
       "EncounterDetailOut": {
         "properties": {
           "id": {
@@ -13262,6 +16259,141 @@
         ],
         "title": "ExpenseVoidIn"
       },
+      "FeeIn": {
+        "properties": {
+          "consultation_fee": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Consultation Fee"
+          },
+          "follow_up_fee": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Up Fee"
+          },
+          "follow_up_valid_days": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 365.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Up Valid Days"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "consultation_fee"
+        ],
+        "title": "FeeIn"
+      },
+      "FeeOut": {
+        "properties": {
+          "provider_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider User Id"
+          },
+          "consultation_fee": {
+            "type": "string",
+            "title": "Consultation Fee"
+          },
+          "follow_up_fee": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Up Fee"
+          },
+          "follow_up_valid_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Up Valid Days"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider_user_id",
+          "consultation_fee",
+          "follow_up_fee",
+          "follow_up_valid_days",
+          "updated_at"
+        ],
+        "title": "FeeOut"
+      },
+      "FeesOut": {
+        "properties": {
+          "default": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FeeOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/FeeOut"
+            },
+            "type": "array",
+            "title": "Providers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "default",
+          "providers"
+        ],
+        "title": "FeesOut"
+      },
       "FinanceCategoryRow": {
         "properties": {
           "category": {
@@ -13563,6 +16695,41 @@
           "created_at"
         ],
         "title": "FollowUpOut"
+      },
+      "ForecastOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "insufficient_data"
+            ],
+            "title": "Status"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "label": {
+            "type": "string",
+            "const": "statistical model",
+            "title": "Label"
+          },
+          "inference": {
+            "type": "string",
+            "const": "statistical",
+            "title": "Inference"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "status",
+          "kind",
+          "label",
+          "inference"
+        ],
+        "title": "ForecastOut"
       },
       "HTTPValidationError": {
         "properties": {
@@ -14342,6 +17509,499 @@
         },
         "type": "object",
         "title": "IpdReport"
+      },
+      "KbAnswerOut": {
+        "properties": {
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "answered": {
+            "type": "boolean",
+            "title": "Answered"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "answer": {
+            "items": {
+              "$ref": "#/components/schemas/KbSentence"
+            },
+            "type": "array",
+            "title": "Answer"
+          },
+          "refusal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refusal"
+          },
+          "retrieved": {
+            "items": {
+              "$ref": "#/components/schemas/KbCitation"
+            },
+            "type": "array",
+            "title": "Retrieved"
+          },
+          "inference": {
+            "type": "string",
+            "title": "Inference"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "grounded": {
+            "type": "boolean",
+            "title": "Grounded"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "answered",
+          "language",
+          "answer",
+          "refusal",
+          "retrieved",
+          "inference",
+          "provider",
+          "model",
+          "method",
+          "grounded"
+        ],
+        "title": "KbAnswerOut"
+      },
+      "KbAskIn": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 2,
+            "title": "Question"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "en",
+                  "mr",
+                  "hi"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "KbAskIn"
+      },
+      "KbCitation": {
+        "properties": {
+          "chunk_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunk Id"
+          },
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "document_title": {
+            "type": "string",
+            "title": "Document Title"
+          },
+          "section": {
+            "type": "string",
+            "title": "Section"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chunk_id",
+          "document_id",
+          "document_title",
+          "section",
+          "version",
+          "score"
+        ],
+        "title": "KbCitation"
+      },
+      "KbDocumentDetailOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "doc_type": {
+            "type": "string",
+            "title": "Doc Type"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "visibility_roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Visibility Roles"
+          },
+          "injection_flags": {
+            "type": "integer",
+            "title": "Injection Flags"
+          },
+          "chunk_count": {
+            "type": "integer",
+            "title": "Chunk Count"
+          },
+          "uploaded_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uploaded By"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By"
+          },
+          "approved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "doc_type",
+          "language",
+          "version",
+          "status",
+          "visibility_roles",
+          "injection_flags",
+          "chunk_count",
+          "uploaded_by",
+          "approved_by",
+          "approved_at",
+          "created_at",
+          "body"
+        ],
+        "title": "KbDocumentDetailOut"
+      },
+      "KbDocumentIn": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 2,
+            "title": "Title"
+          },
+          "doc_type": {
+            "type": "string",
+            "enum": [
+              "sop",
+              "manual",
+              "policy",
+              "training",
+              "other"
+            ],
+            "title": "Doc Type",
+            "default": "sop"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "en",
+                  "mr",
+                  "hi",
+                  "mixed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 200000,
+            "minLength": 20,
+            "title": "Text"
+          },
+          "visibility_roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Visibility Roles"
+          },
+          "contains_patient_data": {
+            "type": "boolean",
+            "title": "Contains Patient Data"
+          },
+          "file_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "text",
+          "contains_patient_data"
+        ],
+        "title": "KbDocumentIn"
+      },
+      "KbDocumentOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "doc_type": {
+            "type": "string",
+            "title": "Doc Type"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "visibility_roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Visibility Roles"
+          },
+          "injection_flags": {
+            "type": "integer",
+            "title": "Injection Flags"
+          },
+          "chunk_count": {
+            "type": "integer",
+            "title": "Chunk Count"
+          },
+          "uploaded_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uploaded By"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By"
+          },
+          "approved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "doc_type",
+          "language",
+          "version",
+          "status",
+          "visibility_roles",
+          "injection_flags",
+          "chunk_count",
+          "uploaded_by",
+          "approved_by",
+          "approved_at",
+          "created_at"
+        ],
+        "title": "KbDocumentOut"
+      },
+      "KbSentence": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/KbCitation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "citation"
+        ],
+        "title": "KbSentence"
+      },
+      "KioskCheckinOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "checked_in",
+              "already_checked_in"
+            ],
+            "title": "Status"
+          },
+          "token_number": {
+            "type": "integer",
+            "title": "Token Number"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "token_number"
+        ],
+        "title": "KioskCheckinOut",
+        "description": "Self check-in kiosk answer: no name, no appointment details."
       },
       "LabOrderDetailOut": {
         "properties": {
@@ -15323,6 +18983,100 @@
         ],
         "title": "MissedAppointmentOut"
       },
+      "ModelRunOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope"
+          },
+          "engine_version": {
+            "type": "string",
+            "title": "Engine Version"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metrics"
+          },
+          "baseline_metrics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Baseline Metrics"
+          },
+          "data_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Start"
+          },
+          "data_end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data End"
+          },
+          "n_obs": {
+            "type": "integer",
+            "title": "N Obs"
+          },
+          "trained_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Trained At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "scope",
+          "engine_version",
+          "method",
+          "status",
+          "params",
+          "metrics",
+          "baseline_metrics",
+          "data_start",
+          "data_end",
+          "n_obs",
+          "trained_at"
+        ],
+        "title": "ModelRunOut"
+      },
       "NotifyIn": {
         "properties": {
           "channels": {
@@ -15851,6 +19605,96 @@
           "paid_at"
         ],
         "title": "OrderOut"
+      },
+      "OrgSettings": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Version",
+            "default": 1
+          },
+          "prescription": {
+            "$ref": "#/components/schemas/PrescriptionSettings"
+          },
+          "billing": {
+            "$ref": "#/components/schemas/BillingSettings"
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/ScheduleSettings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OrgSettings"
+      },
+      "OrgSettingsOut": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/OrgSettings"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "schema_version",
+          "settings",
+          "updated_at"
+        ],
+        "title": "OrgSettingsOut"
+      },
+      "OrgSettingsPatch": {
+        "properties": {
+          "prescription": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PrescriptionSettings"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "billing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BillingSettings"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "schedule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScheduleSettings"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OrgSettingsPatch",
+        "description": "Each given section REPLACES the stored section (validated in full)."
       },
       "OrganizationOut": {
         "properties": {
@@ -17909,6 +21753,50 @@
         "title": "PrescriptionIn",
         "description": "Create a draft Rx (optionally from an encounter)."
       },
+      "PrescriptionSettings": {
+        "properties": {
+          "header_text": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Header Text",
+            "default": ""
+          },
+          "footer_text": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Footer Text",
+            "default": ""
+          },
+          "show_registration_number": {
+            "type": "boolean",
+            "title": "Show Registration Number",
+            "default": true
+          },
+          "paper_size": {
+            "type": "string",
+            "enum": [
+              "A4",
+              "A5"
+            ],
+            "title": "Paper Size",
+            "default": "A4"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "mr",
+              "hi",
+              "trilingual"
+            ],
+            "title": "Language",
+            "default": "trilingual"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PrescriptionSettings"
+      },
       "PreviewIn": {
         "properties": {
           "channel": {
@@ -17984,6 +21872,386 @@
         ],
         "title": "PreviewOut"
       },
+      "PrinterDefaultsOut": {
+        "properties": {
+          "prescription": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PrinterProfileOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "receipt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PrinterProfileOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lab_report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PrinterProfileOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "prescription",
+          "receipt",
+          "lab_report"
+        ],
+        "title": "PrinterDefaultsOut"
+      },
+      "PrinterProfileIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "a4",
+              "a5",
+              "thermal_80mm",
+              "thermal_58mm"
+            ],
+            "title": "Kind"
+          },
+          "default_for": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "prescription",
+                "receipt",
+                "lab_report"
+              ]
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Default For"
+          },
+          "margin_top_mm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Margin Top Mm",
+            "default": "10"
+          },
+          "margin_right_mm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Margin Right Mm",
+            "default": "10"
+          },
+          "margin_bottom_mm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Margin Bottom Mm",
+            "default": "10"
+          },
+          "margin_left_mm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Margin Left Mm",
+            "default": "10"
+          },
+          "font_scale": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 2.0,
+                "minimum": 0.5
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Font Scale",
+            "default": "1.00"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "Notes",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "kind"
+        ],
+        "title": "PrinterProfileIn"
+      },
+      "PrinterProfileOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "default_for": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Default For"
+          },
+          "margin_top_mm": {
+            "type": "string",
+            "title": "Margin Top Mm"
+          },
+          "margin_right_mm": {
+            "type": "string",
+            "title": "Margin Right Mm"
+          },
+          "margin_bottom_mm": {
+            "type": "string",
+            "title": "Margin Bottom Mm"
+          },
+          "margin_left_mm": {
+            "type": "string",
+            "title": "Margin Left Mm"
+          },
+          "font_scale": {
+            "type": "string",
+            "title": "Font Scale"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "default_for",
+          "margin_top_mm",
+          "margin_right_mm",
+          "margin_bottom_mm",
+          "margin_left_mm",
+          "font_scale",
+          "notes",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "PrinterProfileOut"
+      },
+      "PrinterProfileUpdateIn": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "a4",
+                  "a5",
+                  "thermal_80mm",
+                  "thermal_58mm"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "default_for": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "prescription",
+                    "receipt",
+                    "lab_report"
+                  ]
+                },
+                "type": "array",
+                "maxItems": 3
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default For"
+          },
+          "margin_top_mm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Margin Top Mm"
+          },
+          "margin_right_mm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Margin Right Mm"
+          },
+          "margin_bottom_mm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Margin Bottom Mm"
+          },
+          "margin_left_mm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Margin Left Mm"
+          },
+          "font_scale": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 2.0,
+                "minimum": 0.5
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Font Scale"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PrinterProfileUpdateIn"
+      },
       "ProfileUpdateIn": {
         "properties": {
           "full_name": {
@@ -18015,6 +22283,183 @@
         "additionalProperties": false,
         "type": "object",
         "title": "ProfileUpdateIn"
+      },
+      "ProposalDecisionIn": {
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ProposalDecisionIn"
+      },
+      "ProposalOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "agent": {
+            "type": "string",
+            "title": "Agent"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "branch_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale"
+          },
+          "evidence": {
+            "items": {},
+            "type": "array",
+            "title": "Evidence"
+          },
+          "args_sha256": {
+            "type": "string",
+            "title": "Args Sha256"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decision_note": {
+            "type": "string",
+            "title": "Decision Note"
+          },
+          "executed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Executed At"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "approve_requires": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Approve Requires",
+            "default": []
+          },
+          "executable": {
+            "type": "boolean",
+            "title": "Executable",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "agent",
+          "kind",
+          "status",
+          "branch_id",
+          "title",
+          "payload",
+          "rationale",
+          "evidence",
+          "args_sha256",
+          "created_by",
+          "created_at",
+          "expires_at",
+          "decided_by",
+          "decided_at",
+          "decision_note",
+          "executed_at",
+          "result"
+        ],
+        "title": "ProposalOut"
       },
       "QueueEntryOut": {
         "properties": {
@@ -18554,6 +22999,56 @@
         ],
         "title": "ReminderRunOut"
       },
+      "ReorderDraftOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "branch_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Branch Id"
+          },
+          "proposal_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposal Id"
+          },
+          "lines": {
+            "items": {},
+            "type": "array",
+            "title": "Lines"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "branch_id",
+          "proposal_id",
+          "lines",
+          "status",
+          "created_at"
+        ],
+        "title": "ReorderDraftOut"
+      },
       "ReportSummaryOut": {
         "properties": {
           "from_date": {
@@ -18786,6 +23281,325 @@
         "title": "RxWarningsOut",
         "description": "Pre-sign safety check (allergy + duplicate-drug)."
       },
+      "ScheduleSettings": {
+        "properties": {
+          "slot_minutes": {
+            "type": "integer",
+            "title": "Slot Minutes",
+            "default": 15
+          },
+          "max_per_slot": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Max Per Slot",
+            "default": 1
+          },
+          "online_booking_enabled": {
+            "type": "boolean",
+            "title": "Online Booking Enabled",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ScheduleSettings"
+      },
+      "ScribeAcceptIn": {
+        "properties": {
+          "chief_complaint": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Chief Complaint",
+            "default": ""
+          },
+          "history": {
+            "type": "string",
+            "maxLength": 5000,
+            "title": "History",
+            "default": ""
+          },
+          "examination": {
+            "type": "string",
+            "maxLength": 5000,
+            "title": "Examination",
+            "default": ""
+          },
+          "assessment": {
+            "type": "string",
+            "maxLength": 5000,
+            "title": "Assessment",
+            "default": ""
+          },
+          "plan": {
+            "type": "string",
+            "maxLength": 5000,
+            "title": "Plan",
+            "default": ""
+          },
+          "reviewed": {
+            "type": "boolean",
+            "title": "Reviewed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reviewed"
+        ],
+        "title": "ScribeAcceptIn"
+      },
+      "ScribeConsentIn": {
+        "properties": {
+          "patient_verbal_consent": {
+            "type": "boolean",
+            "title": "Patient Verbal Consent"
+          },
+          "notice_language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "mr",
+              "hi"
+            ],
+            "title": "Notice Language",
+            "default": "en"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "patient_verbal_consent"
+        ],
+        "title": "ScribeConsentIn"
+      },
+      "ScribeSessionIn": {
+        "properties": {
+          "encounter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Encounter Id"
+          },
+          "consent": {
+            "$ref": "#/components/schemas/ScribeConsentIn"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "encounter_id",
+          "consent"
+        ],
+        "title": "ScribeSessionIn"
+      },
+      "ScribeSessionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "encounter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Encounter Id"
+          },
+          "patient_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Patient Id"
+          },
+          "clinician_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Clinician Id"
+          },
+          "consent_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Consent Id"
+          },
+          "consent_given_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Consent Given At"
+          },
+          "consent_obtained_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Consent Obtained By"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "transcriber": {
+            "type": "string",
+            "title": "Transcriber"
+          },
+          "transcriber_label": {
+            "type": "string",
+            "title": "Transcriber Label"
+          },
+          "segments": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Segments",
+            "default": []
+          },
+          "draft": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft"
+          },
+          "draft_valid": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Valid"
+          },
+          "validation_problems": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Validation Problems",
+            "default": []
+          },
+          "prefill": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prefill"
+          },
+          "inference": {
+            "type": "string",
+            "title": "Inference"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "audio_stored": {
+            "type": "boolean",
+            "title": "Audio Stored"
+          },
+          "audio_retention": {
+            "type": "string",
+            "title": "Audio Retention"
+          },
+          "accepted_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted By"
+          },
+          "accepted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted At"
+          },
+          "accepted_fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Accepted Fields",
+            "default": []
+          },
+          "disclaimer": {
+            "type": "string",
+            "title": "Disclaimer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "encounter_id",
+          "patient_id",
+          "clinician_id",
+          "consent_id",
+          "consent_given_at",
+          "consent_obtained_by",
+          "status",
+          "transcriber",
+          "transcriber_label",
+          "inference",
+          "provider",
+          "model",
+          "audio_stored",
+          "audio_retention",
+          "disclaimer"
+        ],
+        "title": "ScribeSessionOut"
+      },
+      "ScribeTranscriptIn": {
+        "properties": {
+          "transcript": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transcript"
+          },
+          "audio": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AudioMetaIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ScribeTranscriptIn"
+      },
       "SendResultOut": {
         "properties": {
           "results": {
@@ -18902,6 +23716,196 @@
         "additionalProperties": false,
         "type": "object",
         "title": "SimulateIn"
+      },
+      "SlotOut": {
+        "properties": {
+          "starts_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Starts At"
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ends At"
+          },
+          "booked": {
+            "type": "integer",
+            "title": "Booked"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          }
+        },
+        "type": "object",
+        "required": [
+          "starts_at",
+          "ends_at",
+          "booked",
+          "available"
+        ],
+        "title": "SlotOut"
+      },
+      "SlotsOut": {
+        "properties": {
+          "branch_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Branch Id"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "provider_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider User Id"
+          },
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          },
+          "slot_minutes": {
+            "type": "integer",
+            "title": "Slot Minutes"
+          },
+          "max_per_slot": {
+            "type": "integer",
+            "title": "Max Per Slot"
+          },
+          "slots": {
+            "items": {
+              "$ref": "#/components/schemas/SlotOut"
+            },
+            "type": "array",
+            "title": "Slots"
+          }
+        },
+        "type": "object",
+        "required": [
+          "branch_id",
+          "date",
+          "provider_user_id",
+          "configured",
+          "slot_minutes",
+          "max_per_slot",
+          "slots"
+        ],
+        "title": "SlotsOut"
+      },
+      "StaffTaskOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "branch_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch Id"
+          },
+          "proposal_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposal Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "subject_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Type"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Id"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "priority": {
+            "type": "string",
+            "title": "Priority"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "branch_id",
+          "proposal_id",
+          "kind",
+          "title",
+          "subject_type",
+          "subject_id",
+          "due_date",
+          "priority",
+          "status",
+          "created_at"
+        ],
+        "title": "StaffTaskOut"
       },
       "StockAlertOut": {
         "properties": {
@@ -19840,6 +24844,88 @@
         ],
         "title": "TransferIn"
       },
+      "UsageBreakdownOut": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "used_credits": {
+            "type": "integer",
+            "title": "Used Credits"
+          },
+          "limit_credits": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit Credits"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/UsageBreakdownRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "features": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Features"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "used_credits",
+          "limit_credits",
+          "rows",
+          "features"
+        ],
+        "title": "UsageBreakdownOut"
+      },
+      "UsageBreakdownRow": {
+        "properties": {
+          "feature": {
+            "type": "string",
+            "title": "Feature"
+          },
+          "task": {
+            "type": "string",
+            "title": "Task"
+          },
+          "inference": {
+            "type": "string",
+            "title": "Inference"
+          },
+          "requests": {
+            "type": "integer",
+            "title": "Requests"
+          },
+          "ok": {
+            "type": "integer",
+            "title": "Ok"
+          },
+          "credits": {
+            "type": "integer",
+            "title": "Credits"
+          }
+        },
+        "type": "object",
+        "required": [
+          "feature",
+          "task",
+          "inference",
+          "requests",
+          "ok",
+          "credits"
+        ],
+        "title": "UsageBreakdownRow"
+      },
       "UsageOut": {
         "properties": {
           "limit": {
@@ -20307,6 +25393,287 @@
           "created_at"
         ],
         "title": "WardOut"
+      },
+      "WizardOut": {
+        "properties": {
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/WizardStepOut"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "current_step": {
+            "type": "string",
+            "title": "Current Step"
+          },
+          "finished": {
+            "type": "boolean",
+            "title": "Finished"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "should_show": {
+            "type": "boolean",
+            "title": "Should Show"
+          },
+          "progress_percent": {
+            "type": "integer",
+            "title": "Progress Percent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "steps",
+          "current_step",
+          "finished",
+          "finished_at",
+          "should_show",
+          "progress_percent"
+        ],
+        "title": "WizardOut"
+      },
+      "WizardPatchIn": {
+        "properties": {
+          "current_step": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "identity",
+                  "branch",
+                  "staff",
+                  "language",
+                  "working_hours",
+                  "fees",
+                  "prescription",
+                  "billing",
+                  "printer",
+                  "schedule",
+                  "edition"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Step"
+          },
+          "finished": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "WizardPatchIn"
+      },
+      "WizardStepIn": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "done",
+              "skipped",
+              "todo"
+            ],
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "WizardStepIn"
+      },
+      "WizardStepOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "done",
+              "skipped",
+              "todo"
+            ],
+            "title": "Status"
+          },
+          "data_ready": {
+            "type": "boolean",
+            "title": "Data Ready"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "status",
+          "data_ready"
+        ],
+        "title": "WizardStepOut"
+      },
+      "WorkingHoursIn": {
+        "properties": {
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/WorkingSessionIn"
+            },
+            "type": "array",
+            "maxItems": 21,
+            "title": "Sessions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sessions"
+        ],
+        "title": "WorkingHoursIn"
+      },
+      "WorkingHoursOut": {
+        "properties": {
+          "branch_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Branch Id"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/WorkingSessionOut"
+            },
+            "type": "array",
+            "title": "Sessions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "branch_id",
+          "sessions"
+        ],
+        "title": "WorkingHoursOut"
+      },
+      "WorkingSessionIn": {
+        "properties": {
+          "weekday": {
+            "type": "integer",
+            "maximum": 6.0,
+            "minimum": 0.0,
+            "title": "Weekday"
+          },
+          "opens_at": {
+            "type": "string",
+            "format": "time",
+            "title": "Opens At"
+          },
+          "closes_at": {
+            "type": "string",
+            "format": "time",
+            "title": "Closes At"
+          },
+          "break_starts_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Break Starts At"
+          },
+          "break_ends_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Break Ends At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "weekday",
+          "opens_at",
+          "closes_at"
+        ],
+        "title": "WorkingSessionIn"
+      },
+      "WorkingSessionOut": {
+        "properties": {
+          "weekday": {
+            "type": "integer",
+            "title": "Weekday"
+          },
+          "opens_at": {
+            "type": "string",
+            "format": "time",
+            "title": "Opens At"
+          },
+          "closes_at": {
+            "type": "string",
+            "format": "time",
+            "title": "Closes At"
+          },
+          "break_starts_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Break Starts At"
+          },
+          "break_ends_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Break Ends At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "weekday",
+          "opens_at",
+          "closes_at",
+          "break_starts_at",
+          "break_ends_at"
+        ],
+        "title": "WorkingSessionOut"
       },
       "app__schemas__InvoiceOut": {
         "properties": {
