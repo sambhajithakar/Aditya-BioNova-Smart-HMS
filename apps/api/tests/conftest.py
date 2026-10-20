@@ -18,7 +18,7 @@ PG_HOST = os.environ.get("HMS_TEST_HOST", "127.0.0.1")
 PG_PORT = os.environ.get("HMS_TEST_PORT", "5433")
 PG_SUPERUSER = os.environ.get("HMS_TEST_SUPERUSER", "hms")
 APP_PASSWORD = os.environ.get("HMS_APP_PASSWORD", "change_me")
-TEST_DB = "hms_test"
+TEST_DB = os.environ.get("HMS_TEST_DB", "hms_test")
 
 os.environ["DATABASE_URL"] = (
     f"postgresql+psycopg2://hms_app:{APP_PASSWORD}@{PG_HOST}:{PG_PORT}/{TEST_DB}"
