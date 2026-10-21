@@ -15,6 +15,9 @@ import '../api/client.dart';
 import '../api/transport.dart';
 import '../app_graph.dart';
 import '../auth/session.dart';
+import '../boot.dart' show changeDemoServer;
+import '../demo/demo_server.dart' show kDemoLan;
+import '../main.dart' show HmsRoot;
 import '../l10n/l10n.dart';
 import 'home_screen.dart';
 import 'lock_screen.dart';
@@ -182,6 +185,24 @@ class _LoginScreenState extends State<LoginScreen> {
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
+                if (kDemoLan) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    l.demoServerCurrent(widget.graph.baseUrl),
+                    key: const Key('login-demo-server'),
+                    textAlign: TextAlign.center,
+                  ),
+                  TextButton(
+                    key: const Key('login-demo-change'),
+                    onPressed: _busy
+                        ? null
+                        : () async {
+                            final next = await changeDemoServer();
+                            if (context.mounted) HmsRoot.replace(context, next);
+                          },
+                    child: Text(l.demoServerChange),
+                  ),
+                ],
                 if (widget.notice != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 12),

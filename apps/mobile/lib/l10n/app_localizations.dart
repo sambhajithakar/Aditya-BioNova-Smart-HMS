@@ -2559,6 +2559,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The device clock differs from the phone\'s.'**
   String get readingClockSkew;
+
+  /// No description provided for @demoBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'DEMO'**
+  String get demoBanner;
+
+  /// No description provided for @demoServerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Demo server'**
+  String get demoServerTitle;
+
+  /// No description provided for @demoServerHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a demonstration build. It works only with the demo server running on your own computer, which holds synthetic data only. Enter the address shown by the demo start script, for example 192.168.1.20:8000. The phone and the computer must be on the same Wi-Fi.'**
+  String get demoServerHelp;
+
+  /// No description provided for @demoServerField.
+  ///
+  /// In en, this message translates to:
+  /// **'Server address'**
+  String get demoServerField;
+
+  /// No description provided for @demoServerInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a private network address such as 192.168.1.20:8000, or an https:// address.'**
+  String get demoServerInvalid;
+
+  /// No description provided for @demoServerUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'No server answered at {url}. Check that the demo is running on the computer, that both are on the same Wi-Fi, and that the computer\'s firewall allows port 8000.'**
+  String demoServerUnreachable(String url);
+
+  /// No description provided for @demoServerNotHms.
+  ///
+  /// In en, this message translates to:
+  /// **'The server at {url} is not an Aditya BioNova HMS demo server.'**
+  String demoServerNotHms(String url);
+
+  /// No description provided for @demoServerProduction.
+  ///
+  /// In en, this message translates to:
+  /// **'That server reports a production environment. The demo app never connects to production.'**
+  String get demoServerProduction;
+
+  /// No description provided for @demoServerConnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect'**
+  String get demoServerConnect;
+
+  /// No description provided for @demoServerChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking…'**
+  String get demoServerChecking;
+
+  /// No description provided for @demoServerChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Change demo server'**
+  String get demoServerChange;
+
+  /// No description provided for @demoServerWipeWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting deletes this app\'s local data on the phone (it belonged to the previous server).'**
+  String get demoServerWipeWarning;
+
+  /// No description provided for @demoServerCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Demo build · synthetic data only · server {url}'**
+  String demoServerCurrent(String url);
 }
 
 class _AppLocalizationsDelegate

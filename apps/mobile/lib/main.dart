@@ -22,8 +22,10 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'app_graph.dart';
 import 'auth/app_lock.dart' show AppLock;
 import 'boot.dart';
+import 'demo/demo_server.dart' show kDemoLan;
 import 'l10n/l10n.dart';
 import 'legal/licenses.dart' show registerAdditionalLicenses;
+import 'screens/demo_server_screen.dart';
 import 'screens/home_screen.dart' show openHome;
 import 'screens/lock_screen.dart';
 import 'screens/login_screen.dart';
@@ -82,6 +84,19 @@ Widget ruralTextScale(BuildContext context, Widget? child) {
   );
 }
 
+/// `MaterialApp.builder` for the LAN demo build: a permanent "DEMO"
+/// corner ribbon over every screen (no-op in other builds).
+Widget demoBanner(BuildContext context, Widget? child) {
+  final body = child ?? const SizedBox.shrink();
+  if (!kDemoLan) return body;
+  return Banner(
+    message: context.l10n.demoBanner,
+    location: BannerLocation.topEnd,
+    color: const Color(0xFFB00020),
+    child: body,
+  );
+}
+
 /// Delegates for the app strings plus Material/Cupertino/Widgets in
 /// English, मराठी and हिंदी.
 const List<LocalizationsDelegate<dynamic>> kLocalizationsDelegates = [
@@ -100,6 +115,10 @@ class HmsRoot extends StatefulWidget {
 
   final BootOutcome initial;
 
+  /// Replace the running app with [next] (LAN demo build: change server).
+  static void replace(BuildContext context, BootOutcome next) =>
+      context.findAncestorStateOfType<_HmsRootState>()?._replace(next);
+
   @override
   State<HmsRoot> createState() => _HmsRootState();
 }
@@ -107,10 +126,21 @@ class HmsRoot extends StatefulWidget {
 class _HmsRootState extends State<HmsRoot> {
   late BootOutcome _outcome = widget.initial;
 
+  void _replace(BootOutcome next) => setState(() => _outcome = next);
+
   @override
   Widget build(BuildContext context) {
     return switch (_outcome) {
-      BootReady(:final graph) => HmsApp(graph: graph),
+      BootReady(:final graph) => HmsApp(key: ObjectKey(graph), graph: graph),
+      final BootNeedsDemoServer request => MaterialApp(
+          onGenerateTitle: (ctx) => ctx.l10n.appTitle,
+          debugShowCheckedModeBanner: false,
+          theme: hmsTheme(),
+          localizationsDelegates: kLocalizationsDelegates,
+          supportedLocales: kSupportedLocales,
+          builder: demoBanner,
+          home: DemoServerScreen(request: request, onOutcome: _replace),
+        ),
       final BootFailed failure => MaterialApp(
           onGenerateTitle: (ctx) => ctx.l10n.appTitle,
           debugShowCheckedModeBanner: false,
@@ -230,7 +260,10 @@ class HmsMaterialApp extends StatelessWidget {
           locale: settings.locale,
           localizationsDelegates: kLocalizationsDelegates,
           supportedLocales: kSupportedLocales,
-          builder: rural ? ruralTextScale : null,
+          builder: (ctx, child) => demoBanner(
+            ctx,
+            rural ? ruralTextScale(ctx, child) : child,
+          ),
           home: home,
         );
       },

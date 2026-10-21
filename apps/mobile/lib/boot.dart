@@ -17,6 +17,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'app_graph.dart';
 import 'auth/app_lock.dart';
+import 'demo/demo_server.dart';
 import 'auth/session.dart';
 import 'store/local_store.dart';
 import 'store/platform_stores.dart';
@@ -47,6 +48,18 @@ class BootFailed extends BootOutcome {
   /// Delete the local offline data and start empty. Null when a reset
   /// cannot help (a build configuration error).
   final Future<BootOutcome> Function()? reset;
+}
+
+/// LAN demo build only ([kDemoLan]): no demo server chosen yet. [connect]
+/// stores the normalised address, clears this phone's local HMS data (it
+/// belonged to the previous server, if any) and boots again.
+class BootNeedsDemoServer extends BootOutcome {
+  const BootNeedsDemoServer({required this.connect, this.current});
+
+  final Future<BootOutcome> Function(String url) connect;
+
+  /// The server in use when the user asked to change it, if any.
+  final String? current;
 }
 
 /// Try [open]; on any error return a [BootFailed] whose `reset` runs
@@ -87,7 +100,14 @@ const String kApiBase = String.fromEnvironment(
 /// Device wiring: Keystore-backed session + AES-sealed offline store under
 /// the app documents directory.
 Future<BootOutcome> bootDevice() async {
-  if (kReleaseMode && !kApiBase.startsWith('https://')) {
+  var base = kApiBase;
+  if (kDemoLan) {
+    final chosen = await DemoServerStore().read();
+    if (chosen == null) {
+      return const BootNeedsDemoServer(connect: connectDemoServer);
+    }
+    base = chosen;
+  } else if (kReleaseMode && !kApiBase.startsWith('https://')) {
     final err = StateError(
       'This release build points at a non-HTTPS server ($kApiBase). '
       'Rebuild with --dart-define=API_BASE=https://…',
@@ -99,30 +119,46 @@ Future<BootOutcome> bootDevice() async {
   const storage = FlutterSecureStorage();
   final tokenStore = SecureTokenStore(storage: storage);
 
-  Future<File> storeFile() async {
-    final docs = await getApplicationDocumentsDirectory();
-    return File('${docs.path}/hms_offline.json');
-  }
-
   return bootGraph(
     open: () async => AppGraph.open(
-      baseUrl: kApiBase,
+      baseUrl: base,
       tokenStore: tokenStore,
       store: EncryptedFileStore(
-        file: await storeFile(),
+        file: await _storeFile(),
         keys: SecureKeyProvider(storage: storage),
       ),
       appLock: AppLock(tokenStore, useIsolate: true),
       autoSync: true,
     ),
-    wipe: () async {
-      final file = await storeFile();
-      await resetLocalStore(
-        file: file,
-        deleteKey: () => storage.delete(key: SecureKeyProvider.keyName),
-        tokenStore: tokenStore,
-      );
-    },
+    wipe: _wipeDevice,
+  );
+}
+
+/// LAN demo build: use [url] (already normalised) from now on. The local
+/// data of the previous server is deleted first.
+Future<BootOutcome> connectDemoServer(String url) async {
+  await _wipeDevice();
+  await DemoServerStore().write(url);
+  return bootDevice();
+}
+
+/// LAN demo build: forget the server so the next boot asks again.
+Future<BootOutcome> changeDemoServer() async {
+  final current = await DemoServerStore().read();
+  return BootNeedsDemoServer(connect: connectDemoServer, current: current);
+}
+
+Future<File> _storeFile() async {
+  final docs = await getApplicationDocumentsDirectory();
+  return File('${docs.path}/hms_offline.json');
+}
+
+Future<void> _wipeDevice() async {
+  const storage = FlutterSecureStorage();
+  await resetLocalStore(
+    file: await _storeFile(),
+    deleteKey: () => storage.delete(key: SecureKeyProvider.keyName),
+    tokenStore: SecureTokenStore(storage: storage),
   );
 }
 

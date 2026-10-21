@@ -1475,4 +1475,53 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get readingClockSkew => 'The device clock differs from the phone\'s.';
+
+  @override
+  String get demoBanner => 'DEMO';
+
+  @override
+  String get demoServerTitle => 'Demo server';
+
+  @override
+  String get demoServerHelp =>
+      'This is a demonstration build. It works only with the demo server running on your own computer, which holds synthetic data only. Enter the address shown by the demo start script, for example 192.168.1.20:8000. The phone and the computer must be on the same Wi-Fi.';
+
+  @override
+  String get demoServerField => 'Server address';
+
+  @override
+  String get demoServerInvalid =>
+      'Enter a private network address such as 192.168.1.20:8000, or an https:// address.';
+
+  @override
+  String demoServerUnreachable(String url) {
+    return 'No server answered at $url. Check that the demo is running on the computer, that both are on the same Wi-Fi, and that the computer\'s firewall allows port 8000.';
+  }
+
+  @override
+  String demoServerNotHms(String url) {
+    return 'The server at $url is not an Aditya BioNova HMS demo server.';
+  }
+
+  @override
+  String get demoServerProduction =>
+      'That server reports a production environment. The demo app never connects to production.';
+
+  @override
+  String get demoServerConnect => 'Connect';
+
+  @override
+  String get demoServerChecking => 'Checking…';
+
+  @override
+  String get demoServerChange => 'Change demo server';
+
+  @override
+  String get demoServerWipeWarning =>
+      'Connecting deletes this app\'s local data on the phone (it belonged to the previous server).';
+
+  @override
+  String demoServerCurrent(String url) {
+    return 'Demo build · synthetic data only · server $url';
+  }
 }

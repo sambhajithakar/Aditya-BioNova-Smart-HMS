@@ -1041,5 +1041,39 @@
       }
     }
   },
-  "readingClockSkew": "The device clock differs from the phone's."
+  "readingClockSkew": "The device clock differs from the phone's.",
+  "demoBanner": "DEMO",
+  "demoServerTitle": "Demo server",
+  "demoServerHelp": "This is a demonstration build. It works only with the demo server running on your own computer, which holds synthetic data only. Enter the address shown by the demo start script, for example 192.168.1.20:8000. The phone and the computer must be on the same Wi-Fi.",
+  "demoServerField": "Server address",
+  "demoServerInvalid": "Enter a private network address such as 192.168.1.20:8000, or an https:// address.",
+  "demoServerUnreachable": "No server answered at {url}. Check that the demo is running on the computer, that both are on the same Wi-Fi, and that the computer's firewall allows port 8000.",
+  "@demoServerUnreachable": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "demoServerNotHms": "The server at {url} is not an Aditya BioNova HMS demo server.",
+  "@demoServerNotHms": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "demoServerProduction": "That server reports a production environment. The demo app never connects to production.",
+  "demoServerConnect": "Connect",
+  "demoServerChecking": "Checking…",
+  "demoServerChange": "Change demo server",
+  "demoServerWipeWarning": "Connecting deletes this app's local data on the phone (it belonged to the previous server).",
+  "demoServerCurrent": "Demo build · synthetic data only · server {url}",
+  "@demoServerCurrent": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  }
 }

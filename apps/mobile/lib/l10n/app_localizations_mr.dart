@@ -1469,4 +1469,53 @@ class AppLocalizationsMr extends AppLocalizations {
 
   @override
   String get readingClockSkew => 'उपकरणाचे घड्याळ फोनपेक्षा वेगळे आहे.';
+
+  @override
+  String get demoBanner => 'डेमो';
+
+  @override
+  String get demoServerTitle => 'डेमो सर्व्हर';
+
+  @override
+  String get demoServerHelp =>
+      'ही प्रात्यक्षिक (डेमो) आवृत्ती आहे. ती फक्त तुमच्या स्वतःच्या संगणकावर चालणाऱ्या डेमो सर्व्हरसोबत चालते, ज्यात फक्त कृत्रिम (synthetic) माहिती आहे. डेमो स्टार्ट स्क्रिप्टने दाखवलेला पत्ता टाका, उदा. 192.168.1.20:8000. फोन आणि संगणक एकाच Wi-Fi वर असणे आवश्यक आहे.';
+
+  @override
+  String get demoServerField => 'सर्व्हरचा पत्ता';
+
+  @override
+  String get demoServerInvalid =>
+      '192.168.1.20:8000 सारखा खाजगी नेटवर्क पत्ता किंवा https:// पत्ता टाका.';
+
+  @override
+  String demoServerUnreachable(String url) {
+    return '$url वर कोणताही सर्व्हर प्रतिसाद देत नाही. संगणकावर डेमो चालू आहे का, दोन्ही एकाच Wi-Fi वर आहेत का आणि संगणकाचा फायरवॉल पोर्ट 8000 ला परवानगी देतो का ते तपासा.';
+  }
+
+  @override
+  String demoServerNotHms(String url) {
+    return '$url वरील सर्व्हर Aditya BioNova HMS डेमो सर्व्हर नाही.';
+  }
+
+  @override
+  String get demoServerProduction =>
+      'हा सर्व्हर production वातावरण दाखवतो. डेमो अ‍ॅप कधीही production शी जोडले जात नाही.';
+
+  @override
+  String get demoServerConnect => 'जोडा';
+
+  @override
+  String get demoServerChecking => 'तपासत आहे…';
+
+  @override
+  String get demoServerChange => 'डेमो सर्व्हर बदला';
+
+  @override
+  String get demoServerWipeWarning =>
+      'जोडल्यावर या अ‍ॅपची फोनवरील स्थानिक माहिती हटवली जाते (ती आधीच्या सर्व्हरची होती).';
+
+  @override
+  String demoServerCurrent(String url) {
+    return 'डेमो आवृत्ती · फक्त कृत्रिम माहिती · सर्व्हर $url';
+  }
 }

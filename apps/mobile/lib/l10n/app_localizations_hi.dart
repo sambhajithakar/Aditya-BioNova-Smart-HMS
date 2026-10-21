@@ -1471,4 +1471,53 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get readingClockSkew => 'उपकरण की घड़ी फ़ोन से अलग है।';
+
+  @override
+  String get demoBanner => 'डेमो';
+
+  @override
+  String get demoServerTitle => 'डेमो सर्वर';
+
+  @override
+  String get demoServerHelp =>
+      'यह प्रदर्शन (डेमो) संस्करण है. यह केवल आपके अपने कंप्यूटर पर चल रहे डेमो सर्वर के साथ काम करता है, जिसमें केवल कृत्रिम (synthetic) डेटा है. डेमो स्टार्ट स्क्रिप्ट द्वारा दिखाया गया पता डालें, जैसे 192.168.1.20:8000. फ़ोन और कंप्यूटर एक ही Wi-Fi पर होने चाहिए.';
+
+  @override
+  String get demoServerField => 'सर्वर का पता';
+
+  @override
+  String get demoServerInvalid =>
+      '192.168.1.20:8000 जैसा निजी नेटवर्क पता या https:// पता डालें.';
+
+  @override
+  String demoServerUnreachable(String url) {
+    return '$url पर किसी सर्वर ने जवाब नहीं दिया. जाँचें कि कंप्यूटर पर डेमो चल रहा है, दोनों एक ही Wi-Fi पर हैं और कंप्यूटर का फ़ायरवॉल पोर्ट 8000 की अनुमति देता है.';
+  }
+
+  @override
+  String demoServerNotHms(String url) {
+    return '$url पर मौजूद सर्वर Aditya BioNova HMS डेमो सर्वर नहीं है.';
+  }
+
+  @override
+  String get demoServerProduction =>
+      'यह सर्वर production वातावरण बताता है. डेमो ऐप कभी भी production से नहीं जुड़ता.';
+
+  @override
+  String get demoServerConnect => 'जोड़ें';
+
+  @override
+  String get demoServerChecking => 'जाँच हो रही है…';
+
+  @override
+  String get demoServerChange => 'डेमो सर्वर बदलें';
+
+  @override
+  String get demoServerWipeWarning =>
+      'जोड़ने पर इस ऐप का फ़ोन पर स्थानीय डेटा हटा दिया जाता है (वह पिछले सर्वर का था).';
+
+  @override
+  String demoServerCurrent(String url) {
+    return 'डेमो संस्करण · केवल कृत्रिम डेटा · सर्वर $url';
+  }
 }

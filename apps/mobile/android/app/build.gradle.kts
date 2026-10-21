@@ -1,3 +1,4 @@
+import java.util.Base64
 import java.util.Properties
 
 plugins {
@@ -32,6 +33,16 @@ plugins {
 val keystorePropertiesFile = rootProject.file("key.properties")
 val allowDebugSigning = System.getenv("HMS_ALLOW_DEBUG_SIGNING") == "1" ||
     (project.findProperty("hms.allowDebugSigning") as String?) == "true"
+
+// LAN demo build (docs/DEMO.md): `--dart-define=HMS_DEMO_LAN=true`. Flutter
+// hands dart-defines to Gradle as base64 in the "dart-defines" property, so
+// the one flag drives both the app (lib/demo/demo_server.dart) and the
+// cleartext network policy overlay in src/demoLan/res. Never release-signed.
+val demoLan = ((project.findProperty("dart-defines") as String?) ?: "")
+    .split(",")
+    .filter { it.isNotBlank() }
+    .map { String(Base64.getDecoder().decode(it)) }
+    .contains("HMS_DEMO_LAN=true")
 val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile.exists()) {
         keystorePropertiesFile.inputStream().use { load(it) }
@@ -69,6 +80,10 @@ android {
         }
     }
 
+    if (demoLan) {
+        sourceSets.getByName("release").res.srcDir("src/demoLan/res")
+    }
+
     buildTypes {
         release {
             signingConfig = when {
@@ -87,6 +102,11 @@ gradle.taskGraph.whenReady {
     val releaseRequested = allTasks.any {
         it.project == project && it.name.startsWith("assemble") && it.name.endsWith("Release") ||
             it.project == project && it.name.startsWith("bundle") && it.name.endsWith("Release")
+    }
+    if (releaseRequested && demoLan && keystorePropertiesFile.exists()) {
+        throw GradleException(
+            "HMS_DEMO_LAN builds allow cleartext HTTP and must never carry the release key: " +
+                "move android/key.properties aside and use HMS_ALLOW_DEBUG_SIGNING=1.")
     }
     if (releaseRequested && !keystorePropertiesFile.exists() && !allowDebugSigning) {
         throw GradleException(
