@@ -13,7 +13,7 @@ DeviceKind = Literal["bp_monitor", "pulse_oximeter"]
 Surface = Literal["web", "android"]
 
 # A Bluetooth device address, or the simulator's own "SIM-XXXXXXXX" ids
-_ADDRESS_RE = r"^(([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}|SIM-[0-9A-Fa-f]{8})$"
+_ADDRESS_RE = r"^(([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}|[Ss][Ii][Mm]-[0-9A-Fa-f]{8})$"
 
 
 class DeviceIn(StrictModel):
@@ -45,6 +45,15 @@ class DeviceOut(BaseModel):
     retired_at: datetime | None
     # no model is validated on hardware yet (docs/DEVICE_SUPPORT.md)
     hardware_validated: bool = False
+
+
+class AddressCheckIn(StrictModel):
+    ble_address: str = Field(pattern=_ADDRESS_RE)
+
+
+class AddressCheckOut(BaseModel):
+    match: bool
+    active: bool
 
 
 class ReadingIn(StrictModel):

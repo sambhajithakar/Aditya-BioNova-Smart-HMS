@@ -9780,6 +9780,65 @@
         }
       }
     },
+    "/api/v1/devices/{device_id}/verify-address": {
+      "post": {
+        "tags": [
+          "devices"
+        ],
+        "summary": "Verify Address",
+        "description": "Pairing on a phone: is the device in hand the registered one? The\naddress itself is never returned.",
+        "operationId": "verify_address_api_v1_devices__device_id__verify_address_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Device Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddressCheckIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddressCheckOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/device-readings": {
       "post": {
         "tags": [
@@ -13412,6 +13471,39 @@
         ],
         "title": "AcceptIn"
       },
+      "AddressCheckIn": {
+        "properties": {
+          "ble_address": {
+            "type": "string",
+            "pattern": "^(([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}|[Ss][Ii][Mm]-[0-9A-Fa-f]{8})$",
+            "title": "Ble Address"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ble_address"
+        ],
+        "title": "AddressCheckIn"
+      },
+      "AddressCheckOut": {
+        "properties": {
+          "match": {
+            "type": "boolean",
+            "title": "Match"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match",
+          "active"
+        ],
+        "title": "AddressCheckOut"
+      },
       "AdjustStockIn": {
         "properties": {
           "quantity": {
@@ -15882,7 +15974,7 @@
           },
           "ble_address": {
             "type": "string",
-            "pattern": "^(([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}|SIM-[0-9A-Fa-f]{8})$",
+            "pattern": "^(([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}|[Ss][Ii][Mm]-[0-9A-Fa-f]{8})$",
             "title": "Ble Address"
           },
           "manufacturer": {
@@ -23390,7 +23482,7 @@
           },
           "ble_address": {
             "type": "string",
-            "pattern": "^(([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}|SIM-[0-9A-Fa-f]{8})$",
+            "pattern": "^(([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}|[Ss][Ii][Mm]-[0-9A-Fa-f]{8})$",
             "title": "Ble Address"
           },
           "encounter_id": {

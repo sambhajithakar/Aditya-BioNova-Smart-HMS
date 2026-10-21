@@ -32,8 +32,8 @@ from ..devices import gatt
 from ..models import Branch, EncounterVitals
 from ..models_devices import DeviceReading, DeviceReadingDecision, MedicalDevice
 from ..schemas import VitalsIn
-from ..schemas_devices import AcceptIn, DecisionOut, DeviceIn, DeviceOut, ReadingIn, \
-    ReadingOut, RejectIn
+from ..schemas_devices import AcceptIn, AddressCheckIn, AddressCheckOut, DecisionOut, \
+    DeviceIn, DeviceOut, ReadingIn, ReadingOut, RejectIn
 from ..timeutil import clinic_tz
 from . import encounters as enc_router
 
@@ -125,6 +125,19 @@ def retire_device(device_id: uuid.UUID, request: Request,
     db.flush()
     _audit(db, principal, request, "device.retired", "medical_device", str(device.id), {})
     return device
+
+
+@router.post("/devices/{device_id}/verify-address", response_model=AddressCheckOut)
+def verify_address(device_id: uuid.UUID, payload: AddressCheckIn,
+                   principal: Principal = Depends(require_permission("device.capture")),
+                   db: Session = Depends(get_db, scope="function")) -> AddressCheckOut:
+    """Pairing on a phone: is the device in hand the registered one? The
+    address itself is never returned."""
+    device = _device(db, principal, device_id)
+    return AddressCheckOut(
+        match=device.address_hash == address_hash(principal.organization_id,
+                                                  payload.ble_address),
+        active=device.status == "active")
 
 
 def _device(db: Session, principal: Principal, device_id: uuid.UUID) -> MedicalDevice:

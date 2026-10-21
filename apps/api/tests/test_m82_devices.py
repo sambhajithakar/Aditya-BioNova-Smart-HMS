@@ -100,6 +100,17 @@ def test_register_list_retire_and_address_never_returned(client, clinic):
     assert all(len(x) == 64 and "SIM" not in x for x in hashes)
 
 
+def test_pairing_check_never_reveals_the_address(client, clinic):
+    url = f"{API}/devices/{clinic['bp']['id']}/verify-address"
+    ok = client.post(url, headers=clinic["h"], json={"ble_address": clinic["bp"]["address"]})
+    assert ok.json() == {"match": True, "active": True}
+    assert client.post(url, headers=clinic["h"], json={"ble_address": "SIM-00000000"}).json()[
+        "match"] is False
+    # case-insensitive, like Android's MAC strings
+    assert client.post(url, headers=clinic["h"], json={
+        "ble_address": clinic["bp"]["address"].lower()}).json()["match"] is True
+
+
 def test_permissions_per_role(client, clinic):
     h = clinic["h"]
     reception = _member(client, h, "receptionist")

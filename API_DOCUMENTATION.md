@@ -86,7 +86,7 @@ it does not exist in staging or production builds.
 
 ## Endpoints
 
-Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 256 operations in 35 tags.
+Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 257 operations in 35 tags.
 
 ### Summary
 
@@ -195,6 +195,7 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 256 op
 | devices | GET | `/api/v1/devices` | `device.read` |  |
 | devices | POST | `/api/v1/devices` | `device.manage` |  |
 | devices | POST | `/api/v1/devices/{device_id}/retire` | `device.manage` |  |
+| devices | POST | `/api/v1/devices/{device_id}/verify-address` | `device.capture` |  |
 | encounters | GET | `/api/v1/encounters` | `encounter.read` |  |
 | encounters | POST | `/api/v1/encounters` | `encounter.write` |  |
 | encounters | GET | `/api/v1/encounters/{encounter_id}` | `encounter.read` |  |
@@ -1566,6 +1567,19 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 256 op
 - operationId: `retire_device_api_v1_devices__device_id__retire_post`
 - Request body: -
 - Response: `200 DeviceOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `device_id` | path | string(uuid) | yes |
+
+#### `POST /api/v1/devices/{device_id}/verify-address`
+
+**Verify Address** - Pairing on a phone: is the device in hand the registered one? The
+
+- Permission: `device.capture`
+- operationId: `verify_address_api_v1_devices__device_id__verify_address_post`
+- Request body: `AddressCheckIn`
+- Response: `200 AddressCheckOut`
 
 | Parameter | In | Type | Required |
 |---|---|---|---|
@@ -3455,6 +3469,19 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `surface`* | string (web, android) |
 | `note` | string |
 | `confirm_patient`* | boolean |
+
+### AddressCheckIn
+
+| Field | Type |
+|---|---|
+| `ble_address`* | string |
+
+### AddressCheckOut
+
+| Field | Type |
+|---|---|
+| `match`* | boolean |
+| `active`* | boolean |
 
 ### AdjustStockIn
 
