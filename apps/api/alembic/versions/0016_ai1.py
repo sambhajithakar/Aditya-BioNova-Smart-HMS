@@ -2,7 +2,7 @@
 human approval, Clinical Scribe draft workflow.
 
 Revision ID: 0016
-Revises: 0012   (the integrator re-chains this onto the current head)
+Revises: 0015
 
 See docs/AI_ARCHITECTURE.md §3, §5–§7. Every table is tenant-scoped with the
 strict ``organization_id = GUC`` RLS policy used since 0001.

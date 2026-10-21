@@ -1,7 +1,7 @@
 """Communications framework v2 + clinician-directed follow-up CRM.
 
 Revision ID: 0014
-Revises: 0012  (the integrator re-chains this after 0013)
+Revises: 0013
 
 Tables (all tenant-scoped: ``organization_id`` + strict RLS, as 0005/0012):
 

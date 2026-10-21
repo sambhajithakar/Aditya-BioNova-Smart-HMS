@@ -800,3 +800,27 @@ def test_lockout_holds_across_a_window_boundary(client, monkeypatch):
         assert login(client, email=email, password="wrong-password").status_code == 401
     assert login(client, email=email, password=PASSWORD).status_code == 429
     ratelimit.clear("login-fail", email)
+
+
+# --- M8.1: the conditions tenant isolation rests on -------------------------------------
+def test_app_role_cannot_bypass_row_level_security(client):
+    """RLS binds hms_app because it is neither superuser, BYPASSRLS nor the
+    owner of any table (FORCE ROW LEVEL SECURITY is therefore not needed and
+    is used only on the 0013 billing tables). Every tenant table has RLS on;
+    the one exception is auth_sessions, which the auth code must read before
+    a tenant context exists (by token hash, or filtered explicitly by user
+    and organisation)."""
+    conn = _su()
+    with conn.cursor() as cur:
+        cur.execute("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = 'hms_app'")
+        assert cur.fetchone() == (False, False)
+        cur.execute("SELECT tablename FROM pg_tables WHERE tableowner = 'hms_app'")
+        assert cur.fetchall() == []
+        cur.execute("""
+            SELECT c.relname FROM pg_class c
+            JOIN information_schema.columns k ON k.table_schema = 'public'
+             AND k.table_name = c.relname AND k.column_name = 'organization_id'
+            WHERE c.relkind = 'r' AND c.relnamespace = 'public'::regnamespace
+              AND NOT c.relrowsecurity ORDER BY 1""")
+        assert [r[0] for r in cur.fetchall()] == ["auth_sessions"]
+    conn.close()

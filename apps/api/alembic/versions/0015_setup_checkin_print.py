@@ -1,7 +1,7 @@
 """Smart Setup Wizard, Smart Patient QR Check-In and Smart Printer Setup.
 
 Revision ID: 0015
-Revises: 0012
+Revises: 0014
 
 * ``org_settings`` — one row per clinic: a versioned JSONB settings document
   (prescription template, clinic billing defaults, appointment schedule)
