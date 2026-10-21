@@ -179,9 +179,19 @@ effective-status rule from M7.1.
 
 ## Test evidence
 
-- `apps/api/tests/test_m72_saas_billing.py`: 18 tests. The Razorpay adapter
-  is tested against a fake HTTP server (Basic auth, Orders API, signatures,
-  refunds API, outage → 503).
+- `apps/api/tests/test_m72_saas_billing.py`: 26 tests (18 in M7.2, 8 added in
+  M8.1).
+  - The Razorpay adapter is tested against a fake HTTP server: Basic auth,
+    Orders API, signatures, refunds API and refund lookup, outage → 503.
+  - The M8.1 tests cover:
+    - late payments on expired or cancelled orders
+    - a refund whose provider response was lost, resumed without paying twice
+    - provider refusal
+    - the database refund state machine
+    - revoked grants
+    - scope restore
+- `apps/api/tests/test_ai_copilot.py`: purchased credits carried over from an
+  earlier month (M8.1).
 - `apps/web/e2e/billing.spec.ts`: live browser flow covering decline → retry →
   paid → GST invoice → refund request → vendor approval → reconciliation.
 

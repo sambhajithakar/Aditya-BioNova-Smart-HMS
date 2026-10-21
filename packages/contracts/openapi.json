@@ -3296,6 +3296,55 @@
         }
       }
     },
+    "/api/v1/platform/billing/refunds/{refund_id}/resume": {
+      "post": {
+        "tags": [
+          "platform"
+        ],
+        "summary": "Platform Resume Refund",
+        "description": "Re-check an approved refund whose provider outcome is not yet known\n(listed by reconciliation as ``refund_processing``). Never refunds twice:\nthe provider is asked for this refund's reference first.",
+        "operationId": "platform_resume_refund_api_v1_platform_billing_refunds__refund_id__resume_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "refund_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Refund Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__schemas_billing__RefundOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/platform/billing/lifecycle": {
       "post": {
         "tags": [
@@ -13322,6 +13371,11 @@
               }
             ],
             "title": "Limit Credits"
+          },
+          "purchased_balance": {
+            "type": "integer",
+            "title": "Purchased Balance",
+            "default": 0
           }
         },
         "type": "object",
@@ -15096,9 +15150,17 @@
             ],
             "title": "Plan Allowance"
           },
+          "allowance_used": {
+            "type": "integer",
+            "title": "Allowance Used"
+          },
           "purchased": {
             "type": "integer",
             "title": "Purchased"
+          },
+          "purchased_total": {
+            "type": "integer",
+            "title": "Purchased Total"
           },
           "used": {
             "type": "integer",
@@ -15114,17 +15176,25 @@
               }
             ],
             "title": "Remaining"
+          },
+          "purchased_expire": {
+            "type": "boolean",
+            "title": "Purchased Expire",
+            "default": false
           }
         },
         "type": "object",
         "required": [
           "period",
           "plan_allowance",
+          "allowance_used",
           "purchased",
+          "purchased_total",
           "used",
           "remaining"
         ],
-        "title": "CreditsOut"
+        "title": "CreditsOut",
+        "description": "``plan_allowance`` resets every month. Purchased credits do NOT expire:\n``purchased`` is the balance still available from every pack ever bought."
       },
       "DeliveryOut": {
         "properties": {
@@ -24864,6 +24934,11 @@
               }
             ],
             "title": "Limit Credits"
+          },
+          "purchased_balance": {
+            "type": "integer",
+            "title": "Purchased Balance",
+            "default": 0
           },
           "rows": {
             "items": {

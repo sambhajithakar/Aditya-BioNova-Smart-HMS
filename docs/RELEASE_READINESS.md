@@ -1,6 +1,6 @@
 # Release readiness checklist — Aditya BioNova Smart HMS
 
-Status at 2026-10-20, branch `claude/pensive-albattani-n0zcba` (draft PR #1).
+Status at 2026-10-21 (after the M8.1 corrections), branch `claude/pensive-albattani-n0zcba` (draft PR #1).
 **Verdict: NOT production-ready.** The engineering gates below are green on
 synthetic data. The human, legal and clinical gates are still open, and they
 cannot be closed by writing more code.
@@ -11,13 +11,14 @@ Legend: ✅ done and evidenced · 🟡 partial · ⬜ not started / owner action
 
 | Gate | State | Evidence |
 |---|---|---|
-| API tests (real PostgreSQL, RLS on) | ✅ 299 passed, 94% coverage | TEST_RESULTS.md |
-| Migrations 0001→0016: round-trip and `alembic check` drift | ✅ | CI "API" job |
+| API tests (real PostgreSQL, RLS on) | ✅ 312 passed, 94.24% coverage (CI floor 90%) | TEST_RESULTS.md |
+| Migrations 0001→0018: round-trip and `alembic check` drift | ✅ | CI "API" job |
 | Backup → tamper guard → restore drill | ✅ 668/668 rows, fingerprints identical | `scripts/backup_restore_drill.sh` |
-| Web: typecheck, lint, unit, build | ✅ 150 unit tests | CI "Web" job |
-| Web E2E in a live browser (API + DB, no mocks) | ✅ 27/27 | `apps/web/e2e` |
-| Flutter analyze + tests | ✅ 174 passed | CI "Mobile" job |
-| Android APK builds (release mode, debug certificate) | ✅ universal 75.3 MB; armeabi-v7a 23.3 MB; arm64 27.3 MB | CI `android-apk` artifact; `apksigner verify` |
+| Web: typecheck, lint, unit, build | ✅ 156 unit tests | CI "Web" job |
+| Web E2E in a live browser (API + DB, no mocks) | ✅ 28/28 | `apps/web/e2e` |
+| Flutter analyze + tests | ✅ 177 passed | CI "Mobile" job |
+| Android APK builds (release mode, debug certificate by explicit opt-in) | ✅ universal 75.7 MB; release without a key now fails by design | CI `android-apk` artifact; `apksigner verify` |
+| PR #1 review findings (H1, M1–M4, L1–L2, A1, W1 and lows) | ✅ fixed with regression tests (M8.1) | CHANGELOG.md |
 | Dependency audit (pip-audit, npm audit), secret scan (gitleaks) | ✅ | CI |
 | Docker build and compose smoke | ✅ | CI |
 
@@ -63,6 +64,9 @@ Legend: ✅ done and evidenced · 🟡 partial · ⬜ not started / owner action
 - The pattern-based redactor does not remove personal names.
 
 ### Billing
+- A refund returns money only. It does not take back the subscription period
+  or AI credits already granted (product decision, M8.1; documented in
+  docs/SAAS_BILLING.md).
 - No auto-debit or Razorpay Subscriptions.
 - No proration, coupons or reseller commission tracking.
 - No e-invoicing (IRN).

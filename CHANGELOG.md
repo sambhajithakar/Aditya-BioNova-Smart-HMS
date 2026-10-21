@@ -1,5 +1,54 @@
 # Changelog
 
+## M8.1 corrections from the PR #1 review (2026-10-21, review branch)
+
+Fixes for the findings of the read-only review. Each change is a separate
+commit with regression tests.
+
+- **Payments (H1).** A payment captured after its order expired or was
+  cancelled is now fulfilled and audited as `saas.payment.late`.
+  - Before, the order trigger refused it and the money was stranded.
+  - Reconciliation now also checks expired orders with Razorpay.
+- **Refunds (M2).** An approval commits `processing` before the provider is
+  called, with the refund id as reference.
+  - Unknown outcomes stay `processing`, are listed by reconciliation and can
+    be re-checked from the console.
+  - Re-checking never refunds twice. Migration 0017.
+- **AI credits (M1).** Purchased credit packs no longer expire at month end.
+  - The monthly allowance is spent first, then purchased credits
+    (`pack_use`). Migration 0018.
+  - No expiry policy was introduced.
+- **Patient-data audit (M3).** `phi.read` now also covers Clinical Scribe,
+  follow-ups, a patient's message history and consents, and the delivery log.
+- **Reminders (M4).** Replacing a template no longer re-sends reminders. The
+  dedupe key no longer contains the template id.
+- **Licensing (L1, L2).**
+  - LGPL libvips (sharp) is removed from the web runtime image.
+  - LICENSES.md is completed and corrected.
+  - In-app licence notices: Android *Open-source licences*, including the
+    Google ML Kit and Material Icons attributions; web `/licenses`.
+- **Android signing (A1).** A release build fails without the owner's key
+  unless `HMS_ALLOW_DEBUG_SIGNING=1`. CI demo builds opt in.
+- **Printing (W1).** The paper picker highlights the paper that will
+  actually print: the saved printer profile, or the template.
+- **Lower-severity fixes**
+  - Billing:
+    - `system_scope` restores the caller's scope
+    - forged checkout signatures are audited durably
+    - UPDATE/DELETE grants revoked on append-only billing tables
+  - Check-in:
+    - consistent lock order
+    - no silent check-in at another branch
+  - Android check-in codes match the server format, and a check-in 409 is
+    parked as a refusal.
+  - Only the session's clinician can feed or accept a Scribe draft.
+  - Governance usage validates `?period=`.
+  - Token endpoints stay blocked under percent-encoding.
+  - Tooling and docs:
+    - RLS preconditions are tested
+    - pytest-cov is locked and CI enforces coverage ≥ 90%
+    - README now requires Node 22.12+
+
 ## M7.2 + Comms v2 + Smart Setup + AI-1 + Offline v2 + Device/PWA (2026-10-20, review branch)
 
 - **SaaS billing (M7.2)**

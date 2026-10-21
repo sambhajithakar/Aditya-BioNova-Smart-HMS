@@ -86,7 +86,7 @@ it does not exist in staging or production builds.
 
 ## Endpoints
 
-Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 247 operations in 34 tags.
+Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 248 operations in 34 tags.
 
 ### Summary
 
@@ -276,6 +276,7 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 247 op
 | platform | GET | `/api/v1/platform/billing/reconciliation` | - |  |
 | platform | GET | `/api/v1/platform/billing/refunds` | - |  |
 | platform | POST | `/api/v1/platform/billing/refunds/{refund_id}/decide` | - |  |
+| platform | POST | `/api/v1/platform/billing/refunds/{refund_id}/resume` | - |  |
 | platform | GET | `/api/v1/platform/catalog` | public |  |
 | platform | GET | `/api/v1/platform/overview` | public |  |
 | platform | GET | `/api/v1/platform/plans` | public |  |
@@ -2591,6 +2592,19 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 247 op
 |---|---|---|---|
 | `refund_id` | path | string(uuid) | yes |
 
+#### `POST /api/v1/platform/billing/refunds/{refund_id}/resume`
+
+**Platform Resume Refund** - Re-check an approved refund whose provider outcome is not yet known
+
+- Permission: -
+- operationId: `platform_resume_refund_api_v1_platform_billing_refunds__refund_id__resume_post`
+- Request body: -
+- Response: `200 app__schemas_billing__RefundOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `refund_id` | path | string(uuid) | yes |
+
 #### `GET /api/v1/platform/catalog`
 
 **Catalog**
@@ -3421,6 +3435,7 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `period`* | string |
 | `used_credits`* | integer |
 | `limit_credits`* | integer \| null |
+| `purchased_balance` | integer |
 
 ### AmendResultIn
 
@@ -3828,9 +3843,12 @@ Field lists of the request/response schemas referenced above (`*` = required).
 |---|---|
 | `period`* | string |
 | `plan_allowance`* | integer \| null |
+| `allowance_used`* | integer |
 | `purchased`* | integer |
+| `purchased_total`* | integer |
 | `used`* | integer |
 | `remaining`* | integer \| null |
+| `purchased_expire` | boolean |
 
 ### DeliveryOut
 
@@ -5807,6 +5825,7 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `period`* | string |
 | `used_credits`* | integer |
 | `limit_credits`* | integer \| null |
+| `purchased_balance` | integer |
 | `rows`* | list[UsageBreakdownRow] |
 | `features`* | object |
 

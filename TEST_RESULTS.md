@@ -1,4 +1,37 @@
-# Test Results — M7.2 billing, comms v2, setup/QR check-in, AI-1, offline-first Android, device/PWA (2026-10-20)
+# Test Results — M8.1 corrections (2026-10-21)
+
+All of the following were **executed** on 2026-10-21 on the review branch,
+after the M8.1 commits, using synthetic data only.
+
+| Suite | Command | Result |
+|---|---|---|
+| API lint | `ruff check apps/api scripts --select F,E --line-length 100` | ✅ clean |
+| API tests | `cd apps/api && pytest --cov=app --cov-fail-under=90` | ✅ **312 passed, 0 failed** (299 before M8.1); coverage **94.24%** (11,786 statements) |
+| Migrations | upgrade → downgrade base → upgrade, `alembic check` (fresh database) | ✅ single head `0018`, no drift |
+| Web | `npm run typecheck && npm run lint && npm test` | ✅ 0 errors; **156 unit tests passed** (150 before) |
+| Web E2E (live API + PostgreSQL + Chromium) | `npx playwright test` | ✅ **28/28** (27 before) |
+| Mobile | `flutter analyze && flutter test` | ✅ no issues; **177 passed** (174 before) |
+| Android release signing | `flutter build apk --release` without `key.properties` | ✅ **fails** with the signing message, as intended |
+| Android APK (demo) | `HMS_ALLOW_DEBUG_SIGNING=1 flutter build apk --release` | ✅ built, 75.7 MB; `apksigner`: CN=Android Debug; **not run on a device** |
+| Web runtime without sharp/libvips | `next start` with `node_modules/sharp` and `@img` removed | ✅ pages, icons and manifest served |
+| Secret scan | gitleaks, full history | ✅ no leaks, after allow-listing 1 reviewed synthetic test code |
+| Docker web image | `docker build` | ⏳ no Docker daemon in this environment; verified by the CI "Docker" job |
+
+### M8.1 regression tests added
+| Finding | Tests |
+|---|---|
+| H1 late payments | expired order paid by webhook; cancelled order paid by checkout; paid stays final; reconciliation asks the provider about expired orders |
+| M2 refund processing | lost provider response → `processing` → resume finds the refund by reference (one provider refund, one credit note); 4xx → `failed`; database state machine; a processing refund counts against the refundable amount |
+| M1 purchased credits | a pack bought in an earlier month is used now; allowance first, then the pack; refused once both are spent; `/saas/credits` and usage figures |
+| M3 PHI audit | `phi.read` rows for scribe, follow-ups, patient comms and the delivery log; settings stay unaudited |
+| M4 reminders | a replaced template does not re-send (fails before the fix) |
+| L2 licences | Flutter licence page reachable; ML Kit and Material Icons notices registered; web list matches package-lock.json; no GPL/AGPL/SSPL |
+| W1 printing | `effectivePaper` unit cases; E2E: saved A5 profile is highlighted, an explicit A4 choice overrides it |
+| Low items | `system_scope` restore and abort; durable forged-signature audit; revoked grants; governance `?period=` validation; check-in at another branch; scribe clinician binding; RLS preconditions; percent-encoded token paths; mobile check-in code format and 409 mapping |
+
+---
+
+## Previous run: M7.2 billing, comms v2, setup/QR check-in, AI-1, offline-first Android, device/PWA (2026-10-20)
 
 All of the following were **executed** on the merged branch, using synthetic data only. All but the last two rows were run on 2026-10-20 at commit `0a8d1c7`. The CI row is a different run, on commit `0a2424d`.
 

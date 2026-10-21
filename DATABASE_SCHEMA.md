@@ -65,7 +65,7 @@
 
 ## Migrations
 
-Database at Alembic head **0016** (catalog read from PostgreSQL 16). Files in `apps/api/alembic/versions/`.
+Database at Alembic head **0018** (catalog read from PostgreSQL 16). Files in `apps/api/alembic/versions/`.
 
 | Revision | Down | File | Summary |
 |---|---|---|---|
@@ -85,6 +85,8 @@ Database at Alembic head **0016** (catalog read from PostgreSQL 16). Files in `a
 | 0014 | 0013 | `0014_comms_followups.py` | Communications framework v2 + clinician-directed follow-up CRM. |
 | 0015 | 0014 | `0015_setup_checkin_print.py` | Smart Setup Wizard, Smart Patient QR Check-In and Smart Printer Setup. |
 | 0016 | 0015 | `0016_ai1.py` | AI-1: forecasting model runs, knowledge base (RAG), agent proposals with human approval, Clinical Scribe draft workflow. |
+| 0017 | 0016 | `0017_m81_billing_fixes.py` | M8.1: SaaS billing corrections. |
+| 0018 | 0017 | `0018_ai_credit_carry_over.py` | M8.1: purchased AI credits no longer expire at month end. |
 
 ## Application role
 
@@ -97,7 +99,7 @@ Database at Alembic head **0016** (catalog read from PostgreSQL 16). Files in `a
 | [admission_transfers](#admission_transfers) | yes | 1 | 1 | SELECT, INSERT |
 | [admissions](#admissions) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
 | [ai_credit_ledger](#ai_credit_ledger) | yes | 1 | 1 | SELECT, INSERT |
-| [ai_credit_packs](#ai_credit_packs) | yes | 2 | 0 | SELECT, INSERT, UPDATE, DELETE |
+| [ai_credit_packs](#ai_credit_packs) | yes | 2 | 0 | SELECT, INSERT, UPDATE |
 | [ai_model_runs](#ai_model_runs) | yes | 1 | 1 | SELECT, INSERT |
 | [ai_proposal_events](#ai_proposal_events) | yes | 1 | 1 | SELECT, INSERT |
 | [ai_proposals](#ai_proposals) | yes | 1 | 1 | SELECT, INSERT, UPDATE |
@@ -163,11 +165,11 @@ Database at Alembic head **0016** (catalog read from PostgreSQL 16). Files in `a
 | [refunds](#refunds) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
 | [role_permissions](#role_permissions) | **no** | 0 | 0 | SELECT |
 | [roles](#roles) | **no** | 0 | 0 | SELECT |
-| [saas_invoices](#saas_invoices) | yes | 2 | 1 | SELECT, INSERT, UPDATE, DELETE |
-| [saas_orders](#saas_orders) | yes | 3 | 1 | SELECT, INSERT, UPDATE, DELETE |
-| [saas_payments](#saas_payments) | yes | 2 | 1 | SELECT, INSERT, UPDATE, DELETE |
-| [saas_refunds](#saas_refunds) | yes | 3 | 1 | SELECT, INSERT, UPDATE, DELETE |
-| [saas_webhook_events](#saas_webhook_events) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
+| [saas_invoices](#saas_invoices) | yes | 2 | 1 | SELECT, INSERT |
+| [saas_orders](#saas_orders) | yes | 3 | 1 | SELECT, INSERT, UPDATE |
+| [saas_payments](#saas_payments) | yes | 2 | 1 | SELECT, INSERT |
+| [saas_refunds](#saas_refunds) | yes | 3 | 1 | SELECT, INSERT, UPDATE |
+| [saas_webhook_events](#saas_webhook_events) | yes | 1 | 1 | SELECT, INSERT |
 | [scribe_consents](#scribe_consents) | yes | 1 | 1 | SELECT, INSERT |
 | [scribe_sessions](#scribe_sessions) | yes | 1 | 1 | SELECT, INSERT, UPDATE |
 | [stock_batches](#stock_batches) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
@@ -315,11 +317,12 @@ Database at Alembic head **0016** (catalog read from PostgreSQL 16). Files in `a
 **Check constraints**
 
 - `ck_aicredit_period`: `CHECK (period::text ~ '^[0-9]{4}-[0-9]{2}$'::text)`
-- `ck_aicredit_type`: `CHECK (entry_type::text = ANY (ARRAY['consume'::character varying, 'grant'::character varying, 'adjust'::character varying]::text[]))`
+- `ck_aicredit_type`: `CHECK (entry_type::text = ANY (ARRAY['consume'::character varying, 'grant'::character varying, 'adjust'::character varying, 'pack_use'::character varying]::text[]))`
 
 **Indexes**
 
 - `ix_aicredit_org_period`: `btree (organization_id, period)`
+- `ix_aicredit_org_type`: `btree (organization_id, entry_type)`
 
 **RLS policies**
 
@@ -334,7 +337,7 @@ Database at Alembic head **0016** (catalog read from PostgreSQL 16). Files in `a
 ### ai_credit_packs
 
 - Row-level security: enabled (FORCE)
-- Grants for hms_app: SELECT, INSERT, UPDATE, DELETE
+- Grants for hms_app: SELECT, INSERT, UPDATE
 
 | Column | Type | Nullable | Default |
 |---|---|---|---|
@@ -3117,7 +3120,7 @@ Database at Alembic head **0016** (catalog read from PostgreSQL 16). Files in `a
 ### saas_invoices
 
 - Row-level security: enabled (FORCE)
-- Grants for hms_app: SELECT, INSERT, UPDATE, DELETE
+- Grants for hms_app: SELECT, INSERT
 
 | Column | Type | Nullable | Default |
 |---|---|---|---|
@@ -3176,7 +3179,7 @@ Database at Alembic head **0016** (catalog read from PostgreSQL 16). Files in `a
 ### saas_orders
 
 - Row-level security: enabled (FORCE)
-- Grants for hms_app: SELECT, INSERT, UPDATE, DELETE
+- Grants for hms_app: SELECT, INSERT, UPDATE
 
 | Column | Type | Nullable | Default |
 |---|---|---|---|
@@ -3245,7 +3248,7 @@ Database at Alembic head **0016** (catalog read from PostgreSQL 16). Files in `a
 ### saas_payments
 
 - Row-level security: enabled (FORCE)
-- Grants for hms_app: SELECT, INSERT, UPDATE, DELETE
+- Grants for hms_app: SELECT, INSERT
 
 | Column | Type | Nullable | Default |
 |---|---|---|---|
@@ -3299,7 +3302,7 @@ Database at Alembic head **0016** (catalog read from PostgreSQL 16). Files in `a
 ### saas_refunds
 
 - Row-level security: enabled (FORCE)
-- Grants for hms_app: SELECT, INSERT, UPDATE, DELETE
+- Grants for hms_app: SELECT, INSERT, UPDATE
 
 | Column | Type | Nullable | Default |
 |---|---|---|---|
@@ -3334,7 +3337,7 @@ Database at Alembic head **0016** (catalog read from PostgreSQL 16). Files in `a
 
 - `ck_saasrefund_amount`: `CHECK (amount_paise > 0)`
 - `ck_saasrefund_four_eyes`: `CHECK (decided_by IS NULL OR decided_by IS DISTINCT FROM requested_by)`
-- `ck_saasrefund_status`: `CHECK (status::text = ANY (ARRAY['requested'::character varying, 'rejected'::character varying, 'processed'::character varying, 'failed'::character varying]::text[]))`
+- `ck_saasrefund_status`: `CHECK (status::text = ANY (ARRAY['requested'::character varying, 'rejected'::character varying, 'processing'::character varying, 'processed'::character varying, 'failed'::character varying]::text[]))`
 
 **RLS policies**
 
@@ -3353,7 +3356,7 @@ Database at Alembic head **0016** (catalog read from PostgreSQL 16). Files in `a
 ### saas_webhook_events
 
 - Row-level security: enabled (FORCE)
-- Grants for hms_app: SELECT, INSERT, UPDATE, DELETE
+- Grants for hms_app: SELECT, INSERT
 
 | Column | Type | Nullable | Default |
 |---|---|---|---|
