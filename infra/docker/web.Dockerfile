@@ -17,7 +17,16 @@
 FROM node:22.23.3-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS prod-deps
 WORKDIR /app
 COPY apps/web/package.json apps/web/package-lock.json ./
-RUN npm ci --omit=dev --no-audit --no-fund
+# sharp (an optional dependency of next) ships prebuilt libvips binaries under
+# LGPL-3.0. The app does no server-side image optimisation
+# (next.config.mjs: images.unoptimized), so they are not shipped (LICENSES.md).
+# `--omit=optional` is not used because it would also drop @next/swc.
+# Playwright (an optional peer of next, a devDependency here) is not needed
+# at runtime either.
+RUN npm ci --omit=dev --no-audit --no-fund \
+ && rm -rf node_modules/sharp node_modules/@img \
+           node_modules/@playwright node_modules/playwright node_modules/playwright-core \
+ && test -z "$(find node_modules -path '*libvips*' -print -quit)"
 
 # --- build (needs devDependencies: typescript, @types/*) ---------------------
 FROM node:22.23.3-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS build

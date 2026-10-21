@@ -8,6 +8,9 @@ Third-party components below remain under their own terms.
 Bahmni note). Verify again before each release: `pip-licenses` /
 `npm ls --all` (commands at the bottom).
 
+Last full review: **2026-10-21 (M8.1)**. Every package in the three lock
+files was checked against its installed metadata or LICENSE file.
+
 ## Python — API runtime (exact versions pinned in `apps/api/requirements.lock`, 2026-10-20)
 
 | Package | Version | Licence | Commercial use |
@@ -29,15 +32,22 @@ Bahmni note). Verify again before each release: `pip-licenses` /
 | python-dotenv / pyyaml (pydantic-settings, uvicorn) | 1.2.4 / 6.0.3 | BSD-3-Clause / MIT | ✅ |
 | certifi (transitive, dev/test via httpx) | 2026.10.19 | MPL-2.0 | ✅ unmodified; file-level copyleft only |
 | typing-extensions | 4.16.0 | PSF-2.0 | ✅ |
-| anyio / click / h11 / httpx / httpcore / idna / sniffio | — | MIT / BSD-3 | ✅ |
-| Mako / MarkupSafe (alembic) | 1.4.3 / 3.0.4 | MIT / BSD-3 | ✅ |
-| uvloop / watchfiles / websockets (uvicorn) | — | MIT / BSD-3 | ✅ |
+| annotated-types / typing-inspection (pydantic) | 0.8.0 / 0.4.4 | MIT / MIT | ✅ |
+| anyio / h11 (starlette, uvicorn) | 4.15.1 / 0.16.0 | MIT / MIT | ✅ |
+| click / idna | 8.5.0 / 3.20 | BSD-3-Clause / BSD-3-Clause | ✅ |
+| Mako / MarkupSafe (alembic) | 1.4.3 / 3.0.4 | MIT / BSD-3-Clause | ✅ |
+| httptools (uvicorn[standard]) | 0.9.0 | MIT | ✅ |
+| uvloop (uvicorn[standard]) | 0.23.0 | MIT **and** Apache-2.0 (dual-licensed; both permissive) | ✅ |
+| watchfiles / websockets (uvicorn[standard]) | 1.3.0 / 17.3 | MIT / BSD-3-Clause | ✅ |
 
 ## Python — development only
 
 | Package | Version | Licence |
 |---|---|---|
 | pytest | 9.1.1 | MIT |
+| ↳ iniconfig / pluggy / packaging / pygments | 2.3.1 / 1.7.0 / 26.3 / 2.21.0 | MIT / MIT / Apache-2.0 OR BSD-2-Clause / BSD-2-Clause |
+| httpx / httpcore (FastAPI TestClient) | 0.28.1 / 1.0.9 | BSD-3-Clause / BSD-3-Clause |
+| certifi (httpx) | 2026.10.19 | MPL-2.0 (unmodified; file-level copyleft only) |
 | ruff | 0.17.1 | MIT |
 | pip-tools (lock generation, not installed in images) | 7.6.2 | BSD-3-Clause |
 
@@ -45,15 +55,57 @@ Dev/test versions are pinned in `apps/api/requirements-dev.lock`; both
 lock files carry sha256 hashes and are regenerated with
 `scripts/lock-api-deps.sh`.
 
-## Node — web runtime (from package-lock.json)
+## Node — web runtime (from `apps/web/package-lock.json`)
+
+What `npm ci --omit=dev` installs in the web image:
 
 | Package | Version | Licence |
 |---|---|---|
 | next | 15.5.27 | MIT |
-| react / react-dom | 19.3.0 | MIT |
-| styled-jsx / @next/env / nanoid | — | MIT |
-| caniuse-lite | 1.0.30001815 | CC-BY-4.0 (data; attribution retained) |
-| typescript | 5.9.3 | Apache-2.0 |
+| react / react-dom / scheduler | 19.3.0 / 19.3.0 / 0.28.0 | MIT |
+| @next/env / styled-jsx / client-only / nanoid | 15.5.27 / 5.1.6 / 0.0.1 / 3.3.19 | MIT |
+| @next/swc-linux-x64-musl (prebuilt compiler binary, optional dependency of next) | 15.5.27 | MIT |
+| @swc/helpers / detect-libc | 0.5.15 / 2.1.2 | Apache-2.0 |
+| postcss / source-map-js | 8.5.28 / 1.2.2 | MIT / BSD-3-Clause |
+| picocolors / semver | 1.1.1 / 7.8.5 | ISC |
+| tslib | 2.8.1 | 0BSD |
+| caniuse-lite | **1.0.30001814** | CC-BY-4.0 (browser-support data; attribution retained in the package) |
+
+**Not shipped (M8.1):**
+- **sharp / libvips.** `sharp` 0.35.5 (Apache-2.0) is an optional dependency
+  of next. It brings prebuilt **libvips binaries under LGPL-3.0-or-later**
+  (`@img/sharp-libvips-*` 1.3.4).
+  - The app uses no `next/image`, and `next.config.mjs` sets
+    `images: { unoptimized: true }`.
+  - The web Dockerfile deletes `node_modules/sharp` and `node_modules/@img`,
+    and the build fails if any libvips binary remains.
+  - `next start` was verified to serve the app without them.
+  - They remain on developer machines only, through `npm ci`.
+- **Playwright.** `@playwright/test` / `playwright` / `playwright-core`
+  1.56.1 (Apache-2.0) is a devDependency and an optional peer of next. It is
+  removed from the runtime image together with sharp.
+
+### Web — development and test only (not shipped)
+
+416 packages from `npm ci`, all under permissive or weak file-level licences:
+
+| Licence | Packages |
+|---|---|
+| MIT | 353 |
+| Apache-2.0 | 22 |
+| ISC | 13 |
+| MPL-2.0 | 13 (lightningcss and its platform binaries, used by vitest via vite; axe-core, used by eslint-plugin-jsx-a11y) |
+| BSD-2-Clause | 9 |
+| BSD-3-Clause | 2 |
+| MIT-0, BlueOak-1.0.0, Python-2.0 (argparse), CC0-1.0 | 1 each |
+
+No GPL or AGPL licence is present. Direct dev tools:
+- typescript 5.9.3 (Apache-2.0)
+- eslint 9.37.0 (MIT)
+- vitest 5.0.3 (MIT)
+- @testing-library (MIT)
+- jsdom 26.1.0 (MIT)
+- @playwright/test 1.56.1 (Apache-2.0)
 
 ## Dart / Flutter — Android app (exact versions in `apps/mobile/pubspec.lock`, verified from each package's LICENSE file and pub.dev licence tags, 2026-10-20)
 
@@ -73,7 +125,27 @@ lock files carry sha256 hashes and are regenerated with
 | ↳ pdf_widget_wrapper / barcode | 1.0.4 / 2.2.9 | Apache-2.0 | transitive |
 | ↳ archive / image / bidi / xml / petitparser / posix | 4.5.2 / 4.12.0 / 2.0.13 / 7.0.1 / 7.0.2 / 6.5.2 | MIT | transitive |
 | ↳ path_parsing / qr | 1.1.0 / 3.0.2 | MIT / BSD-3-Clause | transitive |
-| fake_async / flutter_lints (dev only) | 1.3.3 / 6.0.0 | Apache-2.0 / BSD-3-Clause | tests / lints |
+| ↳ yaml | 3.1.4 | MIT | transitive |
+| ↳ jni / jni_flutter / jni_util / ffi / objective_c / win32 (platform channels used by plugins) | 1.1.0 / 1.0.4+1 / 1.0.0 / 2.2.0 / 9.5.0 / 6.4.0 | BSD-3-Clause | transitive |
+| ↳ crypto / convert / typed_data / collection / async / meta / path / web / http_parser / logging / characters / vector_math | — | BSD-3-Clause (Dart team) | transitive |
+| ↳ flutter_secure_storage_* / path_provider_* / plugin_platform_interface / platform / xdg_directories | — | BSD-3-Clause | platform implementations |
+| ↳ material_color_utilities / clock | 0.13.0 / 1.1.3 | Apache-2.0 | transitive |
+| ↳ hooks / code_assets / record_use / pub_semver / package_config / args | — | BSD-3-Clause | build hooks (build time) |
+| fake_async / flutter_lints / lints / leak_tracker* / test_api / matcher / vm_service (dev only) | — | Apache-2.0 / BSD-3-Clause | tests / lints |
+
+**Fonts and icons bundled in the APK**
+
+| Asset | Licence | Note |
+|---|---|---|
+| MaterialIcons-Regular.otf (Flutter `uses-material-design: true`) | **CC-BY-4.0** (per Flutter's bundled `MaterialIcons_LICENSE.txt`) | Attribution required. It is listed in the in-app licence screen. |
+| CupertinoIcons (cupertino_icons 1.0.9) | MIT | |
+| Text font | — | The Android system font is used; no Roboto file is bundled by the app. |
+
+**In-app notices (M8.1).**
+- The Android app has a *Settings → Open-source licences* screen (Flutter
+  `showLicensePage`). It lists every package's LICENSE, which the Flutter
+  build collects into `NOTICES`, plus an explicit Google ML Kit attribution.
+- The web app serves the same information at `/licenses`.
 
 Re-check: `cd apps/mobile && flutter pub deps --style=compact` and read
 `~/.pub-cache/hosted/pub.dev/<pkg>-<ver>/LICENSE` for every new package.
@@ -101,6 +173,8 @@ components must never enter this dependency tree.
 - ✅ Deliver source of *our* product to the customer (this repository).
 - 🟡 LGPL psycopg2: keep it dynamically linked (default pip install); do not
   patch it.
+- ✅ In-app licence notices: Android *Open-source licences* screen; web `/licenses` (M8.1).
+- ✅ LGPL libvips (sharp) kept out of the shipped web image (M8.1).
 - ⬜ Per release: run the collectors, archive `pip-licenses --format=json` and
   `npm ls --all` output into `docs/compliance/`.
 

@@ -32,6 +32,10 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // No next/image optimisation: the app uses no raster images, and this keeps
+  // `sharp` and its LGPL-3.0 libvips binaries out of the runtime image (the
+  // web Dockerfile deletes them). See LICENSES.md.
+  images: { unoptimized: true },
   env: { NEXT_PUBLIC_BUILD_ID: BUILD_ID },
   async headers() {
     return [
