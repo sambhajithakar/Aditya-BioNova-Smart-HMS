@@ -6,7 +6,9 @@
 #   Use URL-safe values (e.g. `python3 -c "import secrets;print(secrets.token_hex(24))"`)
 #   because the DB passwords are embedded in connection URLs.
 # * All published ports bind to 127.0.0.1 only; put a TLS reverse proxy in
-#   front for anything beyond this host (DEPLOYMENT.md).
+#   front for anything beyond this host (DEPLOYMENT.md). The api/web bind
+#   address can be changed only through HMS_BIND_ADDRESS, which the
+#   synthetic-data LAN demo uses (docker-compose.demo.yml, docs/DEMO.md).
 # * Migrations run once in the `migrate` job before the API starts; the API
 #   container never alters the schema.
 # * Synthetic data only. No real patient data in this stack.
@@ -78,7 +80,7 @@ services:
       FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
       WEB_CONCURRENCY: ${API_WORKERS:-2}
     ports:
-      - "127.0.0.1:${HMS_API_HOST_PORT:-8000}:8000"
+      - "${HMS_BIND_ADDRESS:-127.0.0.1}:${HMS_API_HOST_PORT:-8000}:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -101,7 +103,7 @@ services:
       - /app/.next/cache:size=128m,uid=1000,gid=1000
       - /app/.next/server/route-cache:size=64m,uid=1000,gid=1000
     ports:
-      - "127.0.0.1:${HMS_WEB_HOST_PORT:-3000}:3000"
+      - "${HMS_BIND_ADDRESS:-127.0.0.1}:${HMS_WEB_HOST_PORT:-3000}:3000"
     depends_on:
       api:
         condition: service_healthy

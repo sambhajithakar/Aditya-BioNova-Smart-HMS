@@ -15,12 +15,17 @@ Creates, each on its own commercial edition:
   * Aditya BioNova Platform    platform super-admin for the vendor console
     (the super-admin flag is set with the owner/migration DB role — it can
     never be granted through the API)
+With the device simulator enabled (development default), each clinic also
+gets two SIMULATED Bluetooth devices and two simulated readings waiting for
+clinician review on an open consultation (M8.2).
 Prints the demo credentials at the end.
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
+import uuid
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -33,6 +38,12 @@ from app.config import get_settings  # noqa: E402
 from app.main import app  # noqa: E402
 
 PASSWORD = os.environ.get("DEMO_PASSWORD", "Demo-Sunrise-2026!")
+VECTORS = Path(__file__).resolve().parents[1] / "packages" / "contracts" / "device_vectors.json"
+# M8.2 SIMULATED Bluetooth devices (never real hardware): kind, label, SIM- id
+SIM_DEVICES = [("bp_monitor", "Simulated BP monitor (demo)", "SIM-0000B001"),
+               ("pulse_oximeter", "Simulated pulse oximeter (demo)", "SIM-0000A001")]
+# synthetic payloads from the shared parser vectors, waiting for review
+SIM_READINGS = [("SIM-0000B001", "bp minimal mmHg"), ("SIM-0000A001", "spot minimal")]
 
 TENANTS = [
     # slug, name, plan, domain (reserved example domains), staff roles, modules
@@ -120,6 +131,9 @@ def seed_tenant(c: TestClient, idx: int, slug: str, name: str, plan: str, domain
         ok(c.post("/api/v1/opd/queue", json={"patient_id": p["id"], "branch_id": b},
                   headers=h), 201, "queue")
 
+    if get_settings().device_simulator:
+        seed_simulated_devices(c, h, b, patients[3]["id"])
+
     if "ipd" in modules:
         ward = ok(c.post("/api/v1/ipd/wards", json={"branch_id": b, "name": "General Ward",
                                                     "code": "GW1"}, headers=h), 201, "ward")
@@ -182,6 +196,30 @@ def seed_tenant(c: TestClient, idx: int, slug: str, name: str, plan: str, domain
         "body": "Synthetic demo ticket — no patient data."}, headers=h), 201, "ticket")
     print(f"seed_demo: seeded '{slug}' ({plan}) — {len(roles) + 1} accounts, "
           f"{len(patients)} synthetic patients")
+
+
+def seed_simulated_devices(c: TestClient, h: dict, branch_id: str, patient_id: str) -> None:
+    """Register the two SIMULATED devices and leave two simulated readings
+    pending clinician review on an open consultation. Nothing is accepted
+    automatically: a clinician accepts or rejects them in the demo."""
+    vectors = {v["name"]: v for v in json.loads(VECTORS.read_text())["vectors"]}
+    ids = {}
+    for kind, label, address in SIM_DEVICES:
+        ids[address] = ok(c.post("/api/v1/devices", json={
+            "kind": kind, "label": label, "ble_address": address, "is_simulator": True,
+        }, headers=h), 201, f"simulated device {address}")["id"]
+    enc = ok(c.post("/api/v1/encounters", json={
+        "patient_id": patient_id, "branch_id": branch_id,
+        "chief_complaint": "Giddiness since morning (demo)",
+    }, headers=h), 201, "encounter")
+    for address, name in SIM_READINGS:
+        v = vectors[name]
+        ok(c.post("/api/v1/device-readings", json={
+            "capture_id": str(uuid.uuid4()), "device_id": ids[address], "ble_address": address,
+            "encounter_id": enc["id"], "characteristic": v["characteristic"],
+            "raw_hex": v["hex"], "source": "simulator",
+            "captured_at": datetime.now(timezone.utc).isoformat(), "app_version": "seed_demo",
+        }, headers=h), 201, f"simulated reading {name}")
 
 
 def seed_platform(c: TestClient) -> None:
