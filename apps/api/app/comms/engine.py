@@ -31,7 +31,7 @@ from datetime import date, datetime, timedelta, timezone, tzinfo
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from sqlalchemy import func, select, text
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -326,10 +326,17 @@ def deliver(db: Session, ctx: TenantCtx, *, patient: Patient, channel: str, purp
     template = resolve_template(db, ctx, channel, purpose, language)
     dedupe_key = None
     if dedupe_scope:
-        dedupe_key = f"{dedupe_scope}|tpl:{template.id if template else '-'}"[:200]
+        # One message per occasion, channel and purpose. The template is NOT
+        # part of the key: replacing or re-activating a template, or a change
+        # of the patient's language, must never re-send a reminder (M8.1).
+        dedupe_key = f"{dedupe_scope}|{channel}|{purpose}"[:200]
         if db.scalar(select(func.count()).select_from(CommsDelivery).where(
                 CommsDelivery.organization_id == ctx.org_id,
-                CommsDelivery.dedupe_key == dedupe_key,
+                CommsDelivery.channel == channel,
+                or_(CommsDelivery.dedupe_key == dedupe_key,
+                    # keys written before M8.1: "<scope>|tpl:<template id>"
+                    CommsDelivery.dedupe_key.startswith(f"{dedupe_scope}|tpl:",
+                                                        autoescape=True)),
                 CommsDelivery.status.in_(DELIVERED_STATUSES))):
             return Outcome("duplicate", channel)
 

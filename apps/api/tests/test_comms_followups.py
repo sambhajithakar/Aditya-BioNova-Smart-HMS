@@ -276,6 +276,23 @@ def test_reminder_run_is_idempotent(client, clock):
     assert _run(client, c["h"])["appointments"] == 1
 
 
+def test_replacing_a_template_does_not_resend_reminders(client, clock):
+    """M8.1 (M4): the dedupe key no longer contains the template id."""
+    c = _clinic(client)
+    p = _patient(client, c["h"])
+    _consent(client, c, p)
+    a = _appt(client, c, p, clock["now"] + timedelta(hours=3))
+    assert _run(client, c["h"])["by_status"] == {"sent_mock": 1}
+    r = client.post(f"{API}/comms/templates", headers=c["h"], json={
+        "channel": "sms", "purpose": "appointment_reminder", "language": "en",
+        "name": "Reworded", "is_active": True,
+        "body": "Reminder: {clinic_name} at {appointment_time}. Reply STOP to opt out."})
+    assert r.status_code == 201, r.text
+    again = _run(client, c["h"])
+    assert again["by_status"] == {"duplicate": 1} and again["sent"] == 0
+    assert len(_log(client, c["h"], appointment_id=a["id"])) == 1
+
+
 def test_delivery_log_is_append_only_and_tenant_isolated(client, clock):
     a = _clinic(client)
     b = _clinic(client)
