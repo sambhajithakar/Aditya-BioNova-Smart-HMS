@@ -19,6 +19,7 @@ Legend: ✅ done and evidenced · 🟡 partial · ⬜ not started / owner action
 | Flutter analyze + tests | ✅ 177 passed | CI "Mobile" job |
 | Android APK builds (release mode, debug certificate by explicit opt-in) | ✅ universal 75.7 MB; release without a key now fails by design | CI `android-apk` artifact; `apksigner verify` |
 | PR #1 review findings (H1, M1–M4, L1–L2, A1, W1 and lows) | ✅ fixed with regression tests (M8.1) | CHANGELOG.md |
+| M8.2 device capture and review (simulated devices) | ✅ parsers, API, Android, web, E2E | docs/DEVICE_INTEGRATION.md |
 | Dependency audit (pip-audit, npm audit), secret scan (gitleaks) | ✅ | CI |
 | Docker build and compose smoke | ✅ | CI |
 
@@ -40,6 +41,8 @@ Legend: ✅ done and evidenced · 🟡 partial · ⬜ not started / owner action
 | Item | State |
 |---|---|
 | Real-device QA (entry Android phones, tablets, 4 GB Windows laptops, thermal and A4 printers) | ⬜ Emulation only so far: docs/DEVICE_COMPATIBILITY.md |
+| Bluetooth BP monitor / pulse oximeter validation on hardware (M8.2f) | ⬜ No model supported. Purchase awaiting approval: docs/HARDWARE_PURCHASE_RECOMMENDATION.md; protocol in docs/DEVICE_SUPPORT.md |
+| CDSCO classification of device-reading capture | ⬜ Consultant review |
 | Load and performance test at target scale | ⬜ |
 | Independent penetration test and OWASP ASVS L2 review | ⬜ |
 | DPDP Act 2023 compliance review (consent, retention, breach process) | ⬜ |
