@@ -303,6 +303,11 @@ jobs:
         run: |
           git diff --exit-code packages/contracts/openapi.json \
             || { echo "packages/contracts/openapi.json is stale — regenerate via scripts/generate-contracts.sh"; exit 1; }
+      - name: Ensure the device parser vectors are current (M8.2)
+        run: |
+          python scripts/generate_device_vectors.py
+          git diff --exit-code packages/contracts/device_vectors.json \
+            || { echo "device_vectors.json is stale — run scripts/generate_device_vectors.py"; exit 1; }
       - name: Generate API_DOCUMENTATION.md from the snapshot
         run: python scripts/generate_api_docs.py
       - name: Ensure API documentation is committed
