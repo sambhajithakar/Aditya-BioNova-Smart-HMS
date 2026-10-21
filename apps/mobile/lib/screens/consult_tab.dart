@@ -12,17 +12,25 @@ library;
 import 'package:flutter/material.dart';
 
 import '../app_graph.dart';
+import '../devices/transport.dart' show DeviceAccess;
 import '../l10n/l10n.dart';
+import '../sync/idmap.dart';
 import '../sync/outbox.dart';
 import '../sync/planner.dart';
 import '../sync/sync_status.dart';
 import '../util/dates.dart';
+import 'device_capture_screen.dart';
+import 'device_review_screen.dart';
 import 'sync_widgets.dart';
 
 class ConsultTab extends StatefulWidget {
-  const ConsultTab({super.key, required this.graph});
+  const ConsultTab(
+      {super.key, required this.graph, this.devices = DeviceAccess.none});
 
   final AppGraph graph;
+
+  /// Measure / review with medical devices (M8.2), when allowed.
+  final DeviceAccess devices;
 
   @override
   State<ConsultTab> createState() => _ConsultTabState();
@@ -260,6 +268,32 @@ class _ConsultTabState extends State<ConsultTab> {
                   key: Key('consult-edit-$ref'),
                   onPressed: () => _edit(d),
                   child: Text(l.consultEdit),
+                ),
+              if (!completed && d['discarded'] != true && widget.devices.capture)
+                TextButton(
+                  key: Key('consult-measure-$ref'),
+                  onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) => DeviceCaptureScreen(
+                                graph: graph,
+                                // a draft not yet synced: the reading waits for it
+                                encounterRef: serverId ?? IdMap.placeholder(ref),
+                                patientLabel: '${d['patientLabel'] ?? ''}',
+                              ))),
+                  child: Text(l.measureWithDevice),
+                ),
+              if (!completed && serverId != null && widget.devices.review)
+                OnlineOnlyButton(
+                  key: Key('consult-review-$ref'),
+                  network: graph.network,
+                  label: l.reviewOpen,
+                  onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) => DeviceReviewScreen(
+                                graph: graph,
+                                encounterId: serverId,
+                                patientLabel: '${d['patientLabel'] ?? ''}',
+                              ))),
                 ),
               if (completed)
                 Padding(

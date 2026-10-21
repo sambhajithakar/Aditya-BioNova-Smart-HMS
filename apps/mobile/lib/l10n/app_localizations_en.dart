@@ -1316,4 +1316,163 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get entityCheckIn => 'check-in';
+
+  @override
+  String get devicesTitle => 'Medical devices';
+
+  @override
+  String get devicesIntro =>
+      'Bluetooth BP monitors and pulse oximeters registered by the clinic. Every reading is reviewed by a clinician before it enters the record.';
+
+  @override
+  String get devicesNotValidated =>
+      'No device model has been validated on real hardware yet. Simulated devices produce synthetic readings only.';
+
+  @override
+  String get devicesNone => 'No devices registered yet.';
+
+  @override
+  String get devicesRefresh => 'Refresh list';
+
+  @override
+  String get devicePaired => 'Paired with this phone';
+
+  @override
+  String get deviceNotPaired => 'Not paired with this phone';
+
+  @override
+  String get devicePair => 'Pair';
+
+  @override
+  String get deviceUnpair => 'Unpair';
+
+  @override
+  String get devicePairMismatch => 'That is not the registered device.';
+
+  @override
+  String get devicePairDone => 'Paired.';
+
+  @override
+  String get deviceRegister => 'Register a new device';
+
+  @override
+  String get deviceScan => 'Scan for devices';
+
+  @override
+  String get deviceScanNone => 'No device found nearby.';
+
+  @override
+  String get deviceLabel => 'Name (e.g. OPD room 1 BP monitor)';
+
+  @override
+  String get deviceRegistered => 'Registered and paired.';
+
+  @override
+  String get deviceSimulated => 'SIMULATED';
+
+  @override
+  String get deviceKindBp => 'BP monitor';
+
+  @override
+  String get deviceKindOximeter => 'Pulse oximeter';
+
+  @override
+  String get measureWithDevice => 'Measure with device';
+
+  @override
+  String measureFor(String patient) {
+    return 'Measuring for: $patient';
+  }
+
+  @override
+  String get measureNoPairedDevice =>
+      'No paired device of this type. Pair one under Settings → Medical devices.';
+
+  @override
+  String get measureStart => 'Start measurement';
+
+  @override
+  String get measureWaiting =>
+      'Waiting for the device… take the measurement on the device.';
+
+  @override
+  String get measureScenario => 'Simulator scenario';
+
+  @override
+  String measureRefused(String reason) {
+    return 'Not saved: $reason';
+  }
+
+  @override
+  String get measureSave => 'Save for clinician review';
+
+  @override
+  String get measureSaved =>
+      'Saved on this phone; it will be sent for clinician review.';
+
+  @override
+  String measureFlags(String flags) {
+    return 'Device notes: $flags';
+  }
+
+  @override
+  String measureError(String error) {
+    return 'Measurement failed: $error';
+  }
+
+  @override
+  String get measureNotRecord =>
+      'Not yet part of the record — a clinician must accept it.';
+
+  @override
+  String get reviewTitle => 'Device readings to review';
+
+  @override
+  String get reviewOpen => 'Review device readings';
+
+  @override
+  String get reviewNone => 'No readings waiting for review.';
+
+  @override
+  String get reviewAccept => 'Accept into record';
+
+  @override
+  String get reviewReject => 'Reject';
+
+  @override
+  String reviewConfirm(String patient) {
+    return 'This reading belongs to $patient and was measured just now.';
+  }
+
+  @override
+  String get reviewReason => 'Reason for rejecting';
+
+  @override
+  String get reviewAccepted => 'Accepted into the consultation\'s vitals.';
+
+  @override
+  String get reviewRejected => 'Rejected.';
+
+  @override
+  String reviewFailed(String error) {
+    return 'Could not complete the review: $error';
+  }
+
+  @override
+  String readingBp(String sys, String dia) {
+    return 'BP $sys/$dia mmHg';
+  }
+
+  @override
+  String readingPulse(String pulse) {
+    return 'Pulse $pulse/min';
+  }
+
+  @override
+  String readingSpo2(String spo2) {
+    return 'SpO2 $spo2 %';
+  }
+
+  @override
+  String get readingClockSkew => 'The device clock differs from the phone\'s.';
 }

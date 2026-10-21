@@ -31,11 +31,13 @@ import 'package:flutter/material.dart';
 import '../app_graph.dart';
 import '../auth/features.dart';
 import '../auth/roles.dart';
+import '../devices/transport.dart' show DeviceAccess;
 import '../l10n/l10n.dart';
 import '../legal/licenses.dart';
 import 'appointments_tab.dart';
 import 'billing_tab.dart';
 import 'consult_tab.dart';
+import 'devices_screen.dart';
 import 'login_screen.dart';
 import 'overview_tab.dart';
 import 'patients_tab.dart';
@@ -160,6 +162,17 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _role;
   late ServerFeatures _features;
   late Permissions _permissions;
+
+  /// Device capture / review (M8.2): only when the server explicitly
+  /// reports the feature and the permissions.
+  DeviceAccess get _deviceAccess => DeviceAccess.from(
+        featureReported: _features.hasExplicit('medical_devices'),
+        permissions: _permissions.keys,
+      );
+
+  void _openDevices() => Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => DevicesScreen(graph: graph, access: _deviceAccess)));
+
 
   /// Tabs opened at least once (built lazily, then kept alive).
   final Set<HomeTab> _opened = <HomeTab>{};
@@ -322,7 +335,10 @@ class _HomeScreenState extends State<HomeScreen> {
         HomeTab.appointments => AppointmentsTab(
             key: const ValueKey('tab-appointments'), graph: graph),
         HomeTab.consult =>
-          ConsultTab(key: const ValueKey('tab-consult'), graph: graph),
+          ConsultTab(
+              key: const ValueKey('tab-consult'),
+              graph: graph,
+              devices: _deviceAccess),
         HomeTab.rx => RxTab(
             key: const ValueKey('tab-rx'),
             graph: graph,
@@ -402,6 +418,7 @@ class _HomeScreenState extends State<HomeScreen> {
               if (value == 'rural') settings.setRuralMode(!rural);
               if (value == 'reports') _openReports();
               if (value == 'licences') openLicences(context);
+              if (value == 'devices') _openDevices();
             },
             itemBuilder: (_) => [
               CheckedPopupMenuItem<String>(
@@ -419,6 +436,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   key: const Key('menu-reports'),
                   value: 'reports',
                   child: Text(l.reportsTitle),
+                ),
+              if (_deviceAccess.read || _deviceAccess.capture)
+                PopupMenuItem<String>(
+                  key: const Key('menu-devices'),
+                  value: 'devices',
+                  child: Text(l.devicesTitle),
                 ),
               PopupMenuItem<String>(
                 key: const Key('menu-licences'),

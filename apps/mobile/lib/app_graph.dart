@@ -26,6 +26,9 @@ import 'data/directory.dart';
 import 'data/draft_book.dart';
 import 'data/rx_drafts.dart';
 import 'data/stock_counts.dart';
+import 'devices/device_book.dart';
+import 'devices/simulator.dart';
+import 'devices/transport.dart';
 import 'pdf/pdf_output.dart';
 import 'scan/checkin.dart';
 import 'scan/scanner.dart';
@@ -51,7 +54,12 @@ class AppGraph {
     CodeScanner? scanner,
     PdfOutput? pdfOutput,
     NetworkMonitor? network,
+    DeviceTransport? deviceTransport,
   })  : store = store ?? MemoryLocalStore(),
+        deviceTransport = deviceTransport ??
+            (kDeviceSimulator
+                ? SimulatedDeviceTransport()
+                : const UnavailableDeviceTransport()),
         session = Session(tokenStore ?? MemoryTokenStore()),
         network = network ?? NetworkMonitor(),
         scanner = scanner ?? const CameraCodeScanner(),
@@ -73,6 +81,7 @@ class AppGraph {
     consults = DraftBook(this.store, 'consult_drafts')..load();
     appointments = DraftBook(this.store, 'appointment_drafts')..load();
     stock = StockCountBook(this.store)..load();
+    devices = DeviceBook(this.store)..load();
     quarantine = Quarantine(this.store);
     idMap = _readIdMap(this.store.doc);
     outbox = _readOutbox(this.store.doc);
@@ -123,6 +132,7 @@ class AppGraph {
     CodeScanner? scanner,
     PdfOutput? pdfOutput,
     NetworkMonitor? network,
+    DeviceTransport? deviceTransport,
   }) async {
     final resolved = store ?? MemoryLocalStore();
     await resolved.open();
@@ -136,6 +146,7 @@ class AppGraph {
       scanner: scanner,
       pdfOutput: pdfOutput,
       network: network,
+      deviceTransport: deviceTransport,
     );
     await graph.restoreSession();
     return graph;
@@ -147,6 +158,9 @@ class AppGraph {
   final NetworkMonitor network;
   final CodeScanner scanner;
   final PdfOutput pdfOutput;
+
+  /// Measuring devices (M8.2): Bluetooth and/or the simulator.
+  final DeviceTransport deviceTransport;
   late final AppLock appLock;
 
   /// Language + Rural Clinic mode (kept across sign-out; no PHI).
@@ -156,6 +170,9 @@ class AppGraph {
   late final DraftBook consults;
   late final DraftBook appointments;
   late final StockCountBook stock;
+
+  /// Registered medical devices and this phone's pairings (no PHI).
+  late final DeviceBook devices;
   late final Quarantine quarantine;
   late final IdMap idMap;
   late final Outbox outbox;
@@ -307,6 +324,7 @@ class AppGraph {
     await consults.clear();
     await appointments.clear();
     await stock.clear();
+    await devices.clear();
     // Tokens, profile and the PIN: the next person must sign in online.
     // (The quarantine keeps the owner's e-mail to pre-fill the form.)
     await session.clear();
@@ -392,6 +410,7 @@ class AppGraph {
     await consults.clear();
     await appointments.clear();
     await stock.clear();
+    await devices.clear();
     await session.clear();
     await appLock.clear();
     outbox.ownerId = null;

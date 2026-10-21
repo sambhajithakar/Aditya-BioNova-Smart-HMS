@@ -272,8 +272,9 @@ jobs:
           HMS_ALLOW_DEBUG_SIGNING: "1"
         run: |
           export JAVA_HOME="$JAVA_HOME_21_X64"
-          flutter build apk --release
-          flutter build apk --release --split-per-abi
+          # demo build: the synthetic device simulator is compiled in (M8.2)
+          flutter build apk --release --dart-define=HMS_DEVICE_SIMULATOR=true
+          flutter build apk --release --split-per-abi --dart-define=HMS_DEVICE_SIMULATOR=true
           cd build/app/outputs/flutter-apk && sha256sum *.apk | tee SHA256SUMS
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

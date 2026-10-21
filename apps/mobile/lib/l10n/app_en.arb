@@ -930,5 +930,116 @@
   "stockNoDifference": "No difference from the server — nothing to post.",
   "entityEncounter": "consultation note",
   "entityAppointment": "appointment",
-  "entityCheckIn": "check-in"
+  "entityCheckIn": "check-in",
+  "devicesTitle": "Medical devices",
+  "devicesIntro": "Bluetooth BP monitors and pulse oximeters registered by the clinic. Every reading is reviewed by a clinician before it enters the record.",
+  "devicesNotValidated": "No device model has been validated on real hardware yet. Simulated devices produce synthetic readings only.",
+  "devicesNone": "No devices registered yet.",
+  "devicesRefresh": "Refresh list",
+  "devicePaired": "Paired with this phone",
+  "deviceNotPaired": "Not paired with this phone",
+  "devicePair": "Pair",
+  "deviceUnpair": "Unpair",
+  "devicePairMismatch": "That is not the registered device.",
+  "devicePairDone": "Paired.",
+  "deviceRegister": "Register a new device",
+  "deviceScan": "Scan for devices",
+  "deviceScanNone": "No device found nearby.",
+  "deviceLabel": "Name (e.g. OPD room 1 BP monitor)",
+  "deviceRegistered": "Registered and paired.",
+  "deviceSimulated": "SIMULATED",
+  "deviceKindBp": "BP monitor",
+  "deviceKindOximeter": "Pulse oximeter",
+  "measureWithDevice": "Measure with device",
+  "measureFor": "Measuring for: {patient}",
+  "@measureFor": {
+    "placeholders": {
+      "patient": {
+        "type": "String"
+      }
+    }
+  },
+  "measureNoPairedDevice": "No paired device of this type. Pair one under Settings → Medical devices.",
+  "measureStart": "Start measurement",
+  "measureWaiting": "Waiting for the device… take the measurement on the device.",
+  "measureScenario": "Simulator scenario",
+  "measureRefused": "Not saved: {reason}",
+  "@measureRefused": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "measureSave": "Save for clinician review",
+  "measureSaved": "Saved on this phone; it will be sent for clinician review.",
+  "measureFlags": "Device notes: {flags}",
+  "@measureFlags": {
+    "placeholders": {
+      "flags": {
+        "type": "String"
+      }
+    }
+  },
+  "measureError": "Measurement failed: {error}",
+  "@measureError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "measureNotRecord": "Not yet part of the record — a clinician must accept it.",
+  "reviewTitle": "Device readings to review",
+  "reviewOpen": "Review device readings",
+  "reviewNone": "No readings waiting for review.",
+  "reviewAccept": "Accept into record",
+  "reviewReject": "Reject",
+  "reviewConfirm": "This reading belongs to {patient} and was measured just now.",
+  "@reviewConfirm": {
+    "placeholders": {
+      "patient": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewReason": "Reason for rejecting",
+  "reviewAccepted": "Accepted into the consultation's vitals.",
+  "reviewRejected": "Rejected.",
+  "reviewFailed": "Could not complete the review: {error}",
+  "@reviewFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "readingBp": "BP {sys}/{dia} mmHg",
+  "@readingBp": {
+    "placeholders": {
+      "sys": {
+        "type": "String"
+      },
+      "dia": {
+        "type": "String"
+      }
+    }
+  },
+  "readingPulse": "Pulse {pulse}/min",
+  "@readingPulse": {
+    "placeholders": {
+      "pulse": {
+        "type": "String"
+      }
+    }
+  },
+  "readingSpo2": "SpO2 {spo2} %",
+  "@readingSpo2": {
+    "placeholders": {
+      "spo2": {
+        "type": "String"
+      }
+    }
+  },
+  "readingClockSkew": "The device clock differs from the phone's."
 }

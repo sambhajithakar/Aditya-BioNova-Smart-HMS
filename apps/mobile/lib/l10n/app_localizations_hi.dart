@@ -1313,4 +1313,162 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get entityCheckIn => 'चेक-इन';
+
+  @override
+  String get devicesTitle => 'चिकित्सा उपकरण';
+
+  @override
+  String get devicesIntro =>
+      'क्लिनिक द्वारा पंजीकृत ब्लूटूथ बीपी मॉनिटर और पल्स ऑक्सीमीटर। हर रीडिंग रिकॉर्ड में जाने से पहले चिकित्सक जाँचते हैं।';
+
+  @override
+  String get devicesNotValidated =>
+      'अभी तक कोई उपकरण मॉडल वास्तविक हार्डवेयर पर सत्यापित नहीं हुआ है। सिम्युलेटेड उपकरण केवल कृत्रिम रीडिंग देते हैं।';
+
+  @override
+  String get devicesNone => 'अभी कोई उपकरण पंजीकृत नहीं है।';
+
+  @override
+  String get devicesRefresh => 'सूची ताज़ा करें';
+
+  @override
+  String get devicePaired => 'इस फ़ोन से जुड़ा';
+
+  @override
+  String get deviceNotPaired => 'इस फ़ोन से नहीं जुड़ा';
+
+  @override
+  String get devicePair => 'जोड़ें';
+
+  @override
+  String get deviceUnpair => 'जुड़ाव हटाएँ';
+
+  @override
+  String get devicePairMismatch => 'यह पंजीकृत उपकरण नहीं है।';
+
+  @override
+  String get devicePairDone => 'जोड़ दिया गया।';
+
+  @override
+  String get deviceRegister => 'नया उपकरण पंजीकृत करें';
+
+  @override
+  String get deviceScan => 'उपकरण खोजें';
+
+  @override
+  String get deviceScanNone => 'पास में कोई उपकरण नहीं मिला।';
+
+  @override
+  String get deviceLabel => 'नाम (जैसे ओपीडी कक्ष 1 बीपी मॉनिटर)';
+
+  @override
+  String get deviceRegistered => 'पंजीकृत और जोड़ा गया।';
+
+  @override
+  String get deviceSimulated => 'सिम्युलेटेड';
+
+  @override
+  String get deviceKindBp => 'बीपी मॉनिटर';
+
+  @override
+  String get deviceKindOximeter => 'पल्स ऑक्सीमीटर';
+
+  @override
+  String get measureWithDevice => 'उपकरण से मापें';
+
+  @override
+  String measureFor(String patient) {
+    return 'इनके लिए माप: $patient';
+  }
+
+  @override
+  String get measureNoPairedDevice =>
+      'इस प्रकार का कोई जुड़ा उपकरण नहीं। सेटिंग्स → चिकित्सा उपकरण में जोड़ें।';
+
+  @override
+  String get measureStart => 'माप शुरू करें';
+
+  @override
+  String get measureWaiting => 'उपकरण की प्रतीक्षा… उपकरण पर माप लें।';
+
+  @override
+  String get measureScenario => 'सिम्युलेटर परिदृश्य';
+
+  @override
+  String measureRefused(String reason) {
+    return 'सहेजा नहीं गया: $reason';
+  }
+
+  @override
+  String get measureSave => 'चिकित्सक समीक्षा के लिए सहेजें';
+
+  @override
+  String get measureSaved =>
+      'इस फ़ोन पर सहेजा गया; इसे समीक्षा के लिए भेजा जाएगा।';
+
+  @override
+  String measureFlags(String flags) {
+    return 'उपकरण की टिप्पणियाँ: $flags';
+  }
+
+  @override
+  String measureError(String error) {
+    return 'माप विफल: $error';
+  }
+
+  @override
+  String get measureNotRecord =>
+      'अभी रिकॉर्ड का हिस्सा नहीं — चिकित्सक को स्वीकार करना होगा।';
+
+  @override
+  String get reviewTitle => 'समीक्षा हेतु उपकरण रीडिंग';
+
+  @override
+  String get reviewOpen => 'उपकरण रीडिंग की समीक्षा करें';
+
+  @override
+  String get reviewNone => 'समीक्षा हेतु कोई रीडिंग नहीं।';
+
+  @override
+  String get reviewAccept => 'रिकॉर्ड में स्वीकारें';
+
+  @override
+  String get reviewReject => 'अस्वीकार करें';
+
+  @override
+  String reviewConfirm(String patient) {
+    return 'यह रीडिंग $patient की है और अभी मापी गई है।';
+  }
+
+  @override
+  String get reviewReason => 'अस्वीकार करने का कारण';
+
+  @override
+  String get reviewAccepted => 'परामर्श के वाइटल्स में स्वीकारा गया।';
+
+  @override
+  String get reviewRejected => 'अस्वीकार किया गया।';
+
+  @override
+  String reviewFailed(String error) {
+    return 'समीक्षा पूरी नहीं हुई: $error';
+  }
+
+  @override
+  String readingBp(String sys, String dia) {
+    return 'बीपी $sys/$dia mmHg';
+  }
+
+  @override
+  String readingPulse(String pulse) {
+    return 'नाड़ी $pulse/मिनट';
+  }
+
+  @override
+  String readingSpo2(String spo2) {
+    return 'SpO2 $spo2 %';
+  }
+
+  @override
+  String get readingClockSkew => 'उपकरण की घड़ी फ़ोन से अलग है।';
 }

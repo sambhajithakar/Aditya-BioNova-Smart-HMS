@@ -2289,6 +2289,276 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'check-in'**
   String get entityCheckIn;
+
+  /// No description provided for @devicesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Medical devices'**
+  String get devicesTitle;
+
+  /// No description provided for @devicesIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Bluetooth BP monitors and pulse oximeters registered by the clinic. Every reading is reviewed by a clinician before it enters the record.'**
+  String get devicesIntro;
+
+  /// No description provided for @devicesNotValidated.
+  ///
+  /// In en, this message translates to:
+  /// **'No device model has been validated on real hardware yet. Simulated devices produce synthetic readings only.'**
+  String get devicesNotValidated;
+
+  /// No description provided for @devicesNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No devices registered yet.'**
+  String get devicesNone;
+
+  /// No description provided for @devicesRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh list'**
+  String get devicesRefresh;
+
+  /// No description provided for @devicePaired.
+  ///
+  /// In en, this message translates to:
+  /// **'Paired with this phone'**
+  String get devicePaired;
+
+  /// No description provided for @deviceNotPaired.
+  ///
+  /// In en, this message translates to:
+  /// **'Not paired with this phone'**
+  String get deviceNotPaired;
+
+  /// No description provided for @devicePair.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair'**
+  String get devicePair;
+
+  /// No description provided for @deviceUnpair.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpair'**
+  String get deviceUnpair;
+
+  /// No description provided for @devicePairMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'That is not the registered device.'**
+  String get devicePairMismatch;
+
+  /// No description provided for @devicePairDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Paired.'**
+  String get devicePairDone;
+
+  /// No description provided for @deviceRegister.
+  ///
+  /// In en, this message translates to:
+  /// **'Register a new device'**
+  String get deviceRegister;
+
+  /// No description provided for @deviceScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan for devices'**
+  String get deviceScan;
+
+  /// No description provided for @deviceScanNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No device found nearby.'**
+  String get deviceScanNone;
+
+  /// No description provided for @deviceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Name (e.g. OPD room 1 BP monitor)'**
+  String get deviceLabel;
+
+  /// No description provided for @deviceRegistered.
+  ///
+  /// In en, this message translates to:
+  /// **'Registered and paired.'**
+  String get deviceRegistered;
+
+  /// No description provided for @deviceSimulated.
+  ///
+  /// In en, this message translates to:
+  /// **'SIMULATED'**
+  String get deviceSimulated;
+
+  /// No description provided for @deviceKindBp.
+  ///
+  /// In en, this message translates to:
+  /// **'BP monitor'**
+  String get deviceKindBp;
+
+  /// No description provided for @deviceKindOximeter.
+  ///
+  /// In en, this message translates to:
+  /// **'Pulse oximeter'**
+  String get deviceKindOximeter;
+
+  /// No description provided for @measureWithDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Measure with device'**
+  String get measureWithDevice;
+
+  /// No description provided for @measureFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Measuring for: {patient}'**
+  String measureFor(String patient);
+
+  /// No description provided for @measureNoPairedDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'No paired device of this type. Pair one under Settings → Medical devices.'**
+  String get measureNoPairedDevice;
+
+  /// No description provided for @measureStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start measurement'**
+  String get measureStart;
+
+  /// No description provided for @measureWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the device… take the measurement on the device.'**
+  String get measureWaiting;
+
+  /// No description provided for @measureScenario.
+  ///
+  /// In en, this message translates to:
+  /// **'Simulator scenario'**
+  String get measureScenario;
+
+  /// No description provided for @measureRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'Not saved: {reason}'**
+  String measureRefused(String reason);
+
+  /// No description provided for @measureSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save for clinician review'**
+  String get measureSave;
+
+  /// No description provided for @measureSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on this phone; it will be sent for clinician review.'**
+  String get measureSaved;
+
+  /// No description provided for @measureFlags.
+  ///
+  /// In en, this message translates to:
+  /// **'Device notes: {flags}'**
+  String measureFlags(String flags);
+
+  /// No description provided for @measureError.
+  ///
+  /// In en, this message translates to:
+  /// **'Measurement failed: {error}'**
+  String measureError(String error);
+
+  /// No description provided for @measureNotRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Not yet part of the record — a clinician must accept it.'**
+  String get measureNotRecord;
+
+  /// No description provided for @reviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Device readings to review'**
+  String get reviewTitle;
+
+  /// No description provided for @reviewOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Review device readings'**
+  String get reviewOpen;
+
+  /// No description provided for @reviewNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No readings waiting for review.'**
+  String get reviewNone;
+
+  /// No description provided for @reviewAccept.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept into record'**
+  String get reviewAccept;
+
+  /// No description provided for @reviewReject.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject'**
+  String get reviewReject;
+
+  /// No description provided for @reviewConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'This reading belongs to {patient} and was measured just now.'**
+  String reviewConfirm(String patient);
+
+  /// No description provided for @reviewReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for rejecting'**
+  String get reviewReason;
+
+  /// No description provided for @reviewAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Accepted into the consultation\'s vitals.'**
+  String get reviewAccepted;
+
+  /// No description provided for @reviewRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected.'**
+  String get reviewRejected;
+
+  /// No description provided for @reviewFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not complete the review: {error}'**
+  String reviewFailed(String error);
+
+  /// No description provided for @readingBp.
+  ///
+  /// In en, this message translates to:
+  /// **'BP {sys}/{dia} mmHg'**
+  String readingBp(String sys, String dia);
+
+  /// No description provided for @readingPulse.
+  ///
+  /// In en, this message translates to:
+  /// **'Pulse {pulse}/min'**
+  String readingPulse(String pulse);
+
+  /// No description provided for @readingSpo2.
+  ///
+  /// In en, this message translates to:
+  /// **'SpO2 {spo2} %'**
+  String readingSpo2(String spo2);
+
+  /// No description provided for @readingClockSkew.
+  ///
+  /// In en, this message translates to:
+  /// **'The device clock differs from the phone\'s.'**
+  String get readingClockSkew;
 }
 
 class _AppLocalizationsDelegate
