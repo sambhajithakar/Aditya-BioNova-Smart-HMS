@@ -20,6 +20,28 @@ const BLOCKED_PROXY = [
   "/api/v1/auth/invitations/accept",
 ];
 
+/**
+ * The path the API will route: percent-decoded, duplicate and trailing
+ * slashes removed. Without this, `/api/v1/auth/%6Cogin` or
+ * `/api/v1//auth/login/` slipped past the block list while the backend still
+ * resolved them to the login endpoint (M8.1). Undecodable input → null.
+ */
+export function apiRoutePath(pathname: string): string | null {
+  let p: string;
+  try {
+    p = decodeURIComponent(pathname);
+  } catch {
+    return null;
+  }
+  return p.replace(/\/{2,}/g, "/").replace(/(.)\/+$/, "$1");
+}
+
+export function isBlockedProxyPath(pathname: string): boolean {
+  if (!pathname.startsWith("/api/")) return false;
+  const p = apiRoutePath(pathname);
+  return p === null || BLOCKED_PROXY.includes(p);
+}
+
 function isPublicPage(pathname: string): boolean {
   return PUBLIC_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
@@ -27,7 +49,7 @@ function isPublicPage(pathname: string): boolean {
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
-  if (BLOCKED_PROXY.includes(pathname)) {
+  if (isBlockedProxyPath(pathname)) {
     return NextResponse.json({ detail: "Use /api/session/*" }, { status: 404 });
   }
   if (pathname.startsWith("/api/")) return NextResponse.next();
