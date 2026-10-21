@@ -32,23 +32,39 @@ import '../util/dates.dart';
 const String kCheckInPath = '/checkin/confirm';
 
 abstract final class CheckInToken {
-  /// Opaque URL-safe token: 16–512 chars of `A-Z a-z 0-9 - _ . ~`.
-  static final RegExp _shape = RegExp(r'^[A-Za-z0-9\-_.~]{16,512}$');
+  /// The server's code: 26 base32 characters (`A-Z 2-7`), 128 random bits
+  /// (apps/api/app/services/setup_rules.py, M8.1 — previously this accepted
+  /// any 16–512 URL-safe characters, so unrelated barcodes were queued).
+  static final RegExp _shape = RegExp(r'^[A-Z2-7]{26}$');
+
+  /// Same normalisation as the server: case-insensitive, spaces / hyphens /
+  /// underscores / dots ignored, look-alikes 0→O, 1→I, 8→B. null when the
+  /// result cannot be a check-in code.
+  static String? normalize(String code) {
+    final cleaned = code
+        .replaceAll(RegExp(r'[\s\-_.]'), '')
+        .toUpperCase()
+        .replaceAll('0', 'O')
+        .replaceAll('1', 'I')
+        .replaceAll('8', 'B');
+    return _shape.hasMatch(cleaned) ? cleaned : null;
+  }
 
   /// Extract the token from the scanned text: the bare token, or a link
   /// such as `https://<host>/c/<token>` / `hms://checkin?t=<token>`.
   /// Returns null for anything else (e.g. a random product barcode).
   static String? parse(String scanned) {
     final raw = scanned.trim();
-    if (_shape.hasMatch(raw)) return raw;
+    final bare = normalize(raw);
+    if (bare != null) return bare;
     final uri = Uri.tryParse(raw);
     if (uri == null || !uri.hasScheme) return null;
     final fromQuery = uri.queryParameters['t'] ?? uri.queryParameters['token'];
-    if (fromQuery != null && _shape.hasMatch(fromQuery)) return fromQuery;
-    if (uri.pathSegments.isNotEmpty) {
-      final last = uri.pathSegments.last;
-      if (_shape.hasMatch(last)) return last;
+    if (fromQuery != null) {
+      final t = normalize(fromQuery);
+      if (t != null) return t;
     }
+    if (uri.pathSegments.isNotEmpty) return normalize(uri.pathSegments.last);
     return null;
   }
 }

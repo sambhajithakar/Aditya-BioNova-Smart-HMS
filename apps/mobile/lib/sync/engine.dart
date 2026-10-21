@@ -386,7 +386,11 @@ class SyncEngine {
       }
       serverErrors = 0;
 
-      if (res.status == 409 || res.status == 412) {
+      // A 409 from check-in is a definitive answer about the visit (already
+      // checked in, appointment cancelled, queued at another branch), not a
+      // row that moved on: "keep mine / keep server" makes no sense for it,
+      // so it is parked like any other refusal (M8.1).
+      if ((res.status == 409 || res.status == 412) && op.entity != 'check_in') {
         final rawDetail = res.body['detail'];
         final duplicate = op.method == 'POST' &&
             op.path == '/patients' &&

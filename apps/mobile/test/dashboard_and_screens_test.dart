@@ -478,19 +478,26 @@ void main() {
       expect(c.raw, 'SKU-PARA-500');
     });
 
-    test('check-in token: opaque shapes accepted, others refused', () {
-      const t = 'Zx9_aB3-kLm0QwErTy12';
+    test('check-in token: the server\'s 26-char base32 code, normalised like '
+        'the server; anything else refused (M8.1)', () {
+      const t = 'AEBAGBAFAYDQQCIKBMGA2DQPCA';
       expect(CheckInToken.parse(t), t);
       expect(CheckInToken.parse('https://clinic.example/c/$t'), t);
       expect(CheckInToken.parse('hms://checkin?t=$t'), t);
+      // typed by reception: lower case, grouped, look-alike digits
+      expect(CheckInToken.parse('aebag-bafay dqqci-kbmga-2dqpca'), t);
+      expect(CheckInToken.parse('AEBAGBAFAYDQQC1KBMGA2DQPCA'), t, reason: '1 → I');
       expect(CheckInToken.parse('8901234567890'), isNull);
       expect(CheckInToken.parse('Ramesh Kumar 9876500001'), isNull);
+      // the old accepted shape (any 16+ URL-safe chars) is no longer a code
+      expect(CheckInToken.parse('Zx9_aB3-kLm0QwErTy12'), isNull);
+      expect(CheckInToken.parse('${t}A'), isNull);
     });
 
     testWidgets('QR check-in (opd_queue + checkin.manage) queues ONE check-in request '
         'offline through the fake scanner', (tester) async {
       big(tester);
-      const token = 'Zx9_aB3-kLm0QwErTy12';
+      const token = 'AEBAGBAFAYDQQCIKBMGA2DQPCA';
       final scanner = FakeCodeScanner([token, token, 'not a token']);
       final graph = await boot(
         FakeTransport.routes({
