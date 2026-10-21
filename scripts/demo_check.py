@@ -8,17 +8,32 @@ import json
 import sys
 import urllib.request
 
-api, email = sys.argv[1], sys.argv[2]
-def call(path, body=None, tok=None):
-    req = urllib.request.Request(api + path, data=json.dumps(body).encode() if body else None,
-                                 headers={"Content-Type": "application/json",
-                                          **({"Authorization": f"Bearer {tok}"} if tok else {})})
-    with urllib.request.urlopen(req) as r:
+PASSWORD = "Demo-Sunrise-2026!"  # synthetic demo accounts only
+
+
+def call(api: str, path: str, body: dict | None = None, tok: str | None = None):
+    headers = {"Content-Type": "application/json"}
+    if tok:
+        headers["Authorization"] = f"Bearer {tok}"
+    data = json.dumps(body).encode() if body else None
+    with urllib.request.urlopen(urllib.request.Request(api + path, data=data,
+                                                       headers=headers)) as r:
         return json.load(r)
-tok = call("/auth/login", {"email": email, "password": "Demo-Sunrise-2026!"})["tokens"]["access_token"]
-sims = sum(d["is_simulator"] for d in call("/devices", tok=tok))
-encs = call("/encounters?status=open", tok=tok)["items"]
-pending = sum(len(call(f"/device-readings?encounter_id={e['id']}&status=pending_review", tok=tok))
-              for e in encs)
-print(f"simulated devices={sims} pending readings={pending}")
-assert (sims, pending) == (2, 2), "expected 2 simulated devices and 2 readings pending review"
+
+
+def main(api: str, email: str) -> None:
+    login = call(api, "/auth/login", {"email": email, "password": PASSWORD})
+    tok = login["tokens"]["access_token"]
+    sims = sum(d["is_simulator"] for d in call(api, "/devices", tok=tok))
+    encounters = call(api, "/encounters?status=open", tok=tok)["items"]
+    pending = sum(
+        len(call(api, f"/device-readings?encounter_id={e['id']}&status=pending_review",
+                 tok=tok))
+        for e in encounters)
+    print(f"simulated devices={sims} pending readings={pending}")
+    if (sims, pending) != (2, 2):
+        sys.exit("expected 2 simulated devices and 2 readings pending review")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1], sys.argv[2])
