@@ -1,14 +1,24 @@
-"""Authentication: register (org onboarding), login, refresh rotation, logout, me."""
+"""Authentication: register (org onboarding), login (+ TOTP MFA), refresh
+rotation, logout, me, password change/reset, session management and
+invitation acceptance.
+
+Abuse protection (M7.0): every unauthenticated entry point is rate limited
+per client IP, and failed logins lock the *submitted e-mail* for a window —
+whether or not the account exists — so lockout never reveals registration.
+"""
 from __future__ import annotations
 
+import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
+import jwt as pyjwt
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import select
+from sqlalchemy import select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from .. import comms, ratelimit
 from ..auditing import record_event, record_security_event
 from ..config import get_settings
 from ..db import get_db, set_request_context
@@ -17,30 +27,71 @@ from ..deps import (
     get_client_ip,
     get_correlation_id,
     get_current_principal,
+    session_is_live,
 )
-from ..models import Membership, Organization, RefreshSession, Role, RolePermission, User
+from ..models import (
+    MemberInvitation,
+    Membership,
+    MfaRecoveryCode,
+    Organization,
+    PasswordResetToken,
+    RefreshSession,
+    Role,
+    RolePermission,
+    User,
+)
+from ..entitlements import load_entitlements
+from ..services.subscriptions import get_plan, start_trial
 from ..schemas import (
     AuthSessionOut,
+    EditionRef,
+    InvitationAcceptIn,
     LoginIn,
     MeOut,
+    MfaChallengeOut,
+    MfaDisableIn,
+    MfaStatusOut,
+    MfaVerifyIn,
     OrganizationOut,
+    PasswordChangeIn,
+    PasswordForgotIn,
+    PasswordResetIn,
+    ProfileUpdateIn,
+    RecoveryCodesOut,
     RefreshIn,
     RegisterIn,
+    SessionOut,
     TokenPair,
+    TotpCodeIn,
+    TotpSetupOut,
     UserOut,
 )
 from ..security import (
     DUMMY_PASSWORD_HASH,
+    MFA_CHALLENGE_TTL_SECONDS,
     create_access_token,
+    create_mfa_challenge_token,
+    decode_mfa_challenge_token,
+    decrypt_field,
+    encrypt_field,
     hash_password,
     hash_refresh_token,
+    hash_token,
+    new_recovery_codes,
     new_refresh_token,
+    new_totp_secret,
+    password_needs_rehash,
+    totp_uri,
     verify_password,
+    verify_totp,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 settings = get_settings()
+
+PASSWORD_RESET_TTL = timedelta(minutes=30)
+_MINUTE, _QUARTER, _HOUR = 60, 15 * 60, 60 * 60
 
 
 def _invalid_credentials() -> HTTPException:
@@ -55,16 +106,25 @@ def _new_session(
     org_id: uuid.UUID,
     request: Request,
     family_id: uuid.UUID | None = None,
+    absolute_expires_at: datetime | None = None,
 ) -> tuple[RefreshSession, str, str]:
-    """Create a session row; return (row, access_token, refresh_token)."""
+    """Create a session row; return (row, access_token, refresh_token).
+
+    A new family gets a fresh absolute deadline; a rotation inherits it, so
+    refreshing can never extend a login beyond the absolute lifetime.
+    """
+    now = datetime.now(timezone.utc)
+    absolute = absolute_expires_at or now + timedelta(
+        seconds=settings.session_absolute_ttl_seconds
+    )
     refresh_token, token_hash = new_refresh_token()
     session_row = RefreshSession(
         family_id=family_id or uuid.uuid4(),
         user_id=user.id,
         organization_id=org_id,
         token_hash=token_hash,
-        expires_at=datetime.now(timezone.utc)
-        + timedelta(seconds=settings.refresh_token_ttl_seconds),
+        expires_at=min(now + timedelta(seconds=settings.refresh_token_ttl_seconds), absolute),
+        absolute_expires_at=absolute,
         user_agent=(request.headers.get("user-agent") or "")[:400] or None,
         ip_address=get_client_ip(request),
     )
@@ -84,7 +144,6 @@ def _token_pair(access: str, refresh: str) -> TokenPair:
     )
 
 
-
 def _revoke_session_family(family_id, when) -> None:
     """Revoke every live session of a rotation family (own transaction)."""
     from ..db import SessionLocal
@@ -102,11 +161,95 @@ def _revoke_session_family(family_id, when) -> None:
         local.close()
 
 
+def _revoke_user_sessions(
+    db: Session, user_id: uuid.UUID, *, except_session: uuid.UUID | None = None,
+    organization_id: uuid.UUID | None = None,
+) -> int:
+    stmt = (
+        update(RefreshSession)
+        .where(RefreshSession.user_id == user_id)
+        .where(RefreshSession.revoked_at.is_(None))
+        .values(revoked_at=datetime.now(timezone.utc))
+    )
+    if except_session is not None:
+        stmt = stmt.where(RefreshSession.id != except_session)
+    if organization_id is not None:
+        stmt = stmt.where(RefreshSession.organization_id == organization_id)
+    return db.execute(stmt).rowcount or 0
+
+
 def _permissions_for_role(db: Session, role_id: uuid.UUID) -> list[str]:
     rows = db.scalars(
         select(RolePermission.permission_key).where(RolePermission.role_id == role_id)
     ).all()
     return sorted(set(rows))
+
+
+def _issue_login(
+    db: Session,
+    *,
+    user: User,
+    org_row: Organization,
+    membership: Membership,
+    request: Request,
+    method: str,
+) -> AuthSessionOut:
+    """Create the session and the response shared by every login path."""
+    set_request_context(db, user_id=str(user.id), org_id=str(org_row.id))
+    session_row, access, refresh_token = _new_session(
+        db, user=user, org_id=org_row.id, request=request
+    )
+    record_event(
+        db,
+        action="auth.login",
+        organization_id=str(org_row.id),
+        actor_user_id=str(user.id),
+        resource_type="session",
+        resource_id=str(session_row.id),
+        metadata={"method": method},
+        correlation_id=get_correlation_id(request),
+        ip_address=get_client_ip(request),
+    )
+    role = db.get(Role, membership.role_id)
+    return AuthSessionOut(
+        user=UserOut.model_validate(user),
+        organization=OrganizationOut.model_validate(org_row),
+        role=role.key if role else "unknown",
+        permissions=_permissions_for_role(db, membership.role_id),
+        tokens=_token_pair(access, refresh_token),
+    )
+
+
+def _mfa_enabled(user: User) -> bool:
+    return user.mfa_totp_enabled_at is not None and user.mfa_totp_secret_enc is not None
+
+
+def _check_second_factor(db: Session, user: User, code: str) -> str | None:
+    """Verify a TOTP or recovery code; consume it. Returns the method or None."""
+    code = code.strip().lower()
+    if code.isdigit() and user.mfa_totp_secret_enc:
+        secret = decrypt_field(user.mfa_totp_secret_enc, context=f"totp:{user.id}")
+        step = verify_totp(secret, code, last_step=user.mfa_totp_last_step)
+        if step is not None:
+            user.mfa_totp_last_step = step  # replay guard
+            return "totp"
+        return None
+    row = db.scalar(
+        select(MfaRecoveryCode)
+        .where(MfaRecoveryCode.user_id == user.id)
+        .where(MfaRecoveryCode.code_hash == hash_token(code))
+        .where(MfaRecoveryCode.used_at.is_(None))
+        .with_for_update()
+    )
+    if row is None:
+        return None
+    row.used_at = datetime.now(timezone.utc)
+    return "recovery_code"
+
+
+def _send_email(to: str, subject: str, body: str, *, sensitive: bool = False) -> None:
+    comms.send(comms.Message(channel="email", to=to, subject=subject, body=body,
+                             sensitive=sensitive))
 
 
 @router.post(
@@ -117,7 +260,7 @@ def _permissions_for_role(db: Session, role_id: uuid.UUID) -> list[str]:
 def register(
     payload: RegisterIn,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> AuthSessionOut:
     """Onboard a new clinic/organization with its owner account.
 
@@ -128,6 +271,8 @@ def register(
     email = payload.email.lower()
     ip = get_client_ip(request)
     cid = get_correlation_id(request)
+    ratelimit.hit("register-ip", ip, limit=settings.rl_register_per_ip,
+                  window_seconds=_HOUR)
 
     try:
         if db.scalar(select(User.id).where(User.email == email)):
@@ -165,6 +310,11 @@ def register(
         )
         db.add(membership)
         db.flush()
+
+        # every clinic starts on an edition (trial); prices are never needed here
+        plan = get_plan(db, payload.plan_code or settings.default_signup_plan,
+                        public_only=payload.plan_code is not None)
+        start_trial(db, org.id, plan, user.id)
 
         session_row, access, refresh_token = _new_session(
             db, user=user, org_id=org.id, request=request
@@ -209,15 +359,31 @@ def register(
     )
 
 
-@router.post("/login", response_model=AuthSessionOut)
-def login(payload: LoginIn, request: Request, db: Session = Depends(get_db)) -> AuthSessionOut:
+@router.post("/login", response_model=AuthSessionOut | MfaChallengeOut)
+def login(
+    payload: LoginIn, request: Request, db: Session = Depends(get_db, scope="function")
+) -> AuthSessionOut | MfaChallengeOut:
     email = payload.email.lower()
     ip = get_client_ip(request)
     cid = get_correlation_id(request)
 
+    ratelimit.hit("login-ip", ip, limit=settings.rl_login_per_ip, window_seconds=_MINUTE)
+    # Lockout is checked before the password so a locked account cannot be
+    # probed; it is keyed by the submitted e-mail (exists or not).
+    try:
+        ratelimit.check("login-fail", email, limit=settings.rl_login_failures_per_account,
+                        window_seconds=_QUARTER)
+    except HTTPException:
+        record_security_event(
+            action="auth.login_locked", metadata={"reason": "too_many_failures"},
+            correlation_id=cid, ip_address=ip,
+        )
+        raise
+
     user = db.scalar(select(User).where(User.email == email))
     if user is None:
         verify_password(payload.password, DUMMY_PASSWORD_HASH)  # timing equalisation
+        ratelimit.record("login-fail", email, window_seconds=_QUARTER)
         record_security_event(
             action="auth.login_failed",
             metadata={"reason": "unknown_email"},
@@ -227,6 +393,7 @@ def login(payload: LoginIn, request: Request, db: Session = Depends(get_db)) -> 
         raise _invalid_credentials()
 
     if not verify_password(payload.password, user.password_hash):
+        ratelimit.record("login-fail", email, window_seconds=_QUARTER)
         record_security_event(
             action="auth.login_failed",
             actor_user_id=str(user.id),
@@ -238,6 +405,10 @@ def login(payload: LoginIn, request: Request, db: Session = Depends(get_db)) -> 
 
     if user.status != "active":
         raise HTTPException(status_code=403, detail="Account is disabled")
+
+    ratelimit.clear("login-fail", email)
+    if password_needs_rehash(user.password_hash):
+        user.password_hash = hash_password(payload.password)
 
     # Tenant context first: RLS then reveals only this user's memberships.
     set_request_context(db, user_id=str(user.id))
@@ -278,42 +449,102 @@ def login(payload: LoginIn, request: Request, db: Session = Depends(get_db)) -> 
     if org_row is None or org_row.status != "active":
         raise HTTPException(status_code=403, detail="Organization is not active")
 
-    set_request_context(db, user_id=str(user.id), org_id=str(org_row.id))
-    session_row, access, refresh_token = _new_session(
-        db, user=user, org_id=org_row.id, request=request
-    )
+    if _mfa_enabled(user):
+        token, _jti = create_mfa_challenge_token(user_id=str(user.id), org_id=str(org_row.id))
+        set_request_context(db, user_id=str(user.id), org_id=str(org_row.id))
+        record_event(
+            db,
+            action="auth.mfa_challenge",
+            organization_id=str(org_row.id),
+            actor_user_id=str(user.id),
+            resource_type="user",
+            resource_id=str(user.id),
+            correlation_id=cid,
+            ip_address=ip,
+        )
+        return MfaChallengeOut(
+            mfa_token=token, methods=["totp"], expires_in=MFA_CHALLENGE_TTL_SECONDS
+        )
 
-    record_event(
-        db,
-        action="auth.login",
-        organization_id=str(org_row.id),
-        actor_user_id=str(user.id),
-        resource_type="session",
-        resource_id=str(session_row.id),
-        metadata={"method": "password"},
-        correlation_id=cid,
-        ip_address=ip,
-    )
+    return _issue_login(db, user=user, org_row=org_row, membership=chosen,
+                        request=request, method="password")
 
-    role = db.get(Role, chosen.role_id)
-    return AuthSessionOut(
-        user=UserOut.model_validate(user),
-        organization=OrganizationOut.model_validate(org_row),
-        role=role.key if role else "unknown",
-        permissions=_permissions_for_role(db, chosen.role_id),
-        tokens=_token_pair(access, refresh_token),
+
+@router.post("/mfa/verify", response_model=AuthSessionOut)
+def mfa_verify(
+    payload: MfaVerifyIn, request: Request, db: Session = Depends(get_db, scope="function")
+) -> AuthSessionOut:
+    """Second login step: exchange an MFA challenge + code for a session."""
+    ip = get_client_ip(request)
+    cid = get_correlation_id(request)
+    ratelimit.hit("login-ip", ip, limit=settings.rl_login_per_ip, window_seconds=_MINUTE)
+    try:
+        claims = decode_mfa_challenge_token(payload.mfa_token)
+    except pyjwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="MFA challenge is invalid or expired")
+
+    ratelimit.hit("mfa-challenge", claims["jti"], limit=settings.rl_mfa_attempts,
+                  window_seconds=_QUARTER)
+    ratelimit.check("mfa-user", claims["sub"], limit=settings.rl_mfa_attempts * 2,
+                    window_seconds=_QUARTER)
+
+    # FOR NO KEY UPDATE: serialises concurrent verifications (TOTP replay
+    # guard) without blocking the FK checks of audit rows written on the
+    # separate security-event connection (FOR UPDATE would self-deadlock).
+    user = db.scalar(
+        select(User).where(User.id == uuid.UUID(claims["sub"]))
+        .with_for_update(key_share=True)
     )
+    if user is None or user.status != "active" or not _mfa_enabled(user):
+        raise HTTPException(status_code=401, detail="MFA challenge is invalid or expired")
+
+    method = _check_second_factor(db, user, payload.code)
+    if method is None:
+        ratelimit.record("mfa-user", claims["sub"], window_seconds=_QUARTER)
+        record_security_event(
+            action="auth.mfa_failed",
+            organization_id=claims["org"],
+            actor_user_id=str(user.id),
+            correlation_id=cid,
+            ip_address=ip,
+        )
+        raise HTTPException(status_code=401, detail="Invalid verification code")
+
+    org_id = uuid.UUID(claims["org"])
+    set_request_context(db, user_id=str(user.id), org_id=str(org_id))
+    membership = db.scalar(
+        select(Membership).where(
+            Membership.user_id == user.id, Membership.organization_id == org_id
+        )
+    )
+    org_row = db.get(Organization, org_id)
+    if (
+        membership is None or membership.status != "active"
+        or org_row is None or org_row.status != "active"
+    ):
+        raise HTTPException(status_code=403, detail="Membership is not active")
+    return _issue_login(db, user=user, org_row=org_row, membership=membership,
+                        request=request, method=f"password+{method}")
 
 
 @router.post("/refresh", response_model=TokenPair)
-def refresh(payload: RefreshIn, request: Request, db: Session = Depends(get_db)) -> TokenPair:
+def refresh(
+    payload: RefreshIn, request: Request, db: Session = Depends(get_db, scope="function")
+) -> TokenPair:
     """Rotate the refresh token. Replaying an already-rotated token revokes
     the whole session family (reuse detection) and is audited."""
     ip = get_client_ip(request)
     cid = get_correlation_id(request)
+    ratelimit.hit("refresh-ip", ip, limit=settings.rl_refresh_per_ip, window_seconds=_MINUTE)
     token_hash = hash_refresh_token(payload.refresh_token)
 
-    row = db.scalar(select(RefreshSession).where(RefreshSession.token_hash == token_hash))
+    # Row lock: two concurrent refreshes of the same token must not both
+    # rotate it (the loser sees it revoked and triggers reuse detection).
+    row = db.scalar(
+        select(RefreshSession)
+        .where(RefreshSession.token_hash == token_hash)
+        .with_for_update()
+    )
     if row is None:
         raise _invalid_credentials()
 
@@ -334,7 +565,7 @@ def refresh(payload: RefreshIn, request: Request, db: Session = Depends(get_db))
         )
         raise _invalid_credentials()
 
-    if row.expires_at <= now:
+    if not session_is_live(row, now):
         raise _invalid_credentials()
 
     user = db.get(User, row.user_id)
@@ -349,10 +580,16 @@ def refresh(payload: RefreshIn, request: Request, db: Session = Depends(get_db))
     )
     if membership is None or membership.status != "active":
         raise HTTPException(status_code=403, detail="Membership is not active")
+    org_row = db.get(Organization, row.organization_id)
+    if org_row is None or org_row.status != "active":
+        raise HTTPException(status_code=403, detail="Organization is not active")
 
     row.revoked_at = now
     new_session, access, refresh_token = _new_session(
-        db, user=user, org_id=row.organization_id, request=request, family_id=row.family_id
+        db, user=user, org_id=row.organization_id, request=request,
+        family_id=row.family_id,
+        # pre-M7 sessions have no cap yet: start one now
+        absolute_expires_at=row.absolute_expires_at,
     )
     row.replaced_by = new_session.id
 
@@ -373,7 +610,7 @@ def refresh(payload: RefreshIn, request: Request, db: Session = Depends(get_db))
 def logout(
     request: Request,
     principal: Principal = Depends(get_current_principal),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> dict:
     row = db.get(RefreshSession, principal.session_id)
     if row is not None and row.revoked_at is None:
@@ -394,11 +631,12 @@ def logout(
 @router.get("/me", response_model=MeOut)
 def me(
     principal: Principal = Depends(get_current_principal),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> MeOut:
     org_row = db.get(Organization, principal.organization_id)
     if org_row is None:
         raise HTTPException(status_code=403, detail="Organization not found")
+    ent = load_entitlements(db, principal.organization_id)
     return MeOut(
         user=UserOut.model_validate(principal.user),
         organization=OrganizationOut.model_validate(org_row),
@@ -406,4 +644,395 @@ def me(
         branch_id=principal.membership.branch_id,
         role=principal.role_key,
         permissions=sorted(principal.permissions),
+        edition=EditionRef(code=ent.plan_code, name=ent.plan_name) if ent.plan_code else None,
+        subscription_status=ent.effective_status,
+        features=sorted(ent.features),
+        mfa_enrollment_required=principal.mfa_enrollment_required,
+        is_platform_admin=principal.is_platform_admin,
     )
+
+
+@router.patch("/me", response_model=MeOut)
+def update_me(
+    payload: ProfileUpdateIn,
+    request: Request,
+    principal: Principal = Depends(get_current_principal),
+    db: Session = Depends(get_db, scope="function"),
+) -> MeOut:
+    """Self-service profile: display name and professional registration
+    number (printed on prescriptions)."""
+    user = principal.user
+    changes: dict = {}
+    if payload.full_name is not None and payload.full_name != user.full_name:
+        changes["full_name"] = payload.full_name
+        user.full_name = payload.full_name
+    if (
+        "registration_number" in payload.model_fields_set
+        and payload.registration_number != user.registration_number
+    ):
+        changes["registration_number"] = payload.registration_number
+        user.registration_number = payload.registration_number
+    if changes:
+        record_event(
+            db,
+            action="user.profile_updated",
+            organization_id=str(principal.organization_id),
+            actor_user_id=str(user.id),
+            resource_type="user",
+            resource_id=str(user.id),
+            metadata=changes,
+            correlation_id=get_correlation_id(request),
+            ip_address=get_client_ip(request),
+        )
+    return me(principal=principal, db=db)
+
+
+# --- MFA enrolment -------------------------------------------------------------
+def _audit_self(db: Session, principal: Principal, request: Request, action: str,
+                metadata: dict | None = None) -> None:
+    record_event(
+        db,
+        action=action,
+        organization_id=str(principal.organization_id),
+        actor_user_id=str(principal.user_id),
+        resource_type="user",
+        resource_id=str(principal.user_id),
+        metadata=metadata,
+        correlation_id=get_correlation_id(request),
+        ip_address=get_client_ip(request),
+    )
+
+
+def _remaining_recovery_codes(db: Session, user_id: uuid.UUID) -> int:
+    return len(db.scalars(
+        select(MfaRecoveryCode.id)
+        .where(MfaRecoveryCode.user_id == user_id)
+        .where(MfaRecoveryCode.used_at.is_(None))
+    ).all())
+
+
+@router.get("/mfa/status", response_model=MfaStatusOut)
+def mfa_status(
+    principal: Principal = Depends(get_current_principal),
+    db: Session = Depends(get_db, scope="function"),
+) -> MfaStatusOut:
+    return MfaStatusOut(
+        totp_enabled=_mfa_enabled(principal.user),
+        recovery_codes_remaining=_remaining_recovery_codes(db, principal.user_id),
+    )
+
+
+@router.post("/mfa/totp/setup", response_model=TotpSetupOut)
+def totp_setup(
+    request: Request,
+    principal: Principal = Depends(get_current_principal),
+    db: Session = Depends(get_db, scope="function"),
+) -> TotpSetupOut:
+    """Start enrolment: a pending seed that becomes active only once a code
+    from the authenticator app is confirmed via ``/mfa/totp/enable``."""
+    user = principal.user
+    if _mfa_enabled(user):
+        raise HTTPException(status_code=409, detail="TOTP is already enabled")
+    secret = new_totp_secret()
+    user.mfa_totp_pending_enc = encrypt_field(secret, context=f"totp:{user.id}")
+    _audit_self(db, principal, request, "auth.mfa_setup_started")
+    return TotpSetupOut(secret=secret, otpauth_uri=totp_uri(secret, account=user.email))
+
+
+@router.post("/mfa/totp/enable", response_model=RecoveryCodesOut)
+def totp_enable(
+    payload: TotpCodeIn,
+    request: Request,
+    principal: Principal = Depends(get_current_principal),
+    db: Session = Depends(get_db, scope="function"),
+) -> RecoveryCodesOut:
+    user = principal.user
+    if _mfa_enabled(user):
+        raise HTTPException(status_code=409, detail="TOTP is already enabled")
+    if not user.mfa_totp_pending_enc:
+        raise HTTPException(status_code=409, detail="Start TOTP setup first")
+    ratelimit.hit("mfa-enroll", str(user.id), limit=settings.rl_mfa_attempts,
+                  window_seconds=_QUARTER)
+    secret = decrypt_field(user.mfa_totp_pending_enc, context=f"totp:{user.id}")
+    step = verify_totp(secret, payload.code, last_step=None)
+    if step is None:
+        raise HTTPException(status_code=422, detail="Invalid verification code")
+
+    user.mfa_totp_secret_enc = user.mfa_totp_pending_enc
+    user.mfa_totp_pending_enc = None
+    user.mfa_totp_enabled_at = datetime.now(timezone.utc)
+    user.mfa_totp_last_step = step
+    db.execute(MfaRecoveryCode.__table__.delete().where(MfaRecoveryCode.user_id == user.id))
+    codes = new_recovery_codes()
+    for code in codes:
+        db.add(MfaRecoveryCode(user_id=user.id, code_hash=hash_token(code)))
+    _audit_self(db, principal, request, "auth.mfa_enabled", {"method": "totp"})
+    return RecoveryCodesOut(recovery_codes=codes)
+
+
+@router.post("/mfa/disable")
+def mfa_disable(
+    payload: MfaDisableIn,
+    request: Request,
+    principal: Principal = Depends(get_current_principal),
+    db: Session = Depends(get_db, scope="function"),
+) -> dict:
+    user = principal.user
+    if not _mfa_enabled(user):
+        raise HTTPException(status_code=409, detail="MFA is not enabled")
+    ratelimit.hit("mfa-disable", str(user.id), limit=settings.rl_mfa_attempts,
+                  window_seconds=_QUARTER)
+    if not verify_password(payload.password, user.password_hash):
+        raise _invalid_credentials()
+    if _check_second_factor(db, user, payload.code) is None:
+        raise HTTPException(status_code=401, detail="Invalid verification code")
+    db.flush()  # persist the consumed code before the bulk delete below
+    user.mfa_totp_secret_enc = None
+    user.mfa_totp_pending_enc = None
+    user.mfa_totp_enabled_at = None
+    user.mfa_totp_last_step = None
+    db.execute(MfaRecoveryCode.__table__.delete().where(MfaRecoveryCode.user_id == user.id))
+    _audit_self(db, principal, request, "auth.mfa_disabled")
+    return {"status": "disabled"}
+
+
+# --- Passwords -------------------------------------------------------------------
+@router.post("/password/change")
+def password_change(
+    payload: PasswordChangeIn,
+    request: Request,
+    principal: Principal = Depends(get_current_principal),
+    db: Session = Depends(get_db, scope="function"),
+) -> dict:
+    user = principal.user
+    ratelimit.hit("password-change", str(user.id), limit=settings.rl_mfa_attempts,
+                  window_seconds=_QUARTER)
+    if not verify_password(payload.current_password, user.password_hash):
+        raise _invalid_credentials()
+    user.password_hash = hash_password(payload.new_password)
+    user.password_changed_at = datetime.now(timezone.utc)
+    revoked = _revoke_user_sessions(db, user.id, except_session=principal.session_id)
+    _audit_self(db, principal, request, "auth.password_changed",
+                {"other_sessions_revoked": revoked})
+    return {"status": "changed"}
+
+
+@router.post("/password/forgot", status_code=status.HTTP_202_ACCEPTED)
+def password_forgot(
+    payload: PasswordForgotIn,
+    request: Request,
+    db: Session = Depends(get_db, scope="function"),
+) -> dict:
+    """Always 202, whether or not the e-mail is registered."""
+    email = payload.email.lower()
+    ip = get_client_ip(request)
+    ratelimit.hit("pwreset-ip", ip, limit=settings.rl_password_reset_per_ip,
+                  window_seconds=_HOUR)
+    ratelimit.hit("pwreset-email", email, limit=settings.rl_password_reset_per_account,
+                  window_seconds=_HOUR)
+    user = db.scalar(select(User).where(User.email == email))
+    if user is not None and user.status == "active":
+        token = secrets.token_urlsafe(32)
+        db.add(PasswordResetToken(
+            user_id=user.id,
+            token_hash=hash_token(token),
+            expires_at=datetime.now(timezone.utc) + PASSWORD_RESET_TTL,
+            ip_address=ip,
+        ))
+        db.flush()
+        link = f"{settings.web_base_url.rstrip('/')}/reset-password?token={token}"
+        _send_email(
+            user.email,
+            "Reset your Aditya BioNova HMS password",
+            f"A password reset was requested for your account.\n\n{link}\n\n"
+            f"The link expires in {int(PASSWORD_RESET_TTL.total_seconds() // 60)} minutes "
+            "and works once. If you did not ask for this, ignore this e-mail.",
+            sensitive=True,
+        )
+        record_security_event(
+            action="auth.password_reset_requested", actor_user_id=str(user.id),
+            correlation_id=get_correlation_id(request), ip_address=ip,
+        )
+    return {"status": "accepted"}
+
+
+@router.post("/password/reset")
+def password_reset(
+    payload: PasswordResetIn,
+    request: Request,
+    db: Session = Depends(get_db, scope="function"),
+) -> dict:
+    ip = get_client_ip(request)
+    ratelimit.hit("pwreset-ip", ip, limit=settings.rl_password_reset_per_ip,
+                  window_seconds=_HOUR)
+    row = db.scalar(
+        select(PasswordResetToken)
+        .where(PasswordResetToken.token_hash == hash_token(payload.token))
+        .with_for_update()
+    )
+    now = datetime.now(timezone.utc)
+    if row is None or row.used_at is not None or row.expires_at <= now:
+        raise HTTPException(status_code=400, detail="Reset link is invalid or expired")
+    user = db.get(User, row.user_id)
+    if user is None or user.status != "active":
+        raise HTTPException(status_code=400, detail="Reset link is invalid or expired")
+    row.used_at = now
+    user.password_hash = hash_password(payload.new_password)
+    user.password_changed_at = now
+    # invalidate any other outstanding reset links too
+    db.execute(
+        update(PasswordResetToken)
+        .where(PasswordResetToken.user_id == user.id)
+        .where(PasswordResetToken.used_at.is_(None))
+        .values(used_at=now)
+    )
+    revoked = _revoke_user_sessions(db, user.id)
+    ratelimit.clear("login-fail", user.email)
+    record_security_event(
+        action="auth.password_reset", actor_user_id=str(user.id),
+        metadata={"sessions_revoked": revoked},
+        correlation_id=get_correlation_id(request), ip_address=ip,
+    )
+    return {"status": "reset"}
+
+
+# --- Sessions -----------------------------------------------------------------------
+@router.get("/sessions", response_model=list[SessionOut])
+def list_sessions(
+    principal: Principal = Depends(get_current_principal),
+    db: Session = Depends(get_db, scope="function"),
+) -> list[SessionOut]:
+    now = datetime.now(timezone.utc)
+    rows = db.scalars(
+        select(RefreshSession)
+        .where(RefreshSession.user_id == principal.user_id)
+        .where(RefreshSession.organization_id == principal.organization_id)
+        .where(RefreshSession.revoked_at.is_(None))
+        .order_by(RefreshSession.issued_at.desc())
+    ).all()
+    return [
+        SessionOut(
+            id=r.id, created_at=r.issued_at, expires_at=r.expires_at,
+            user_agent=r.user_agent, ip_address=r.ip_address,
+            current=r.id == principal.session_id,
+        )
+        for r in rows
+        if session_is_live(r, now)
+    ]
+
+
+@router.post("/sessions/revoke-others")
+def revoke_other_sessions(
+    request: Request,
+    principal: Principal = Depends(get_current_principal),
+    db: Session = Depends(get_db, scope="function"),
+) -> dict:
+    revoked = _revoke_user_sessions(
+        db, principal.user_id, except_session=principal.session_id,
+        organization_id=principal.organization_id,
+    )
+    _audit_self(db, principal, request, "auth.sessions_revoked", {"count": revoked})
+    return {"revoked": revoked}
+
+
+@router.post("/sessions/{session_id}/revoke")
+def revoke_session(
+    session_id: uuid.UUID,
+    request: Request,
+    principal: Principal = Depends(get_current_principal),
+    db: Session = Depends(get_db, scope="function"),
+) -> dict:
+    row = db.get(RefreshSession, session_id)
+    if (
+        row is None or row.user_id != principal.user_id
+        or row.organization_id != principal.organization_id
+    ):
+        raise HTTPException(status_code=404, detail="Session not found")
+    if row.revoked_at is None:
+        row.revoked_at = datetime.now(timezone.utc)
+    _audit_self(db, principal, request, "auth.session_revoked", {"session_id": str(row.id)})
+    return {"status": "revoked"}
+
+
+# --- Invitations ---------------------------------------------------------------------
+@router.post("/invitations/accept", response_model=AuthSessionOut | MfaChallengeOut)
+def accept_invitation(
+    payload: InvitationAcceptIn,
+    request: Request,
+    db: Session = Depends(get_db, scope="function"),
+) -> AuthSessionOut | MfaChallengeOut:
+    """Join an organization from an e-mailed invitation.
+
+    A new e-mail creates its account here (``full_name`` + password); an
+    existing account must prove ownership with its current password — an
+    administrator can never attach someone else's account to their tenant.
+    """
+    ip = get_client_ip(request)
+    ratelimit.hit("invite-accept-ip", ip, limit=settings.rl_invite_accept_per_ip,
+                  window_seconds=_HOUR)
+    token_hash = hash_token(payload.token)
+    org_id = db.scalar(text("SELECT invitation_org_for_token(:h)"), {"h": token_hash})
+    if org_id is None:
+        raise HTTPException(status_code=400, detail="Invitation is invalid or expired")
+    set_request_context(db, org_id=str(org_id))
+    inv = db.scalar(
+        select(MemberInvitation)
+        .where(MemberInvitation.token_hash == token_hash)
+        .with_for_update()
+    )
+    if inv is None or inv.status != "pending":  # pragma: no cover - raced
+        raise HTTPException(status_code=400, detail="Invitation is invalid or expired")
+
+    user = db.scalar(select(User).where(User.email == inv.email))
+    if user is None:
+        if not payload.full_name:
+            raise HTTPException(status_code=422, detail="full_name is required")
+        if len(payload.password) < 10:
+            raise HTTPException(status_code=422,
+                                detail="password must be at least 10 characters")
+        user = User(email=inv.email, full_name=payload.full_name,
+                    password_hash=hash_password(payload.password))
+        db.add(user)
+        db.flush()
+        created = True
+    else:
+        if user.status != "active" or not verify_password(payload.password, user.password_hash):
+            raise _invalid_credentials()
+        created = False
+
+    set_request_context(db, user_id=str(user.id), org_id=str(org_id))
+    if db.scalar(select(Membership.id).where(
+        Membership.user_id == user.id, Membership.organization_id == org_id
+    )):
+        raise HTTPException(status_code=409, detail="Already a member of this organization")
+
+    membership = Membership(user_id=user.id, organization_id=org_id,
+                            branch_id=inv.branch_id, role_id=inv.role_id)
+    db.add(membership)
+    inv.status = "accepted"
+    inv.accepted_user_id = user.id
+    inv.updated_at = datetime.now(timezone.utc)
+    db.flush()
+    record_event(
+        db,
+        action="member.invitation_accepted",
+        organization_id=str(org_id),
+        actor_user_id=str(user.id),
+        resource_type="membership",
+        resource_id=str(membership.id),
+        metadata={"invitation_id": str(inv.id), "user_created": created},
+        correlation_id=get_correlation_id(request),
+        ip_address=ip,
+    )
+    org_row = db.get(Organization, org_id)
+    if org_row is None or org_row.status != "active":
+        raise HTTPException(status_code=403, detail="Organization is not active")
+    if _mfa_enabled(user):
+        # never bypass a second factor: the membership is kept and the
+        # caller completes sign-in through /auth/mfa/verify
+        token, _jti = create_mfa_challenge_token(user_id=str(user.id), org_id=str(org_id))
+        return MfaChallengeOut(
+            mfa_token=token, methods=["totp"], expires_in=MFA_CHALLENGE_TTL_SECONDS
+        )
+    return _issue_login(db, user=user, org_row=org_row, membership=membership,
+                        request=request, method="invitation")

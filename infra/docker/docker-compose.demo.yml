@@ -1,0 +1,60 @@
+# SYNTHETIC-DATA DEMO overlay — for evaluating the software on your own
+# computer and phone, NEVER for real patients or production.
+#
+# Start it with scripts/demo-up.sh (Linux/macOS) or scripts/demo-up.ps1
+# (Windows); both generate throw-away secrets in infra/docker/.env.demo
+# (git-ignored) and run, from the repository root:
+#   docker compose -p hms-demo -f infra/docker/docker-compose.yml \
+#     -f infra/docker/docker-compose.demo.yml --env-file infra/docker/.env.demo up -d --build
+#
+# What this overlay changes (docs/DEMO.md):
+# * ENVIRONMENT=development: synthetic-data mode. Payments use the in-process
+#   simulator (no money moves), messages go to the mock outbox, the
+#   Bluetooth device simulator is enabled, and the demo platform admin needs
+#   no authenticator app.
+# * a one-shot `seed` job loads the synthetic demo clinics
+#   (scripts/seed_demo.py) after the migrations; re-running skips them.
+# * session cookies without the Secure flag, because the demo is served over
+#   plain HTTP on the local network (there is no TLS certificate).
+# * the demo scripts set HMS_BIND_ADDRESS=0.0.0.0 so a phone on the same
+#   Wi-Fi can reach ports 3000 (web) and 8000 (API).
+
+x-demo-env: &demo-env
+  ENVIRONMENT: development
+  DEVICE_SIMULATOR_ENABLED: "true"
+  PLATFORM_MFA_REQUIRED: "false"
+
+services:
+  migrate:
+    environment: *demo-env
+
+  seed:
+    build:
+      context: ../..
+      dockerfile: infra/docker/demo-seed.Dockerfile
+    image: hms-demo-seed:local
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    environment:
+      <<: *demo-env
+      DATABASE_URL: postgresql+psycopg2://hms_app:${HMS_APP_PASSWORD:?set HMS_APP_PASSWORD}@postgres:5432/hms_dev
+      MIGRATION_DATABASE_URL: postgresql+psycopg2://hms:${HMS_PG_PASSWORD:?set HMS_PG_PASSWORD}@postgres:5432/hms_dev
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY:?set FIELD_ENCRYPTION_KEY}
+    restart: "no"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  api:
+    environment: *demo-env
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+
+  web:
+    environment:
+      SESSION_COOKIE_SECURE: "false"

@@ -1,0 +1,1521 @@
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for Marathi (`mr`).
+class AppLocalizationsMr extends AppLocalizations {
+  AppLocalizationsMr([String locale = 'mr']) : super(locale);
+
+  @override
+  String get appTitle => 'Aditya BioNova Smart HMS';
+
+  @override
+  String get appSubtitle => 'डॉक्टर व फील्ड कर्मचाऱ्यांसाठी ॲप';
+
+  @override
+  String get languageMenu => 'भाषा';
+
+  @override
+  String get languageDevice => 'फोनची भाषा';
+
+  @override
+  String get settingsMenu => 'सेटिंग्ज';
+
+  @override
+  String get openSourceLicences => 'मुक्त-स्रोत परवाने';
+
+  @override
+  String get refresh => 'रीफ्रेश करा';
+
+  @override
+  String get cancel => 'रद्द करा';
+
+  @override
+  String get back => 'मागे';
+
+  @override
+  String get patient => 'रुग्ण';
+
+  @override
+  String get branch => 'शाखा';
+
+  @override
+  String get pickPatientFirst => 'आधी रुग्ण निवडा.';
+
+  @override
+  String outboxCounts(int pending, int failed, int conflicted) {
+    return 'आउटबॉक्स — प्रलंबित: $pending, अयशस्वी: $failed, विसंगत: $conflicted';
+  }
+
+  @override
+  String outboxCountsShort(int pending, int conflicted) {
+    return 'आउटबॉक्स — प्रलंबित: $pending, विसंगत: $conflicted';
+  }
+
+  @override
+  String get pendingSyncTag => '(सिंक बाकी)';
+
+  @override
+  String get syncedTag => '(सिंक झाले)';
+
+  @override
+  String get loginEmail => 'ईमेल';
+
+  @override
+  String get loginPassword => 'पासवर्ड';
+
+  @override
+  String get loginSlug => 'क्लिनिक कोड (ऐच्छिक)';
+
+  @override
+  String get loginSubmit => 'साइन इन करा';
+
+  @override
+  String get loginSigningIn => 'साइन इन होत आहे…';
+
+  @override
+  String get loginMfaTitle => 'द्वि-स्तरीय पडताळणी';
+
+  @override
+  String get loginMfaHelp =>
+      'तुमच्या ऑथेंटिकेटर ॲपमधील 6 अंकी कोड किंवा तुमच्या रिकव्हरी कोडपैकी एक (xxxx-xxxx) टाका.';
+
+  @override
+  String get loginMfaCode => 'कोड';
+
+  @override
+  String get loginVerify => 'पडताळा';
+
+  @override
+  String get loginVerifying => 'पडताळणी होत आहे…';
+
+  @override
+  String get loginMfaMissing => 'ऑथेंटिकेटर ॲपमधील कोड टाका.';
+
+  @override
+  String get loginMfaRejected =>
+      'हा कोड स्वीकारला गेला नाही. फोनवरील वेळ तपासा किंवा रिकव्हरी कोड वापरा.';
+
+  @override
+  String get loginUnreachable =>
+      'सर्व्हरशी संपर्क झाला नाही. इंटरनेट कनेक्शन तपासून पुन्हा प्रयत्न करा.';
+
+  @override
+  String get rateLimitedWait =>
+      'खूप जास्त प्रयत्न झाले. थोडा वेळ थांबून पुन्हा प्रयत्न करा.';
+
+  @override
+  String rateLimitedSeconds(int seconds) {
+    return 'खूप जास्त प्रयत्न झाले. $seconds सेकंदांनी पुन्हा प्रयत्न करा.';
+  }
+
+  @override
+  String rateLimitedMinutes(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes मिनिटांनी',
+      one: '1 मिनिटाने',
+    );
+    return 'खूप जास्त प्रयत्न झाले. $_temp0 पुन्हा प्रयत्न करा.';
+  }
+
+  @override
+  String get sessionExpiredNotice =>
+      'तुमचे साइन-इन कालबाह्य झाले आहे. या डिव्हाइसवर जतन केलेले काम सुरक्षित आहे आणि साइन इन केल्यावर सिंक होईल.';
+
+  @override
+  String get lockedOutNotice =>
+      'बरेच चुकीचे PIN टाकले गेले. पुन्हा ऑनलाइन साइन इन करा — या डिव्हाइसवर जतन केलेले काम सुरक्षित राहील.';
+
+  @override
+  String get pinSetTitle => 'ॲप PIN सेट करा';
+
+  @override
+  String get pinUnlockTitle => 'तुमचा ॲप PIN टाका';
+
+  @override
+  String get pinSetHelp =>
+      'या डिव्हाइसवरील रुग्णांची माहिती PIN ने सुरक्षित आहे. नेटवर्क नसतानाही ॲप उघडण्यासाठी हा PIN लागेल.';
+
+  @override
+  String get worksOffline => 'ऑफलाइनही चालते.';
+
+  @override
+  String get pinLabel => 'PIN';
+
+  @override
+  String get pinRepeat => 'PIN पुन्हा टाका';
+
+  @override
+  String get pinSave => 'PIN जतन करा';
+
+  @override
+  String get pinUnlock => 'उघडा';
+
+  @override
+  String get pinUsePassword => 'त्याऐवजी पासवर्डने साइन इन करा';
+
+  @override
+  String get pinRule => '4 ते 8 अंक वापरा.';
+
+  @override
+  String get pinMismatch => 'दोन्ही PIN जुळत नाहीत.';
+
+  @override
+  String pinWrong(int left) {
+    String _temp0 = intl.Intl.pluralLogic(
+      left,
+      locale: localeName,
+      other: '$left प्रयत्न',
+      one: '1 प्रयत्न',
+    );
+    return 'चुकीचा PIN — $_temp0 बाकी.';
+  }
+
+  @override
+  String get recoveryTitle => 'ऑफलाइन डेटा उघडता आला नाही';
+
+  @override
+  String get recoveryTitleFatal => 'हे बिल्ड सुरू होऊ शकत नाही';
+
+  @override
+  String get recoveryBody =>
+      'या डिव्हाइसवर जतन केलेले काम या फोनच्या सुरक्षित हार्डवेअरमधील कीने एन्क्रिप्ट केलेले आहे. ती की किंवा डेटा वाचता आला नाही — ॲप नवीन फोनवर रिस्टोअर केल्यावर किंवा जतन केलेली फाइल खराब झाल्यास असे होते.\n\nऑफलाइन स्टोरेजशिवाय ॲप पुढे चालणार नाही, कारण नवीन काम नकळत हरवू शकते. आधी पुन्हा प्रयत्न करा; तरीही अडचण राहिल्यास लोकल डेटा रीसेट करा.';
+
+  @override
+  String recoveryDetails(String details) {
+    return 'तपशील: $details';
+  }
+
+  @override
+  String get recoveryRetry => 'पुन्हा प्रयत्न करा';
+
+  @override
+  String get recoveryReset => 'लोकल डेटा रीसेट करा (सिंक न झालेले काम हरवेल)';
+
+  @override
+  String get recoveryResetTitle => 'लोकल डेटा रीसेट करायचा?';
+
+  @override
+  String get recoveryResetBody =>
+      'ॲपने या डिव्हाइसवर ठेवलेले सर्व काही हटवले जाईल: सिंक न झालेल्या नोंदण्या, रांगेतील नोंदी, बिले आणि प्रिस्क्रिप्शनचे मसुदे कायमचे हरवतील आणि परत मिळणार नाहीत. सर्व्हरवरील डेटावर परिणाम होणार नाही. नंतर तुम्हाला पुन्हा साइन इन करावे लागेल.';
+
+  @override
+  String get recoveryResetConfirm => 'लोकल डेटा हटवा';
+
+  @override
+  String homeTitle(String role) {
+    return 'HMS · $role';
+  }
+
+  @override
+  String get signOut => 'साइन आउट';
+
+  @override
+  String get signOutTitle => 'या डिव्हाइसवरून साइन आउट करायचे?';
+
+  @override
+  String get signOutTitleUnsynced => 'सिंक न झालेले बदल हरवतील';
+
+  @override
+  String get signOutBody =>
+      'या डिव्हाइसवरील रुग्णांची साठवलेली यादी, मसुदे आणि तुमचा PIN काढून टाकले जातील.';
+
+  @override
+  String signOutBodyUnsynced(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count बदल',
+      one: '1 बदल',
+    );
+    return 'या डिव्हाइसवर जतन केलेले $_temp0 अजून सर्व्हरवर पोहोचलेले नाहीत. साइन आउट केल्यास ते, रुग्णांची साठवलेली यादी आणि मसुद्यांसह, हटवले जातील. शक्य असल्यास आधी सिंक करा.';
+  }
+
+  @override
+  String get signOutDelete => 'हटवा आणि साइन आउट करा';
+
+  @override
+  String get sessionExpiredBanner =>
+      'सर्व्हरने तुम्हाला साइन आउट केले आहे. तुम्ही ऑफलाइन काम सुरू ठेवू शकता; सिंक करण्यासाठी पुन्हा साइन इन करा.';
+
+  @override
+  String get tabQueue => 'रांग';
+
+  @override
+  String get tabRegister => 'नोंदणी';
+
+  @override
+  String get tabRx => 'Rx';
+
+  @override
+  String get tabFastRx => 'जलद Rx';
+
+  @override
+  String get tabBilling => 'बिलिंग';
+
+  @override
+  String get tabBill => 'बिल';
+
+  @override
+  String get tabSync => 'सिंक';
+
+  @override
+  String get ruralMode => 'ग्रामीण दवाखाना मोड';
+
+  @override
+  String get ruralModeHelp => 'मोठी बटणे, मोठा मजकूर, चार टप्पे';
+
+  @override
+  String editionLabel(String edition) {
+    return 'आवृत्ती: $edition';
+  }
+
+  @override
+  String get mobileNotEnabled =>
+      'तुमच्या क्लिनिकच्या प्लॅनमध्ये मोबाइल ॲप समाविष्ट नाही. या डिव्हाइसवर आधीच जतन केलेले बदल \"सिंक\" टॅबमधून अजूनही सिंक करता येतील. तुमच्या ॲडमिनिस्ट्रेटरशी संपर्क साधा.';
+
+  @override
+  String get queueTitle => 'ऑफलाइन रांग नोंद';
+
+  @override
+  String get queuePickBoth => 'रुग्ण आणि शाखा निवडा (एकदा सिंक आवश्यक).';
+
+  @override
+  String get queueDuplicate => 'आजच्या रांगेत आधीच आहे — दुहेरी नोंद टाळली.';
+
+  @override
+  String queueSaved(int count) {
+    return 'डिव्हाइसवर जतन — सिंक बाकी (आउटबॉक्समध्ये $count).';
+  }
+
+  @override
+  String get queueAdd => 'रांगेत जोडा (ऑफलाइनही चालते)';
+
+  @override
+  String get loadingPatients => 'रुग्णांची यादी येत आहे…';
+
+  @override
+  String get noPatientsCached =>
+      'अजून कोणतेही रुग्ण साठवलेले नाहीत — यादी घेण्यासाठी एकदा इंटरनेटशी जोडा; त्यानंतर रांगेतील नोंदी ऑफलाइनही होतील.';
+
+  @override
+  String get registerTitle => 'रुग्ण नोंदणी (ऑफलाइनही चालते)';
+
+  @override
+  String get registerName => 'पूर्ण नाव';
+
+  @override
+  String get registerGender => 'लिंग';
+
+  @override
+  String get genderFemale => 'स्त्री';
+
+  @override
+  String get genderMale => 'पुरुष';
+
+  @override
+  String get genderOther => 'इतर';
+
+  @override
+  String get genderUnknown => 'माहीत नाही';
+
+  @override
+  String get registerPhone => 'फोन (ऐच्छिक)';
+
+  @override
+  String get registerDobUnknown => 'जन्मतारीख — माहीत नाही (अंदाजे)';
+
+  @override
+  String registerDob(String date) {
+    return 'जन्मतारीख — $date';
+  }
+
+  @override
+  String get pick => 'निवडा';
+
+  @override
+  String get registerAllergies => 'ज्ञात ॲलर्जी (कुटुंबीय सांगतील ते लिहा)';
+
+  @override
+  String get registerAdd => 'नोंदणी करा (ऑफलाइनही चालते)';
+
+  @override
+  String get registerNameRequired => 'रुग्णाचे पूर्ण नाव टाका.';
+
+  @override
+  String get registerLooksDuplicate =>
+      'हा आधीच नोंदवलेला रुग्ण वाटतो — दुहेरी नोंद टाळली (यादीतून निवडा, किंवा तरीही नोंदवायचे असल्यास तपशील बदला).';
+
+  @override
+  String get registerDuplicateQueued =>
+      'हीच नोंदणी आधीच सिंकसाठी जतन आहे — दुहेरी नोंद टाळली.';
+
+  @override
+  String get registerSaved =>
+      'डिव्हाइसवर जतन — सिंक बाकी. सिंक होताच आजच्या रांगेत जोडले जाईल.';
+
+  @override
+  String get billingTitle => 'बिल तयार करा (ऑफलाइनही चालते)';
+
+  @override
+  String get billingLineType => 'बाबीचा प्रकार';
+
+  @override
+  String get itemConsultation => 'वैद्यकीय सल्ला';
+
+  @override
+  String get itemProcedure => 'प्रक्रिया';
+
+  @override
+  String get itemPharmacy => 'औषधे (फार्मसी)';
+
+  @override
+  String get itemLab => 'लॅब तपासणी';
+
+  @override
+  String get itemOther => 'इतर';
+
+  @override
+  String get billingDescription => 'तपशील';
+
+  @override
+  String get billingQuantity => 'संख्या';
+
+  @override
+  String get billingUnitPrice => 'प्रति नग किंमत';
+
+  @override
+  String get billingAdd => 'बिल जतन करा (ऑफलाइनही चालते)';
+
+  @override
+  String get billingDescribe => 'बिल करण्याच्या बाबीचा तपशील लिहा.';
+
+  @override
+  String get billingQtyPrice => 'संख्या आणि प्रति नग किंमत आवश्यक आहे.';
+
+  @override
+  String get billingDuplicate =>
+      'हेच बिल आधीच सिंकसाठी जतन आहे — दुहेरी नोंद टाळली.';
+
+  @override
+  String get billingSaved =>
+      'बिल डिव्हाइसवर जतन — सिंक बाकी. एकूण रक्कम आणि बिल क्रमांक सर्व्हर ठरवतो.';
+
+  @override
+  String get rxTitle => 'जलद Rx मसुदा (ऑफलाइनही चालते)';
+
+  @override
+  String get rxMedicine => 'औषध (प्रमाणित यादीतून)';
+
+  @override
+  String get rxDose => 'डोस (500 mg)';
+
+  @override
+  String get rxFrequency => 'किती वेळा (BD)';
+
+  @override
+  String get rxDays => 'दिवस';
+
+  @override
+  String get rxDispense => 'द्यायची नग संख्या (ऐच्छिक)';
+
+  @override
+  String get rxDispenseHelp => 'फार्मसी एकूण यापेक्षा जास्त देऊ शकत नाही';
+
+  @override
+  String get rxAddItem => 'औषध जोडा';
+
+  @override
+  String rxItemLine(String drug, String dose, String frequency, String days) {
+    return '$drug — $dose, $frequency, $days दिवस';
+  }
+
+  @override
+  String rxItemDispense(String quantity) {
+    return ' · द्यायचे $quantity';
+  }
+
+  @override
+  String get rxDiagnosis => 'निदान (मजकूर)';
+
+  @override
+  String get rxSave => 'मसुदा जतन करा (ऑफलाइनही चालते)';
+
+  @override
+  String get rxDrafts => 'या डिव्हाइसवरील मसुदे';
+
+  @override
+  String get rxNoDrafts =>
+      'अजून मसुदे नाहीत — ते त्यांच्या सिंक स्थितीसह इथे दिसतील.';
+
+  @override
+  String get rxNoCatalog =>
+      'औषधांची यादी अजून साठवलेली नाही — एकदा इंटरनेटशी जोडा.';
+
+  @override
+  String get rxRequired => 'डोस, किती वेळा आणि किती दिवस हे आवश्यक आहे.';
+
+  @override
+  String get rxDispenseRange =>
+      'द्यायची संख्या 1–10000 नग असावी (किंवा रिकामी ठेवा).';
+
+  @override
+  String get rxAddOne => 'किमान एक औषध जोडा.';
+
+  @override
+  String get rxDuplicate =>
+      'हाच मसुदा आधीच सिंकसाठी जतन आहे — दुहेरी नोंद टाळली.';
+
+  @override
+  String get rxSaved =>
+      'मसुदा डिव्हाइसवर जतन — सिंक बाकी. सिंक झाल्यावर स्वाक्षरी करा (ॲलर्जी तपासणी सर्व्हरवर होते).';
+
+  @override
+  String get rxSigned => 'प्रिस्क्रिप्शनवर स्वाक्षरी झाली.';
+
+  @override
+  String get rxSign => 'स्वाक्षरी करा';
+
+  @override
+  String get rxSignAfterSync => 'स्वाक्षरी (सिंकनंतर)';
+
+  @override
+  String rxDraftLine(String drug, String dose, String frequency, String days) {
+    return '$drug $dose $frequency $days दि.';
+  }
+
+  @override
+  String get rxQuickFrequency => 'किती वेळा — निवडा';
+
+  @override
+  String get rxQuickDuration => 'किती दिवस — निवडा';
+
+  @override
+  String get freqOD => 'दिवसातून एकदा';
+
+  @override
+  String get freqBD => 'दिवसातून दोनदा';
+
+  @override
+  String get freqTDS => 'दिवसातून तीनदा';
+
+  @override
+  String get freqQID => 'दिवसातून चार वेळा';
+
+  @override
+  String get freqHS => 'झोपताना';
+
+  @override
+  String get freqSOS => 'गरज असेल तेव्हाच';
+
+  @override
+  String daysCount(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days दिवस',
+      one: '1 दिवस',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get stateSigned => 'स्वाक्षरी झाली';
+
+  @override
+  String get stateConflict => 'विसंगती — तुमचा निर्णय हवा';
+
+  @override
+  String get stateSavedPending => 'डिव्हाइसवर जतन · सिंक बाकी';
+
+  @override
+  String get stateDiscarded => 'रद्द केले — पाठवले नाही';
+
+  @override
+  String get stateSynced => 'सिंक झाले';
+
+  @override
+  String get opPending => 'सिंक बाकी';
+
+  @override
+  String opPendingRetry(int attempt) {
+    return 'सिंक बाकी · पुन्हा प्रयत्न $attempt';
+  }
+
+  @override
+  String get opSyncing => 'सिंक होत आहे…';
+
+  @override
+  String get opFailed => 'अजून पाठवले नाही — आपोआप पुन्हा प्रयत्न होईल';
+
+  @override
+  String opFailedAttempt(int attempt) {
+    return 'अजून पाठवले नाही — आपोआप पुन्हा प्रयत्न होईल (प्रयत्न $attempt)';
+  }
+
+  @override
+  String savedOnDevice(String state) {
+    return 'डिव्हाइसवर जतन · $state';
+  }
+
+  @override
+  String get syncTitle => 'सिंक केंद्र';
+
+  @override
+  String syncCounts(int pending, int failed, int conflicted) {
+    return 'प्रलंबित: $pending · अयशस्वी: $failed · विसंगत: $conflicted';
+  }
+
+  @override
+  String syncNextRetry(String time) {
+    return '$time पासून आपोआप पुन्हा प्रयत्न';
+  }
+
+  @override
+  String get syncNow => 'आता सिंक करा';
+
+  @override
+  String get syncRetryFailed => 'अयशस्वी पुन्हा पाठवा';
+
+  @override
+  String syncResult(int pushed, int conflicts, int failed) {
+    return 'पाठवले $pushed · विसंगती $conflicts · अयशस्वी $failed';
+  }
+
+  @override
+  String syncWaiting(int count) {
+    return ' · प्रतीक्षेत $count';
+  }
+
+  @override
+  String get syncStopped => ' · थांबले (पुन्हा साइन इन करा)';
+
+  @override
+  String syncedEntity(String entity) {
+    return 'सिंक झाले · $entity';
+  }
+
+  @override
+  String syncPersistError(String error) {
+    return 'डिव्हाइसवर जतन करता आले नाही: $error';
+  }
+
+  @override
+  String get syncQueued => 'या डिव्हाइसवर सिंकसाठी थांबलेले';
+
+  @override
+  String get syncNothingQueued =>
+      'काहीही बाकी नाही — सर्व बदल सर्व्हरवर पोहोचले आहेत.';
+
+  @override
+  String get syncNoConflicts =>
+      'कोणतीही विसंगती नाही — डिव्हाइस आणि सर्व्हर जुळतात.';
+
+  @override
+  String get conflictDiscard => 'रद्द करा (इथे सर्व्हरचे ग्राह्य)';
+
+  @override
+  String get conflictRegisterAnyway => 'डिव्हाइसवरचे ठेवा (तरीही नोंदणी करा)';
+
+  @override
+  String get conflictClaim => 'डिव्हाइसवरचे ठेवा (माझ्या नावाने पाठवा)';
+
+  @override
+  String get conflictKeep => 'डिव्हाइसवरचे ठेवा (पुन्हा पाठवा)';
+
+  @override
+  String get registerAnywayTitle => 'नवीन रुग्ण म्हणून नोंदणी करायची?';
+
+  @override
+  String registerAnywayBody(String name) {
+    return 'सर्व्हरला $name सारखे दिसणारे आधीचे रुग्ण सापडले. ही वेगळी व्यक्ती आहे याची खात्री केली असेल तरच पुढे जा — दुहेरी नोंदीमुळे रुग्णाचा इतिहास विभागला जातो.';
+  }
+
+  @override
+  String get registerAnywayAction => 'तरीही नोंदणी करा';
+
+  @override
+  String registerAnywayNotice(String name) {
+    return 'पुढच्या सिंकमध्ये $name यांची नवीन रुग्ण म्हणून नोंदणी होईल.';
+  }
+
+  @override
+  String get thisPatient => 'हा रुग्ण';
+
+  @override
+  String get claimTitle => 'तुमच्या खात्यातून पाठवायचे?';
+
+  @override
+  String get claimBody =>
+      'हा बदल कोणी केला हे ॲपने नोंदवण्यापूर्वी जतन झाला होता. तो तुम्ही केला असेल तरच पाठवा.';
+
+  @override
+  String get claimAction => 'माझ्या नावाने पाठवा';
+
+  @override
+  String discardTitle(String entity, int count) {
+    return '$entity आणि आणखी $count रद्द करायचे?';
+  }
+
+  @override
+  String discardBody(int count, String what, String entity) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'सिंकसाठी थांबलेले $count बदल ($what) या $entity वर अवलंबून आहेत आणि त्याशिवाय कधीही पाठवता येणार नाहीत. तेही रद्द होतील.',
+      one:
+          'सिंकसाठी थांबलेला 1 बदल ($what) या $entity वर अवलंबून आहे आणि त्याशिवाय कधीही पाठवता येणार नाही. तोही रद्द होईल.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get discardAll => 'सर्व रद्द करा';
+
+  @override
+  String discardedOne(String entity) {
+    return 'रद्द केले: $entity.';
+  }
+
+  @override
+  String discardedMany(String entity, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'त्यावर अवलंबून $count बदल',
+      one: 'त्यावर अवलंबून 1 बदल',
+    );
+    return 'रद्द केले: $entity आणि $_temp0.';
+  }
+
+  @override
+  String get entityPatient => 'रुग्ण नोंदणी';
+
+  @override
+  String get entityQueueEntry => 'रांग नोंद';
+
+  @override
+  String get entityInvoice => 'बिल';
+
+  @override
+  String get entityPrescription => 'प्रिस्क्रिप्शन';
+
+  @override
+  String get conflictVersion => 'सर्व्हरवरील नोंद बदलली आहे';
+
+  @override
+  String get conflictPolicy => 'सर्व्हरने हा बदल नाकारला';
+
+  @override
+  String get conflictAuth => 'पुढे जाण्यासाठी पुन्हा साइन इन करा';
+
+  @override
+  String get conflictDuplicate => 'संभाव्य दुहेरी नोंदणी';
+
+  @override
+  String get conflictWrongUser =>
+      'या डिव्हाइसवर दुसऱ्या वापरकर्त्याने तयार केले';
+
+  @override
+  String get statusOnline => 'ऑनलाइन';
+
+  @override
+  String get statusOffline => 'ऑफलाइन';
+
+  @override
+  String get statusSavedOnDevice => 'डिव्हाइसवर जतन';
+
+  @override
+  String get statusPendingSync => 'सिंक प्रलंबित';
+
+  @override
+  String get statusSyncing => 'सिंक होत आहे';
+
+  @override
+  String get statusSynced => 'सिंक झाले';
+
+  @override
+  String get statusConflict => 'विसंगती';
+
+  @override
+  String get statusActionRequired => 'कृती आवश्यक';
+
+  @override
+  String statusCount(String status, int count) {
+    return '$status: $count';
+  }
+
+  @override
+  String globalToSync(int count) {
+    return 'सिंक करायचे: $count';
+  }
+
+  @override
+  String globalConflicts(int count) {
+    return 'विसंगती: $count';
+  }
+
+  @override
+  String globalNeedAction(int count) {
+    return 'कृती आवश्यक: $count';
+  }
+
+  @override
+  String globalOfflineSaved(int count) {
+    return 'ऑफलाइन · डिव्हाइसवर $count जतन';
+  }
+
+  @override
+  String get globalAllSynced => 'सर्व सिंक झाले';
+
+  @override
+  String get needsConnection => 'इंटरनेट हवे — ऑफलाइन अंतिम केले जाणार नाही';
+
+  @override
+  String get needsConnectionTitle => 'इंटरनेट हवे';
+
+  @override
+  String get needsConnectionReports =>
+      'अहवाल सर्व्हर तयार करतो; ते या डिव्हाइसवर साठवले जात नाहीत.';
+
+  @override
+  String get errNetwork => 'इंटरनेट नाही — आपोआप पुन्हा प्रयत्न होईल.';
+
+  @override
+  String get errServer => 'सर्व्हरमध्ये अडचण — आपोआप पुन्हा प्रयत्न होईल.';
+
+  @override
+  String get errBusy => 'सर्व्हर व्यस्त — थोड्या वेळाने पुन्हा प्रयत्न होईल.';
+
+  @override
+  String errForbidden(String detail) {
+    return 'आपल्या खात्याला परवानगी नाही: $detail';
+  }
+
+  @override
+  String errInvalid(String detail) {
+    return 'सर्व्हरने माहिती स्वीकारली नाही: $detail';
+  }
+
+  @override
+  String errMaxAttempts(int count) {
+    return '$count वेळा प्रयत्न अयशस्वी — आपोआप प्रयत्न थांबले. आता पुन्हा प्रयत्न करा दाबा.';
+  }
+
+  @override
+  String get retryNow => 'आता पुन्हा प्रयत्न करा';
+
+  @override
+  String waitingFor(String entity) {
+    return 'आधी $entity सिंक होण्याची वाट';
+  }
+
+  @override
+  String blockedBy(String entity) {
+    return 'अडकले: ज्यावर अवलंबून आहे त्या $entity साठी आपली कृती हवी';
+  }
+
+  @override
+  String get orphanedExplain =>
+      'हे रद्द केलेल्या नोंदीवर अवलंबून आहे — जसे आहे तसे पाठवता येणार नाही.';
+
+  @override
+  String get syncAttention => 'आपले लक्ष हवे';
+
+  @override
+  String get storageTitle => 'या डिव्हाइसवरील साठवण';
+
+  @override
+  String storageUsage(int kb, int patients, int queued) {
+    return 'सुमारे $kb KB एन्क्रिप्टेड · $patients कॅश रुग्ण · $queued प्रलंबित बदल';
+  }
+
+  @override
+  String get clearCacheAction => 'कॅश केलेली रुग्ण माहिती हटवा';
+
+  @override
+  String get clearCacheTitle => 'कॅश रुग्ण हटवायचे?';
+
+  @override
+  String get clearCacheBody =>
+      'सर्व्हरवरून आलेले रुग्ण या डिव्हाइसवरून हटवले जातील. येथे नोंदवलेले, अजून सिंक न झालेले रुग्ण राहतील. पुढच्या वेळी ऑनलाइन असताना ते पुन्हा येतील.';
+
+  @override
+  String clearCacheDone(int count) {
+    return '$count कॅश रुग्ण या डिव्हाइसवरून हटवले.';
+  }
+
+  @override
+  String get deviceSignedOutByAdmin =>
+      'प्रशासकाने हे डिव्हाइस साइन आउट केले. रुग्ण माहिती हटवली आहे; सिंक न झालेले काम डिव्हाइसवर सुरक्षित बंद आहे आणि तोच वापरकर्ता पुन्हा साइन इन केल्यावर परत येईल.';
+
+  @override
+  String quarantineTitle(int count) {
+    return 'साइन आउट झालेल्या वापरकर्त्याचे $count सिंक न झालेले बदल या डिव्हाइसवर बंद आहेत';
+  }
+
+  @override
+  String get quarantineBody =>
+      'ते पाहता येत नाहीत. तोच वापरकर्ता या डिव्हाइसवर पुन्हा साइन इन केल्यावर ते सिंक होतील.';
+
+  @override
+  String get quarantineDiscardAction => 'बंद बदल रद्द करा';
+
+  @override
+  String quarantineDiscardTitle(int count) {
+    return '$count बंद बदल रद्द करायचे?';
+  }
+
+  @override
+  String get quarantineDiscardBody =>
+      'ते कधीच सर्व्हरला पाठवले गेले नाहीत आणि यानंतर परत मिळणार नाहीत.';
+
+  @override
+  String get quarantineDiscarded => 'बंद बदल रद्द केले.';
+
+  @override
+  String get conflictReview => 'तपासा';
+
+  @override
+  String get conflictMine => 'या डिव्हाइसवर जतन';
+
+  @override
+  String get conflictServer => 'सर्व्हरवर';
+
+  @override
+  String get conflictSendMine => 'माझे पुन्हा पाठवा';
+
+  @override
+  String get conflictSendMineTitle => 'आपली आवृत्ती पुन्हा पाठवायची?';
+
+  @override
+  String get conflictSendMineBody =>
+      'आपण हे जतन केल्यानंतर सर्व्हरवरील नोंद बदलली. पुन्हा पाठवल्याने काहीही गुपचूप बदलत नाही — सर्व्हर पुन्हा तपासतो आणि नाकारू शकतो.';
+
+  @override
+  String get conflictSentAgain => 'पुन्हा पाठवण्यासाठी रांगेत.';
+
+  @override
+  String get useServerVersion => 'सर्व्हरची आवृत्ती वापरा';
+
+  @override
+  String get versionTitle => 'सर्व्हरवर बदलले';
+
+  @override
+  String get versionExplain =>
+      'आपण बदल जतन केल्यानंतर कोणीतरी सर्व्हरवर ही नोंद बदलली. तुलना करून निवडा — काहीही आपोआप बदलले जात नाही.';
+
+  @override
+  String get dupTitle => 'संभाव्य दुहेरी रुग्ण';
+
+  @override
+  String get dupExplain =>
+      'सर्व्हरवर आधीच असा रुग्ण आहे. निवडा: आपला नवीन रुग्ण म्हणून ठेवा, आधीची नोंद वापरा, किंवा प्रत्येक माहिती तपासून एकत्र करा.';
+
+  @override
+  String dupMatchedOn(String fields) {
+    return 'जुळले: $fields';
+  }
+
+  @override
+  String get keepMineNew => 'माझा नवीन रुग्ण म्हणून ठेवा';
+
+  @override
+  String get useServerAction => 'ही नोंद वापरा';
+
+  @override
+  String useServerTitle(String patient) {
+    return '$patient वापरायचे?';
+  }
+
+  @override
+  String useServerBody(int count) {
+    return 'आपली नोंदणी पाठवली जाणार नाही. या रुग्णाचे $count रांगेतील बदल आधीच्या नोंदीशी जोडले जातील.';
+  }
+
+  @override
+  String useServerDone(String patient) {
+    return '$patient शी जोडले.';
+  }
+
+  @override
+  String get mergeAction => 'तपासून एकत्र करा';
+
+  @override
+  String get mergeTitle => 'तपासून एकत्र करा';
+
+  @override
+  String get mergeExplain =>
+      'सर्व्हरवरील नोंद आत्ताच पुन्हा वाचली. आपल्या नोंदणीतून घ्यायच्या माहितीवरच खूण करा; आपल्यासाठी काहीही आधीच निवडलेले नाही.';
+
+  @override
+  String get mergeNothing => 'वेगळी माहिती नाही — आधीची नोंद वापरली जाईल.';
+
+  @override
+  String mergeFieldLine(String server, String mine) {
+    return 'सर्व्हर: $server → माझे: $mine';
+  }
+
+  @override
+  String mergeApply(int count) {
+    return '$count माहिती घ्या आणि नोंद वापरा';
+  }
+
+  @override
+  String mergeDone(int count, String uhid) {
+    return '$count माहिती $uhid मध्ये घेतली.';
+  }
+
+  @override
+  String get fieldDob => 'जन्मतारीख';
+
+  @override
+  String get fieldAddress => 'पत्ता';
+
+  @override
+  String get fieldBloodGroup => 'रक्तगट';
+
+  @override
+  String get detailRequest => 'विनंती';
+
+  @override
+  String get detailState => 'स्थिती';
+
+  @override
+  String get detailCreated => 'जतन वेळ';
+
+  @override
+  String get detailAttempts => 'प्रयत्न';
+
+  @override
+  String get detailNextRetry => 'पुढील प्रयत्न';
+
+  @override
+  String get detailKey => 'आयडेम्पोटन्सी की';
+
+  @override
+  String get detailHttp => 'सर्व्हरचे उत्तर';
+
+  @override
+  String get detailError => 'शेवटची अडचण';
+
+  @override
+  String get detailDepends => 'यावर अवलंबून';
+
+  @override
+  String get detailNoLongerQueued => 'हा बदल आता रांगेत नाही.';
+
+  @override
+  String get tabOverview => 'आढावा';
+
+  @override
+  String get tabConsult => 'सल्ला';
+
+  @override
+  String get tabPatients => 'रुग्ण';
+
+  @override
+  String get tabAppointments => 'भेटी';
+
+  @override
+  String get tabStock => 'साठा';
+
+  @override
+  String get noTabsForRole =>
+      'मोबाइलवर आपल्या भूमिकेसाठी काहीही सुरू नाही. प्रशासकाला विचारा.';
+
+  @override
+  String get patientsSearch => 'नाव, UHID किंवा फोन शोधा';
+
+  @override
+  String get patientsSearchServer => 'सर्व्हरवर शोधा';
+
+  @override
+  String patientsCachedNote(int count) {
+    return 'या डिव्हाइसवर $count रुग्ण (फक्त आपण ऑनलाइन पाहिलेले; एन्क्रिप्टेड)';
+  }
+
+  @override
+  String get consultTitle => 'सल्ला नोंद (मसुदा — ऑफलाइनही चालते)';
+
+  @override
+  String get consultComplaint => 'मुख्य तक्रार';
+
+  @override
+  String get consultHistory => 'इतिहास';
+
+  @override
+  String get consultExam => 'तपासणी';
+
+  @override
+  String get consultSave => 'नोंद मसुदा जतन करा';
+
+  @override
+  String get consultUpdate => 'मसुदा अद्ययावत करा';
+
+  @override
+  String get consultEdit => 'संपादित करा';
+
+  @override
+  String get consultSaved => 'नोंद मसुदा डिव्हाइसवर जतन — सिंक प्रलंबित.';
+
+  @override
+  String get consultDuplicate =>
+      'या रुग्णाचा आजचा नोंद मसुदा आधीच रांगेत आहे (duplicate prevented).';
+
+  @override
+  String get consultComplaintRequired => 'मुख्य तक्रार लिहा.';
+
+  @override
+  String get consultNoBranch =>
+      'या डिव्हाइसवर अजून शाखा नाही — ऑनलाइन असताना एकदा रांग उघडा.';
+
+  @override
+  String get consultAlreadySent =>
+      'हा मसुदा आधीच पाठवला — आता डिव्हाइसवर बदलता येणार नाही.';
+
+  @override
+  String get consultDrafts => 'नोंद मसुदे';
+
+  @override
+  String get consultNoDrafts => 'या डिव्हाइसवर नोंद मसुदे नाहीत.';
+
+  @override
+  String get consultComplete => 'सल्ला पूर्ण करा';
+
+  @override
+  String get consultCompleteAfterSync => 'पूर्ण करा (सिंकनंतर)';
+
+  @override
+  String get consultCompleted => 'सल्ला सर्व्हरवर पूर्ण झाला.';
+
+  @override
+  String get appointmentsTitle => 'भेट नोंदवा (ऑफलाइनही चालते)';
+
+  @override
+  String appointmentDay(String day) {
+    return 'दिवस: $day';
+  }
+
+  @override
+  String get appointmentReason => 'कारण';
+
+  @override
+  String get appointmentSave => 'भेट मसुदा जतन करा';
+
+  @override
+  String get appointmentSaved =>
+      'भेट डिव्हाइसवर जतन — सिंक प्रलंबित. सिंक होताना सर्व्हर वेळ तपासतो.';
+
+  @override
+  String get appointmentDuplicate =>
+      'ही भेट आधीच रांगेत आहे (duplicate prevented).';
+
+  @override
+  String get appointmentDrafts => 'भेट मसुदे';
+
+  @override
+  String get appointmentsToday => 'आजच्या भेटी (सर्व्हर)';
+
+  @override
+  String get appointmentsNone => 'आज भेटी नाहीत.';
+
+  @override
+  String get queueToday => 'आजची रांग (सर्व्हर)';
+
+  @override
+  String get queueTodayShow => 'दाखवा';
+
+  @override
+  String get checkInScan => 'चेक-इन QR स्कॅन करा';
+
+  @override
+  String get checkInSaved => 'चेक-इन डिव्हाइसवर जतन — सिंक प्रलंबित.';
+
+  @override
+  String get checkInDuplicate =>
+      'हा कोड आज आधीच स्कॅन झाला (duplicate prevented).';
+
+  @override
+  String get checkInInvalid => 'हा क्लिनिकचा चेक-इन कोड नाही.';
+
+  @override
+  String get scanCheckInTitle => 'चेक-इन कोड स्कॅन करा';
+
+  @override
+  String get scanBatchTitle => 'औषध पाकीट स्कॅन करा';
+
+  @override
+  String get scanCheckInHelp => 'कॅमेरा डेस्कवरील किंवा पावतीवरील QR कडे धरा.';
+
+  @override
+  String get scanBatchHelp =>
+      'कॅमेरा पट्टी किंवा खोक्यावरील बारकोडकडे धरा (बॅच व मुदत त्यातून वाचली जाते).';
+
+  @override
+  String get scanTypeCode => 'कोड टाइप करा';
+
+  @override
+  String get scanUse => 'वापरा';
+
+  @override
+  String get rxDraftPdf => 'मसुदा PDF';
+
+  @override
+  String get rxDraftPdfDone =>
+      'मसुदा पूर्वावलोकन तयार (वॉटरमार्क — ऑनलाइन सही होईपर्यंत वैध नाही).';
+
+  @override
+  String get rxPrintSigned => 'सही केलेले Rx छापा';
+
+  @override
+  String get billingRecent => 'अलीकडील बिले (सर्व्हर)';
+
+  @override
+  String get billingRecentShow => 'दाखवा';
+
+  @override
+  String invoiceAmounts(String total, String paid, String status) {
+    return 'एकूण $total · भरले $paid · $status';
+  }
+
+  @override
+  String get invoiceReceipt => 'पावती PDF';
+
+  @override
+  String get paymentConfirm => 'पेमेंट निश्चित करा';
+
+  @override
+  String paymentTitle(String invoice) {
+    return '$invoice साठी पेमेंट';
+  }
+
+  @override
+  String get paymentAmount => 'मिळालेली रक्कम';
+
+  @override
+  String get paymentServerNote =>
+      'सर्व्हर आत्ताच नोंदवतो. हे कधीही ऑफलाइन जतन होत नाही.';
+
+  @override
+  String get paymentRecorded => 'सर्व्हरने पेमेंट नोंदवले.';
+
+  @override
+  String get reportsTitle => 'आजचा सारांश';
+
+  @override
+  String get reportsToday => 'आज (सर्व्हरकडून)';
+
+  @override
+  String get reportsCollections => 'वसुली';
+
+  @override
+  String get reportsRefunds => 'परतावे';
+
+  @override
+  String get reportsNet => 'निव्वळ';
+
+  @override
+  String get reportsAppointments => 'भेटी';
+
+  @override
+  String get reportsAdmitted => 'सध्या दाखल';
+
+  @override
+  String get reportsLowStock => 'कमी साठा';
+
+  @override
+  String get reportsServerNote =>
+      'सर्व्हरने त्याच्या खातेवहीतून मोजले; या डिव्हाइसवर काहीही साठवले जात नाही.';
+
+  @override
+  String get reportsForbidden => 'आपल्या भूमिकेला अहवाल पाहता येत नाहीत.';
+
+  @override
+  String get syncHealthTitle => 'या डिव्हाइसची सिंक स्थिती';
+
+  @override
+  String get stockTitle => 'साठा मोजणी (मसुदा — ऑफलाइनही चालते)';
+
+  @override
+  String get stockScan => 'बॅच बारकोड स्कॅन करा';
+
+  @override
+  String get stockPickItem => 'वस्तू निवडा';
+
+  @override
+  String get stockCounted => 'मोजलेली संख्या';
+
+  @override
+  String get stockSave => 'मोजणी मसुदा जतन करा';
+
+  @override
+  String get stockSaved => 'मोजणी डिव्हाइसवर जतन. तपासून ऑनलाइन नोंदवा.';
+
+  @override
+  String get stockQtyInvalid => 'पूर्ण संख्या लिहा (0 किंवा अधिक).';
+
+  @override
+  String stockNoMatch(String code) {
+    return '$code शी जुळणारी वस्तू नाही. हाताने निवडा.';
+  }
+
+  @override
+  String stockScanned(String batch, String expiry) {
+    return 'बॅच $batch · मुदत $expiry';
+  }
+
+  @override
+  String get stockDrafts => 'मोजणी मसुदे';
+
+  @override
+  String stockBatch(String batch) {
+    return 'बॅच $batch';
+  }
+
+  @override
+  String stockExpiry(String expiry) {
+    return 'मुदत $expiry';
+  }
+
+  @override
+  String get stockPostAction => 'फरक नोंदवा';
+
+  @override
+  String stockPostTitle(String item) {
+    return '$item मध्ये फरक नोंदवायचा?';
+  }
+
+  @override
+  String stockPostBody(int onHand, int counted, int delta) {
+    return 'सर्व्हरवरील साठा: $onHand. मोजलेले: $counted. फरक: $delta.';
+  }
+
+  @override
+  String get stockPosted => 'नोंदवले';
+
+  @override
+  String get stockNoDifference =>
+      'सर्व्हरशी फरक नाही — नोंदवण्यासारखे काही नाही.';
+
+  @override
+  String get entityEncounter => 'सल्ला नोंद';
+
+  @override
+  String get entityAppointment => 'भेट';
+
+  @override
+  String get entityCheckIn => 'चेक-इन';
+
+  @override
+  String get devicesTitle => 'वैद्यकीय उपकरणे';
+
+  @override
+  String get devicesIntro =>
+      'क्लिनिकने नोंदवलेली ब्लूटूथ बीपी मॉनिटर आणि पल्स ऑक्सिमीटर. प्रत्येक रीडिंग नोंदीत जाण्यापूर्वी डॉक्टर/नर्स तपासतात.';
+
+  @override
+  String get devicesNotValidated =>
+      'अजून कोणतेही उपकरण मॉडेल प्रत्यक्ष हार्डवेअरवर प्रमाणित झालेले नाही. सिम्युलेटेड उपकरणे फक्त कृत्रिम रीडिंग देतात.';
+
+  @override
+  String get devicesNone => 'अजून कोणतेही उपकरण नोंदवलेले नाही.';
+
+  @override
+  String get devicesRefresh => 'यादी अद्ययावत करा';
+
+  @override
+  String get devicePaired => 'या फोनशी जोडलेले';
+
+  @override
+  String get deviceNotPaired => 'या फोनशी जोडलेले नाही';
+
+  @override
+  String get devicePair => 'जोडा';
+
+  @override
+  String get deviceUnpair => 'जोडणी काढा';
+
+  @override
+  String get devicePairMismatch => 'हे नोंदवलेले उपकरण नाही.';
+
+  @override
+  String get devicePairDone => 'जोडले.';
+
+  @override
+  String get deviceRegister => 'नवीन उपकरण नोंदवा';
+
+  @override
+  String get deviceScan => 'उपकरणे शोधा';
+
+  @override
+  String get deviceScanNone => 'जवळ कोणतेही उपकरण सापडले नाही.';
+
+  @override
+  String get deviceLabel => 'नाव (उदा. ओपीडी खोली 1 बीपी मॉनिटर)';
+
+  @override
+  String get deviceRegistered => 'नोंदवले आणि जोडले.';
+
+  @override
+  String get deviceSimulated => 'सिम्युलेटेड';
+
+  @override
+  String get deviceKindBp => 'बीपी मॉनिटर';
+
+  @override
+  String get deviceKindOximeter => 'पल्स ऑक्सिमीटर';
+
+  @override
+  String get measureWithDevice => 'उपकरणाने मोजा';
+
+  @override
+  String measureFor(String patient) {
+    return 'यांच्यासाठी मोजत आहे: $patient';
+  }
+
+  @override
+  String get measureNoPairedDevice =>
+      'या प्रकारचे जोडलेले उपकरण नाही. सेटिंग्ज → वैद्यकीय उपकरणे येथे जोडा.';
+
+  @override
+  String get measureStart => 'मोजणी सुरू करा';
+
+  @override
+  String get measureWaiting => 'उपकरणाची वाट पाहत आहे… उपकरणावर मोजणी करा.';
+
+  @override
+  String get measureScenario => 'सिम्युलेटर परिस्थिती';
+
+  @override
+  String measureRefused(String reason) {
+    return 'जतन केले नाही: $reason';
+  }
+
+  @override
+  String get measureSave => 'डॉक्टरांच्या तपासणीसाठी जतन करा';
+
+  @override
+  String get measureSaved => 'या फोनवर जतन केले; ते तपासणीसाठी पाठवले जाईल.';
+
+  @override
+  String measureFlags(String flags) {
+    return 'उपकरणाच्या नोंदी: $flags';
+  }
+
+  @override
+  String measureError(String error) {
+    return 'मोजणी अयशस्वी: $error';
+  }
+
+  @override
+  String get measureNotRecord =>
+      'अजून नोंदीचा भाग नाही — डॉक्टर/नर्सने स्वीकारणे आवश्यक.';
+
+  @override
+  String get reviewTitle => 'तपासणीसाठी उपकरण रीडिंग';
+
+  @override
+  String get reviewOpen => 'उपकरण रीडिंग तपासा';
+
+  @override
+  String get reviewNone => 'तपासणीसाठी कोणतेही रीडिंग नाही.';
+
+  @override
+  String get reviewAccept => 'नोंदीत स्वीकारा';
+
+  @override
+  String get reviewReject => 'नाकारा';
+
+  @override
+  String reviewConfirm(String patient) {
+    return 'हे रीडिंग $patient यांचे आहे आणि आत्ताच मोजले आहे.';
+  }
+
+  @override
+  String get reviewReason => 'नाकारण्याचे कारण';
+
+  @override
+  String get reviewAccepted => 'सल्ल्याच्या व्हायटल्समध्ये स्वीकारले.';
+
+  @override
+  String get reviewRejected => 'नाकारले.';
+
+  @override
+  String reviewFailed(String error) {
+    return 'तपासणी पूर्ण झाली नाही: $error';
+  }
+
+  @override
+  String readingBp(String sys, String dia) {
+    return 'बीपी $sys/$dia mmHg';
+  }
+
+  @override
+  String readingPulse(String pulse) {
+    return 'नाडी $pulse/मिनिट';
+  }
+
+  @override
+  String readingSpo2(String spo2) {
+    return 'SpO2 $spo2 %';
+  }
+
+  @override
+  String get readingClockSkew => 'उपकरणाचे घड्याळ फोनपेक्षा वेगळे आहे.';
+
+  @override
+  String get demoBanner => 'डेमो · फक्त कृत्रिम माहिती';
+
+  @override
+  String get demoServerTitle => 'डेमो सर्व्हर';
+
+  @override
+  String get demoServerHelp =>
+      'ही प्रात्यक्षिक (डेमो) आवृत्ती आहे. ती फक्त तुमच्या स्वतःच्या संगणकावर चालणाऱ्या डेमो सर्व्हरसोबत चालते, ज्यात फक्त कृत्रिम (synthetic) माहिती आहे. डेमो स्टार्ट स्क्रिप्टने दाखवलेला पत्ता टाका, उदा. 192.168.1.20:8000. फोन आणि संगणक एकाच Wi-Fi वर असणे आवश्यक आहे.';
+
+  @override
+  String get demoServerField => 'सर्व्हरचा पत्ता';
+
+  @override
+  String get demoServerInvalid =>
+      '192.168.1.20:8000 सारखा खाजगी नेटवर्क पत्ता किंवा https:// पत्ता टाका.';
+
+  @override
+  String demoServerUnreachable(String url) {
+    return '$url वर कोणताही सर्व्हर प्रतिसाद देत नाही. संगणकावर डेमो चालू आहे का, दोन्ही एकाच Wi-Fi वर आहेत का आणि संगणकाचा फायरवॉल पोर्ट 8000 ला परवानगी देतो का ते तपासा.';
+  }
+
+  @override
+  String demoServerNotHms(String url) {
+    return '$url वरील सर्व्हर Aditya BioNova HMS डेमो सर्व्हर नाही.';
+  }
+
+  @override
+  String get demoServerProduction =>
+      'हा सर्व्हर production वातावरण दाखवतो. डेमो अ‍ॅप कधीही production शी जोडले जात नाही.';
+
+  @override
+  String get demoServerConnect => 'जोडा';
+
+  @override
+  String get demoServerChecking => 'तपासत आहे…';
+
+  @override
+  String get demoServerChange => 'डेमो सर्व्हर बदला';
+
+  @override
+  String get demoServerWipeWarning =>
+      'जोडल्यावर या अ‍ॅपची फोनवरील स्थानिक माहिती हटवली जाते (ती आधीच्या सर्व्हरची होती).';
+
+  @override
+  String demoServerCurrent(String url) {
+    return 'डेमो आवृत्ती · फक्त कृत्रिम माहिती · सर्व्हर $url';
+  }
+}

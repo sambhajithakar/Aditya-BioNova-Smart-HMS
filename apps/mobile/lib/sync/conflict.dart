@@ -17,6 +17,14 @@ enum ConflictKind {
 
   /// Session is gone: the user must sign in again before syncing.
   authRequired,
+
+  /// `POST /patients` answered 409 with duplicate candidates. Resolution:
+  /// discard, or explicitly "register anyway" (`allow_duplicates: true`).
+  duplicatePatient,
+
+  /// The op was created by a different user than the one signed in: it is
+  /// never pushed under this session (H20).
+  wrongUser,
 }
 
 class Conflict {

@@ -41,6 +41,7 @@ from ..schemas import (
     PageOut,
 )
 from ..services.clinical import idempotent_replay, idempotent_store
+from ..timeutil import clinic_today
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
@@ -53,7 +54,7 @@ def record_expense(
     request: Request,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: Principal = Depends(require_permission("expense.manage")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> ExpenseOut:
     body = payload.model_dump(mode="json")
     replay = idempotent_replay(
@@ -130,7 +131,7 @@ def list_expenses(
     limit: int = 50,
     offset: int = 0,
     principal: Principal = Depends(require_permission("expense.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = min(max(limit, 1), MAX_LIMIT)
     q = select(Expense).where(
@@ -161,7 +162,7 @@ def void_expense(
     payload: ExpenseVoidIn,
     request: Request,
     principal: Principal = Depends(require_permission("expense.manage")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> ExpenseOut:
     expense = db.scalar(
         select(Expense).where(
@@ -201,11 +202,11 @@ def expense_summary(
     date_from: date | None = Query(default=None, alias="from"),
     date_to: date | None = Query(default=None, alias="to"),
     principal: Principal = Depends(require_permission("expense.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     """Per-category totals for the period (recorded expenses only)."""
     if date_to is None:
-        date_to = date.today()
+        date_to = clinic_today()
     if date_from is None:
         date_from = date_to - timedelta(days=30)
     rows = db.execute(

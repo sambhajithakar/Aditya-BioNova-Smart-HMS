@@ -8,10 +8,42 @@
  * own text stays in the language it was written. Uses the browser's
  * print pipeline (Save as PDF) — no server-side PDF dependency.
  * `?type=receipt` switches the layout to the billing receipt.
+ *
+ * Smart Printer Setup: the clinic's default printer profile for the document
+ * (GET /setup/printers/defaults) sets the `@page` size / margins and font
+ * scale; the prescription template (header, footer, registration number)
+ * and receipt footer come from GET /setup/settings. If either is not
+ * readable the original A4 layout is used unchanged. An explicit `?paper=`
+ * choice from the on-screen paper picker (A4 / A5 / 80 mm roll for receipts,
+ * lib/print-paper.ts) overrides the saved profile for that print.
  */
-import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
-import { ApiError, Patient, PrescriptionDetail, Drug, Receipt, api } from "@/lib/api";
+import { Suspense, useEffect, useState } from "react";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  ApiError,
+  Branch,
+  Drug,
+  EncounterDetail,
+  Me,
+  Member,
+  Patient,
+  Prescriber,
+  PrescriptionDetail,
+  Receipt,
+  api,
+} from "@/lib/api";
+import { onAuthFailure } from "@/lib/session";
+import { itemDrugName } from "@/lib/print";
+import { OrgSettingsOut, PrinterDefaults, pageCss as profilePageCss, pageGeometry } from "@/lib/setup";
+import {
+  PAPER_LABEL,
+  Paper,
+  effectivePaper,
+  pageCss as paperPageCss,
+  papersFor,
+  parsePaper,
+  useRollLength,
+} from "@/lib/print-paper";
 
 type Label = { en: string; mr: string; hi: string };
 
@@ -39,7 +71,15 @@ const L = {
   payment: { en: "Payment", mr: "पेमेंट", hi: "भुगतान" },
   allergies: { en: "Allergies", mr: "ऍलर्जी", hi: "एलर्जी" },
   version: { en: "Version", mr: "आवृत्ती", hi: "संस्करण" },
+  route: { en: "Route", mr: "मार्ग", hi: "मार्ग" },
+  qtyDispense: { en: "Dispense", mr: "देय नग", hi: "देय मात्रा" },
+  prescriber: { en: "Prescriber", mr: "डॉक्टर", hi: "चिकित्सक" },
+  regNo: { en: "Reg. No.", mr: "नोंदणी क्र.", hi: "पंजीकरण सं." },
+  branch: { en: "Branch", mr: "शाखा", hi: "शाखा" },
+  print: { en: "Print / Save as PDF", mr: "छापा / PDF जतन करा", hi: "प्रिंट / PDF सहेजें" },
+  loading: { en: "Loading…", mr: "लोड होत आहे…", hi: "लोड हो रहा है…" },
   amendments: { en: "Amendments are versioned; this copy is immutable.", mr: "दुरुस्त्या आवृत्तीनुसार; ही प्रत अपरिवर्तनीय आहे.", hi: "संशोधन संस्करण में हैं; यह प्रति अपरिवर्तनीय है।" },
+  acknowledged: { en: "acknowledged by prescriber", mr: "डॉक्टरांनी नोंद घेतली", hi: "चिकित्सक द्वारा स्वीकार" },
 };
 
 function tri(l: Label) {
@@ -50,16 +90,80 @@ function tri(l: Label) {
   );
 }
 
+/** A4 / A5 (and 80 mm roll for receipts): pure print CSS, see lib/print-paper.ts. */
+function PaperPicker({ paper, isReceipt }: { paper: Paper | null; isReceipt: boolean }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const search = useSearchParams();
+  return (
+    <div className="no-print paper-picker" role="group" aria-label="Paper / कागद / कागज़">
+      {papersFor(isReceipt).map((p) => (
+        <button
+          key={p}
+          type="button"
+          aria-pressed={p === paper}
+          data-testid={`paper-${p}`}
+          onClick={() => {
+            const q = new URLSearchParams(search.toString());
+            q.set("paper", p);
+            router.replace(`${pathname}?${q.toString()}`);
+          }}
+        >
+          {PAPER_LABEL[p].en}
+          {PAPER_LABEL[p].mr !== PAPER_LABEL[p].en && <span className="tri"> / {PAPER_LABEL[p].mr}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function PrintPage() {
+  return (
+    <Suspense fallback={null}>
+      <PrintView />
+    </Suspense>
+  );
+}
+
+function PrintView() {
   const params = useParams<{ id: string }>();
   const search = useSearchParams();
+  const router = useRouter();
   const type = search.get("type") === "receipt" ? "receipt" : "rx";
 
   const [rx, setRx] = useState<PrescriptionDetail | null>(null);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [drugs, setDrugs] = useState<Record<string, Drug>>({});
+  const [me, setMe] = useState<Me | null>(null);
+  const [branchName, setBranchName] = useState<string>("");
+  const [prescriber, setPrescriber] = useState<Prescriber | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [printDefaults, setPrintDefaults] = useState<PrinterDefaults | null>(null);
+  const [template, setTemplate] = useState<OrgSettingsOut["settings"] | null>(null);
+  // An explicit ?paper= choice (picker) wins over the saved printer profile.
+  const explicitPaper = search.get("paper") !== null;
+  const doc = type === "receipt" ? "receipt" : "prescription";
+  const profile = printDefaults?.[doc] ?? null;
+  const fallbackKind = template?.prescription.paper_size === "A5" && doc === "prescription" ? "a5" : "a4";
+  // what the picker highlights must be what will print (M8.1): the profile's
+  // paper when no ?paper= was chosen
+  const shownPaper = effectivePaper({
+    param: search.get("paper"),
+    isReceipt: type === "receipt",
+    profileKind: profile?.kind ?? null,
+    templatePaper: template?.prescription.paper_size ?? null,
+  });
+  const paper: Paper = explicitPaper ? parsePaper(search.get("paper"), type === "receipt") : shownPaper ?? "a4";
+  const sheetClass = `print-sheet paper-${paper}`;
+  const roll = useRollLength(paper, receipt);
+
+  useEffect(() => onAuthFailure(() => router.replace("/login")), [router]);
+
+  useEffect(() => {
+    api.get<PrinterDefaults>("/setup/printers/defaults").then(setPrintDefaults).catch(() => undefined);
+    api.get<OrgSettingsOut>("/setup/settings").then((s) => setTemplate(s.settings)).catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -67,13 +171,53 @@ export default function PrintPage() {
         if (type === "receipt") {
           const r = await api.get<Receipt>(`/billing/invoices/${params.id}/receipt`);
           setReceipt(r);
-        } else {
-          const detail = await api.get<PrescriptionDetail>(
-            `/prescriptions/${params.id}`
-          );
-          setRx(detail);
-          const p = await api.get<Patient>(`/patients/${detail.patient_id}`);
-          setPatient(p);
+          return;
+        }
+        const [detail, who] = await Promise.all([
+          api.get<PrescriptionDetail>(`/prescriptions/${params.id}`),
+          api.get<Me>("/auth/me"),
+        ]);
+        setRx(detail);
+        setMe(who);
+        // Perf: patient and encounter in parallel (was a request waterfall).
+        const encounterBranch = detail.encounter_id
+          ? api
+              .get<EncounterDetail>(`/encounters/${detail.encounter_id}`)
+              .then((e) => ({ ok: true as const, id: e.branch_id }))
+              .catch(() => ({ ok: false as const, id: null }))
+          : Promise.resolve({ ok: false as const, id: null });
+        setPatient(await api.get<Patient>(`/patients/${detail.patient_id}`));
+
+        // Clinic branch: the encounter's branch, else the viewer's own branch.
+        let branchId = who.branch_id;
+        const enc = await encounterBranch;
+        if (enc.ok) branchId = enc.id;
+        if (branchId) {
+          api
+            .get<Branch>(`/branches/${branchId}`)
+            .then((b) => setBranchName(b.name))
+            .catch(() => undefined);
+        }
+
+        // Prescriber identity: Rx detail (M7 contract) first, then fallbacks.
+        if (detail.prescriber) {
+          setPrescriber(detail.prescriber);
+        } else if (detail.prescriber_user_id) {
+          if (detail.prescriber_user_id === who.user.id) {
+            setPrescriber({ user_id: who.user.id, full_name: who.user.full_name, registration_number: null });
+          } else {
+            api
+              .get<Member[]>("/members")
+              .then((ms) => {
+                const m = ms.find((x) => x.user_id === detail.prescriber_user_id);
+                if (m) setPrescriber({ user_id: m.user_id, full_name: m.full_name, registration_number: null });
+              })
+              .catch(() => undefined);
+          }
+        }
+
+        // Catalog fallback only when the Rx detail lacks names (pre-M7 API).
+        if (detail.items.some((it) => !it.drug_name && !it.generic_name)) {
           const catalog = await api.get<Drug[]>("/prescriptions/drugs?limit=200");
           setDrugs(Object.fromEntries(catalog.map((d) => [d.id, d])));
         }
@@ -84,9 +228,15 @@ export default function PrintPage() {
     void load();
   }, [params.id, type]);
 
+  const sheetCss =
+    PRINT_CSS +
+    (!explicitPaper && (profile || template)
+      ? profilePageCss(pageGeometry(profile, fallbackKind))
+      : paperPageCss(paper, roll));
+
   if (error) {
     return (
-      <main className="print-sheet">
+      <main className={sheetClass}>
         <p className="error">{error}</p>
       </main>
     );
@@ -95,7 +245,7 @@ export default function PrintPage() {
   if (type === "receipt" && receipt) {
     const inv = receipt.invoice;
     return (
-      <main className="print-sheet">
+      <main className={sheetClass}>
         <header className="print-head">
           <div>
             <h1>{receipt.org_name}</h1>
@@ -168,29 +318,51 @@ export default function PrintPage() {
           </section>
         )}
 
+        {template?.billing.receipt_footer && (
+          <p className="tri" data-testid="receipt-footer">{template.billing.receipt_footer}</p>
+        )}
         <footer className="print-foot">
           <span>{tri(L.signature)}</span>
         </footer>
-        <style>{PRINT_CSS}</style>
+        <PaperPicker paper={shownPaper} isReceipt />
+        <button
+          type="button"
+          className="no-print"
+          onClick={() => window.print()}
+          style={{ margin: "1rem auto", display: "block" }}
+        >
+          {tri(L.print)}
+        </button>
+        <style>{sheetCss}</style>
       </main>
     );
   }
 
   if (!rx || !patient) {
     return (
-      <main className="print-sheet">
-        <p className="muted">Loading…</p>
-        <style>{PRINT_CSS}</style>
+      <main className={sheetClass}>
+        <p className="muted">{tri(L.loading)}</p>
+        <style>{sheetCss}</style>
       </main>
     );
   }
 
   return (
-    <main className="print-sheet">
+    <main className={sheetClass}>
       <header className="print-head">
         <div>
-          <h1>{tri(L.prescription)}</h1>
-          <p className="tri">Aditya BioNova Smart HMS</p>
+          <h1 data-testid="clinic-name">{me?.organization.name ?? ""}</h1>
+          {branchName && (
+            <p className="tri" data-testid="clinic-branch">
+              {tri(L.branch)}: {branchName}
+            </p>
+          )}
+          {template?.prescription.header_text && (
+            <p className="tri" data-testid="rx-header-text" style={{ whiteSpace: "pre-line", margin: "0.1rem 0" }}>
+              {template.prescription.header_text}
+            </p>
+          )}
+          <p className="doc-title">{tri(L.prescription)}</p>
         </div>
         <div style={{ textAlign: "right" }}>
           <p>
@@ -215,7 +387,7 @@ export default function PrintPage() {
         {patient.allergies && (
           <p className="error">
             ⚠ {tri(L.allergies)}: <strong>{patient.allergies}</strong>
-            {rx.allergy_acknowledged && " (acknowledged by prescriber)"}
+            {rx.allergy_acknowledged && <> ({tri(L.acknowledged)})</>}
           </p>
         )}
         {rx.diagnosis_text && (
@@ -231,26 +403,31 @@ export default function PrintPage() {
             <th>#</th>
             <th>{tri(L.medicines)}</th>
             <th>{tri(L.dose)}</th>
+            <th>{tri(L.route)}</th>
             <th>{tri(L.frequency)}</th>
             <th>{tri(L.days)}</th>
+            <th>{tri(L.qtyDispense)}</th>
           </tr>
         </thead>
         <tbody>
-          {rx.items.map((it, i) => (
-            <tr key={it.id}>
-              <td>{i + 1}</td>
-              <td>
-                <strong>{drugs[it.drug_id]?.generic_name ?? "—"}</strong>
-                {drugs[it.drug_id]?.brand_hint && (
-                  <span className="tri"> ({drugs[it.drug_id].brand_hint})</span>
-                )}
-                {it.instructions && <div className="tri">{it.instructions}</div>}
-              </td>
-              <td>{it.dose}</td>
-              <td>{it.frequency}</td>
-              <td>{it.duration_days}</td>
-            </tr>
-          ))}
+          {rx.items.map((it, i) => {
+            const n = itemDrugName(it, drugs);
+            return (
+              <tr key={it.id} data-testid="rx-print-item">
+                <td>{i + 1}</td>
+                <td>
+                  <strong>{n.name}</strong>
+                  {n.detail && <span className="tri"> ({n.detail})</span>}
+                  {it.instructions && <div className="tri">{it.instructions}</div>}
+                </td>
+                <td data-testid="rx-print-dose">{it.dose}</td>
+                <td>{it.route}</td>
+                <td>{it.frequency}</td>
+                <td>{it.duration_days}</td>
+                <td>{it.dispense_quantity ?? it.quantity ?? ""}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
 
@@ -265,26 +442,43 @@ export default function PrintPage() {
             {tri(L.followUp)}: {rx.follow_up}
           </p>
         )}
-        <p className="tri">{L.amendments.en}</p>
+        <p className="tri">{tri(L.amendments)}</p>
+        {template?.prescription.footer_text && (
+          <p data-testid="rx-footer-text" style={{ whiteSpace: "pre-line" }}>
+            {template.prescription.footer_text}
+          </p>
+        )}
       </section>
 
       <footer className="print-foot">
-        <span>
-          {tri(L.signature)}
-          {rx.prescriber_user_id ? "" : ""}
-        </span>
+        <div className="prescriber" data-testid="prescriber">
+          {prescriber && (
+            <>
+              <p>
+                <strong>{prescriber.full_name}</strong>
+              </p>
+              {template?.prescription.show_registration_number !== false && (
+                <p className="tri">
+                  {tri(L.regNo)}: {prescriber.registration_number || "—"}
+                </p>
+              )}
+            </>
+          )}
+          <p>{tri(L.signature)}</p>
+        </div>
       </footer>
 
+      <PaperPicker paper={shownPaper} isReceipt={false} />
       <button
         type="button"
         className="no-print"
         onClick={() => window.print()}
         style={{ margin: "1rem auto", display: "block" }}
       >
-        Print / Save as PDF
+        {tri(L.print)}
       </button>
 
-      <style>{PRINT_CSS}</style>
+      <style>{sheetCss}</style>
     </main>
   );
 }
@@ -309,11 +503,15 @@ const PRINT_CSS = `
   .print-foot { margin-top: 2.5rem; display: flex; justify-content: flex-end;
     border-top: 1px solid #bcccdc; padding-top: 0.5rem; }
   @media print {
-    @page { size: A4; margin: 14mm; }
     .no-print { display: none !important; }
     .print-sheet { max-width: none; padding: 0; }
   }
-  @media print and (max-width: 210mm) {
-    @page { size: A5; margin: 10mm; }
-  }
+  .doc-title { margin: 0.2rem 0 0; font-weight: bold; color: #1d3557; }
+  .prescriber { text-align: right; }
+  .prescriber p { margin: 0.1rem 0; }
+  .paper-picker { display: flex; gap: 0.4rem; justify-content: center; flex-wrap: wrap; margin-top: 1rem; }
+  .paper-picker button { min-height: 40px; padding: 0.3rem 0.8rem; border: 1px solid #486581;
+    border-radius: 8px; background: #fff; color: #101828; cursor: pointer; }
+  .paper-picker button[aria-pressed="true"] { background: #1d3557; color: #fff; }
+  .paper-picker button[aria-pressed="true"] .tri { color: #dbe7f3; }
 `;

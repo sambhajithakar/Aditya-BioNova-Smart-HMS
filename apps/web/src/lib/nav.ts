@@ -1,0 +1,58 @@
+/**
+ * Module navigation. Each entry is shown only when the member holds `perm`
+ * (RBAC, S5) AND the tenant's edition includes `feature` (M7.1 feature
+ * gating). `label` is the i18n key (defaults to `key`).
+ */
+import type { NavItem } from "./saas";
+
+export type ShellNavItem = NavItem & { label?: string };
+
+export const NAV: ShellNavItem[] = [
+  { key: "dashboard", href: "/dashboard" },
+  { key: "patients", href: "/patients", perm: "patient.read" },
+  { key: "appointments", href: "/appointments", perm: "appointment.read", feature: "appointments" },
+  { key: "queue", href: "/queue", perm: "queue.read", feature: "opd_queue" },
+  { key: "checkin", label: "navCheckin", href: "/checkin", perm: "checkin.manage", feature: "opd_queue" },
+  { key: "consultation", href: "/consultation", perm: "encounter.read", feature: "consultation" },
+  { key: "billing", href: "/billing", perm: "billing.read", feature: "billing" },
+  { key: "pharmacy", href: "/pharmacy", perm: "pharmacy.read", feature: "pharmacy" },
+  { key: "lab", href: "/lab", perm: "lab.read", feature: "laboratory" },
+  { key: "ipd", href: "/ipd", perm: "bed.read", feature: "ipd" },
+  { key: "inventory", href: "/inventory", perm: "inventory.read", feature: "inventory" },
+  { key: "expenses", href: "/expenses", perm: "expense.read", feature: "expenses" },
+  { key: "reports", href: "/reports", perm: "report.read", feature: "reports_basic" },
+  { key: "followups", label: "navFollowUps", href: "/follow-ups", perm: "followup.read" },
+  { key: "communications", label: "navCommunications", href: "/communications", perm: "comms.read" },
+  { key: "copilot", label: "navCopilot", href: "/copilot", perm: "ai.copilot.use", feature: "ai_copilot" },
+  { key: "setup", label: "navSetup", href: "/setup", perm: "setup.manage" },
+  { key: "aiForecasts", label: "navAiForecasts", href: "/ai/forecasts", perm: "ai.forecast.read", feature: "ai_forecast" },
+  { key: "aiKnowledge", label: "navAiKnowledge", href: "/ai/knowledge", perm: "ai.knowledge.use", feature: "ai_rag" },
+  { key: "aiAgents", label: "navAiAgents", href: "/ai/agents", perm: "ai.agents.use", feature: "ai_agents" },
+  { key: "aiScribe", label: "navAiScribe", href: "/ai/scribe", perm: "ai.scribe.use", feature: "ai_scribe" },
+  { key: "members", href: "/settings/members", perm: "member.read" },
+  { key: "organization", label: "navOrganization", href: "/settings/organization", perm: "org.read" },
+  { key: "branches", label: "navBranches", href: "/settings/branches", perm: "branch.read" },
+  { key: "printers", label: "navPrinters", href: "/settings/printers", perm: "setup.read" },
+  {
+    key: "medicalDevices",
+    label: "navMedicalDevices",
+    href: "/settings/devices",
+    perm: "device.read",
+    feature: "medical_devices",
+  },
+  {
+    key: "subscription",
+    label: "navSubscription",
+    href: "/settings/subscription",
+    perm: "subscription.read",
+  },
+  { key: "saasBilling", label: "navSaasBilling", href: "/settings/billing", perm: "billing.saas.read" },
+  { key: "support", label: "navSupport", href: "/support", perm: "support.read" },
+  { key: "audit", label: "navAudit", href: "/settings/audit", perm: "audit.read" },
+  { key: "data", label: "navData", href: "/settings/data", perm: "org.offboard" },
+  { key: "security", href: "/settings/security" },
+];
+
+export function navLabel(item: ShellNavItem): string {
+  return item.label ?? item.key;
+}

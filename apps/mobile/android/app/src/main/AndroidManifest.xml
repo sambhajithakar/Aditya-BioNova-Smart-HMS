@@ -1,8 +1,53 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- Release builds must reach the API (audit C3 / D1). Flutter's template
+         only declares INTERNET in the debug/profile manifests, and none of
+         our plugins merge it in, so it is declared here for every build. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- M8.2 Bluetooth medical devices (read-only measurement capture).
+         Android 12+: BLUETOOTH_SCAN is declared "neverForLocation" — scans
+         only look for the Blood Pressure / Pulse Oximeter services and the
+         app never derives location from them. Android 11 and older need
+         location for BLE scans, so it is requested only up to API 30.
+         All are runtime permissions asked for only when the user opens
+         device pairing or capture. No foreground service: capture runs
+         only while the capture screen is open. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="s" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
+    <!-- reactive_ble_mobile's manifest asks for location on every Android
+         version (uses-permission-sdk-23): removed, so location is requested
+         only up to API 30 where BLE scanning needs it (above). -->
+    <uses-permission-sdk-23 android:name="android.permission.ACCESS_FINE_LOCATION"
+        tools:node="remove" />
+    <uses-permission-sdk-23 android:name="android.permission.ACCESS_COARSE_LOCATION"
+        tools:node="remove" />
+    <!-- the app works without Bluetooth (device capture is optional) -->
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+    <!-- implied by the API <= 30 location permission; never required -->
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+
+    <!-- allowBackup=false + exclude-everything rules (audit H23 / D5): the
+         offline store is sealed with a Keystore key that is never backed
+         up, so a restored copy could never be decrypted, and it holds PHI.
+         networkSecurityConfig: HTTPS only in release/profile; the debug
+         build overlays a config that permits cleartext for local dev. -->
     <application
-        android:label="aditya_bionova_mobile"
+        android:label="Aditya BioNova HMS"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:networkSecurityConfig="@xml/network_security_config">
         <activity
             android:name=".MainActivity"
             android:exported="true"

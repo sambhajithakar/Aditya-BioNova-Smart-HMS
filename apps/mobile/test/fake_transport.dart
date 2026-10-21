@@ -40,5 +40,9 @@ class FakeTransport implements ApiTransport {
   }
 }
 
-ApiResponse json(Object? data, {int status = 200}) =>
-    ApiResponse(status: status, json: data);
+ApiResponse json(
+  Object? data, {
+  int status = 200,
+  Map<String, String> headers = const {},
+}) =>
+    ApiResponse(status: status, json: data, headers: headers);

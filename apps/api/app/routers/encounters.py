@@ -48,6 +48,7 @@ from ..schemas import (
     VitalsIn,
     VitalsOut,
 )
+from ..services.tenancy import load_appointment, require_member
 
 router = APIRouter(prefix="/encounters", tags=["encounters"])
 
@@ -78,7 +79,7 @@ def start_encounter(
     payload: EncounterIn,
     request: Request,
     principal: Principal = Depends(require_permission("encounter.write")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> EncounterOut:
     patient = db.scalar(
         select(Patient).where(
@@ -116,6 +117,14 @@ def start_encounter(
             raise HTTPException(
                 status_code=409, detail="Queue entry belongs to another patient"
             )
+
+    # FK checks bypass RLS: client-supplied ids must be visible to us
+    if payload.appointment_id is not None:
+        load_appointment(db, principal, payload.appointment_id,
+                         patient_id=payload.patient_id)
+    if payload.provider_user_id is not None:
+        require_member(db, principal, payload.provider_user_id,
+                       field="provider_user_id")
 
     enc = Encounter(
         organization_id=principal.organization_id,
@@ -167,7 +176,7 @@ def list_encounters(
     limit: int = 20,
     offset: int = 0,
     principal: Principal = Depends(require_permission("encounter.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = max(1, min(limit, MAX_LIMIT))
     offset = max(0, offset)
@@ -201,7 +210,7 @@ def list_encounters(
 def get_encounter(
     encounter_id: uuid.UUID,
     principal: Principal = Depends(require_permission("encounter.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> EncounterDetailOut:
     enc = _get_encounter(db, principal, encounter_id)
     vitals = db.scalars(
@@ -239,7 +248,7 @@ def update_encounter(
     payload: EncounterUpdateIn,
     request: Request,
     principal: Principal = Depends(require_permission("encounter.write")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> EncounterOut:
     enc = _get_encounter(db, principal, encounter_id)
     _require_open(enc)
@@ -268,7 +277,7 @@ def record_vitals(
     payload: VitalsIn,
     request: Request,
     principal: Principal = Depends(require_permission("encounter.write")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> VitalsOut:
     enc = _get_encounter(db, principal, encounter_id)
     _require_open(enc)
@@ -314,7 +323,7 @@ def add_diagnosis(
     payload: DiagnosisIn,
     request: Request,
     principal: Principal = Depends(require_permission("encounter.write")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> DiagnosisOut:
     enc = _get_encounter(db, principal, encounter_id)
     _require_open(enc)
@@ -348,7 +357,7 @@ def complete_encounter(
     encounter_id: uuid.UUID,
     request: Request,
     principal: Principal = Depends(require_permission("encounter.write")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> EncounterOut:
     enc = _get_encounter(db, principal, encounter_id)
     _require_open(enc)

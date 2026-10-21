@@ -93,6 +93,26 @@ void main() {
     expect(outbox.ops.single.lastError, 'Unknown or inactive drug(s)');
   });
 
+  test('409 on a check-in is a refusal, not a version conflict (M8.1)',
+      () async {
+    await signIn();
+    outbox.enqueue(
+      entity: 'check_in',
+      method: 'POST',
+      path: '/checkin/confirm',
+      payload: {'code': 'AEBAGBAFAYDQQCIKBMGA2DQPCA'},
+      dedupeKey: 'checkin:1',
+    );
+    final fake = FakeTransport((c) async => json(
+        {'detail': 'This appointment was cancelled'}, status: 409));
+    final engine = SyncEngine(transport: fake, session: session, outbox: outbox);
+
+    final result = await engine.sync();
+    expect(result.conflicts.single.kind, ConflictKind.rejectedByPolicy);
+    expect(outbox.ops.single.conflictReason, ConflictReason.rejectedByPolicy);
+    expect(outbox.ops.single.lastError, 'This appointment was cancelled');
+  });
+
   test('network failure stays queued; retryOpen then a later sync lands it',
       () async {
     await signIn();

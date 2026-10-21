@@ -1,5 +1,210 @@
 # Changelog
 
+## Evaluation demo kit (2026-10-21, review branch)
+
+- **Self-run demo** (docs/DEMO.md): `scripts/demo-up.sh` / `demo-up.ps1`
+  start the synthetic-data stack on the owner's computer with a Compose
+  overlay.
+  - development mode
+  - seed job
+  - LAN-bound web and API; PostgreSQL stays on loopback
+  - non-Secure cookies, because the demo is plain HTTP
+  - CI runs it end to end
+- **Seed:** each demo clinic gets two SIMULATED devices and two simulated
+  readings pending review on an open consultation.
+- **Android LAN demo build** (`--dart-define=HMS_DEMO_LAN=true`):
+  - the server address is typed on the phone
+  - plain http only to private addresses; production servers refused
+  - DEMO strip on every screen
+  - cleartext policy overlay applied to that build only; refuses the
+    release key
+- **Reports:** docs/MODULE_STATUS.md (COMPLETE / PARTIAL / MISSING / NOT
+  TESTED, and real versus simulated, for every module).
+
+## M8.2 medical device integration, simulated devices (2026-10-21, review branch)
+
+- **Parsers.** The Bluetooth SIG Blood Pressure (0x2A35) and Pulse Oximeter
+  (0x2A5E / 0x2A5F) parsers are written in Python and Dart.
+  - Both reproduce the same 24 synthetic vectors.
+  - The API's parse is authoritative.
+- **Data and API** (migration 0019):
+  - device register (allow-list, address stored only as a hash)
+  - append-only readings with raw payload and provenance
+  - append-only clinician decisions
+  - capture rules: open encounter, branch, device, source and time checks
+  - accept writes through the normal vitals path; reject needs a reason
+  - never accepted automatically
+- **Android:**
+  - simulator (4 virtual devices, 7 scenarios)
+  - pairing with a server check
+  - capture from a consultation only, offline outbox
+  - review with a patient confirmation
+- **Android Bluetooth layer** on flutter_reactive_ble 5.6.0 (BSD-3-Clause):
+  - read-only
+  - live-measurement rule against stored-memory replay
+  - scoped permissions; no location on Android 12+
+  - not validated on hardware
+- **Web:** clinician review panel in the consultation, and Settings → Medical
+  devices.
+- **Docs:** DEVICE_INTEGRATION.md (with the exclusions), DEVICE_SUPPORT.md
+  (validation protocol; no model supported) and
+  HARDWARE_PURCHASE_RECOMMENDATION.md (nothing bought).
+
+## M8.1 corrections from the PR #1 review (2026-10-21, review branch)
+
+Fixes for the findings of the read-only review. Each change is a separate
+commit with regression tests.
+
+- **Payments (H1).** A payment captured after its order expired or was
+  cancelled is now fulfilled and audited as `saas.payment.late`.
+  - Before, the order trigger refused it and the money was stranded.
+  - Reconciliation now also checks expired orders with Razorpay.
+- **Refunds (M2).** An approval commits `processing` before the provider is
+  called, with the refund id as reference.
+  - Unknown outcomes stay `processing`, are listed by reconciliation and can
+    be re-checked from the console.
+  - Re-checking never refunds twice. Migration 0017.
+- **AI credits (M1).** Purchased credit packs no longer expire at month end.
+  - The monthly allowance is spent first, then purchased credits
+    (`pack_use`). Migration 0018.
+  - No expiry policy was introduced.
+- **Patient-data audit (M3).** `phi.read` now also covers Clinical Scribe,
+  follow-ups, a patient's message history and consents, and the delivery log.
+- **Reminders (M4).** Replacing a template no longer re-sends reminders. The
+  dedupe key no longer contains the template id.
+- **Licensing (L1, L2).**
+  - LGPL libvips (sharp) is removed from the web runtime image.
+  - LICENSES.md is completed and corrected.
+  - In-app licence notices: Android *Open-source licences*, including the
+    Google ML Kit and Material Icons attributions; web `/licenses`.
+- **Android signing (A1).** A release build fails without the owner's key
+  unless `HMS_ALLOW_DEBUG_SIGNING=1`. CI demo builds opt in.
+- **Printing (W1).** The paper picker highlights the paper that will
+  actually print: the saved printer profile, or the template.
+- **Lower-severity fixes**
+  - Billing:
+    - `system_scope` restores the caller's scope
+    - forged checkout signatures are audited durably
+    - UPDATE/DELETE grants revoked on append-only billing tables
+  - Check-in:
+    - consistent lock order
+    - no silent check-in at another branch
+  - Android check-in codes match the server format, and a check-in 409 is
+    parked as a refusal.
+  - Only the session's clinician can feed or accept a Scribe draft.
+  - Governance usage validates `?period=`.
+  - Token endpoints stay blocked under percent-encoding.
+  - Tooling and docs:
+    - RLS preconditions are tested
+    - pytest-cov is locked and CI enforces coverage ≥ 90%
+    - README now requires Node 22.12+
+
+## M7.2 + Comms v2 + Smart Setup + AI-1 + Offline v2 + Device/PWA (2026-10-20, review branch)
+
+- **SaaS billing (M7.2)**
+  - Payments: Razorpay TEST mode or a local simulator (development only).
+  - Pricing: server-computed prices with GST, FY invoice series, credit notes.
+  - Safety: idempotent orders, HMAC-verified checkout and webhook, exactly-once fulfilment.
+  - Recovery: retry after a failed payment; refunds need vendor approval (four-eyes).
+  - Lifecycle and accounts: trial → paid → past-due → read-only; reconciliation; AI credit packs; billing pages for clinics and for the vendor.
+  - Live payments are impossible by configuration.
+- **Communications v2**
+  - Templates in three languages, with no clinical content allowed.
+  - Consent and opt-out per patient and channel.
+  - Quiet hours, plan quotas and a spend cap.
+  - An append-only delivery log.
+  - Idempotent appointment reminders, clinician-directed follow-ups and missed-appointment tracking.
+  - Delivery is mock only.
+- **Smart Setup Wizard; QR check-in; printer profiles**
+  - QR check-in uses an opaque single-use code, with no patient data in the QR.
+  - Printer profiles for A4 / A5 / 80 mm / 58 mm, a test page, and printing with the saved profile.
+- **AI-1**
+  - Statistical forecasts for OPD, beds, pharmacy demand and no-show risk, with backtests.
+  - A BM25 knowledge assistant over approved standard operating procedures, with cited answers.
+  - Agent proposals that need human approval.
+  - A consent-gated Clinical Scribe that produces a draft SOAP note (transcription is mock).
+  - docs/AI_EVALUATION.md.
+- **Android offline-first v2**
+  - Eight sync states, a dependency-ordered outbox, and human conflict resolution.
+  - Device revocation, home screens per role, and finalising actions blocked while offline.
+  - Barcode scanning, draft and signed PDFs, and demo APKs that now build.
+- **Web device optimisation**
+  - Phone bottom navigation, keyboard shortcuts and a connectivity banner.
+  - An installable PWA whose service worker caches no patient data.
+  - A paper picker, plus emulated device and performance reports (17–29% faster across all module navigations).
+
+## M7.1 + AI-0 (2026-10-20) — tenant administration, editions, platform console, Business Copilot (review branch)
+
+### Tenant administration
+- Organisation profile, onboarding checklist, branches with address/GSTIN,
+  audit-log viewer, data export (zip, secrets excluded), offboarding
+  request/cancel with retention notice
+- Role-aware **mandatory MFA** policy per tenant (`mfa_required_roles`)
+- Customer support tickets (tenant) and support queue (platform)
+
+### Commercial foundation (configuration, no payments)
+- 7 editions as data: Rural Clinic, Clinic Starter, Clinic Plus + AI,
+  Multi-Specialty Clinic, Hospital Core, Hospital Advanced, Enterprise —
+  34 feature keys, 6 limits, **prices NULL until the owner sets them**
+- Trials, subscription status, read-only mode on lapse (402 on writes),
+  plan limits for users/branches/beds; feature gates per router
+- Vendor **platform console** (super-admin, MFA-required outside dev):
+  tenants, subscriptions, overrides, plan catalogue editor, support queue —
+  reads commercial tables and **aggregate counts only, never PHI**
+- `docs/COMMERCIAL_FEATURE_MATRIX.md` generated from the seeded catalogue
+
+### AI-0 governance gateway + Business Copilot
+- Gateway: global kill switches, tenant opt-in, data classes C0–C3 with a
+  provider ceiling enforced before any call, credit ledger (append-only),
+  sealed request audit
+- Business Copilot (EN/मराठी/हिंदी): a question selects ONE whitelisted
+  report; figures computed from the clinic's own records; every answer shows
+  **mock vs live inference** and how it was computed. Shipped with the
+  rule-based mock parser only; no AI provider connected
+- `docs/AI_ARCHITECTURE.md`: architecture, evaluation plan, roadmap for
+  Scribe/agents/RAG/document AI with safety gates
+
+### Android
+- English/मराठी/हिंदी localisation (gen-l10n, 195 keys); Rural Clinic mode;
+  edition-aware feature visibility
+
+### Fixed
+- Sliding-window rate limiting (lockout boundary escape); CI E2E dependency set
+
+## M7.0 (2026-10-20) — security & correctness hardening (review branch)
+
+Driven by AUDIT_REPORT.md. Highlights (details in TASKS.md / TEST_RESULTS.md):
+
+### Security
+- TOTP MFA with encrypted seeds and recovery codes; MFA challenge at login
+- PostgreSQL-backed rate limiting and enumeration-safe account lockout
+- Password change / forgot / reset; session list, revoke, absolute lifetime
+- Staff invitations (no more attaching other tenants' accounts); member
+  role/status/branch administration; per-request org suspension
+- PHI-read audit trail (fail-closed); validated correlation ids; trusted
+  proxies; production refuses default secrets; audit-function guard fix
+- Web: httpOnly refresh cookie, in-memory access token, nonce CSP, route
+  middleware, permission-aware navigation
+- Provider-agnostic e-mail/SMS/WhatsApp layer (mock by default; Brevo,
+  DLT SMS, Meta WhatsApp adapters suppressed until approved)
+
+### Clinical safety & money integrity
+- Doctor-entered dosing (no defaults); legal Rx print with registration no.
+- Signed-Rx INSERT guard; dispense caps; lab order items + complete-release
+  rule + multi-specimen; SpO₂ < 85 with escalation; merge keeps allergies
+- Ledger-based finance report; invoice locks; overpayment CHECK; idempotency
+  on Rx/invoices and race-free; GST on discounted amount; IST day boundaries
+
+### Android
+- Release network permission; no backup; fail-closed encrypted store;
+  offline start with PIN lock; per-user outbox; MFA; refresh; retry/backoff
+
+### Operations
+- Hash-locked dependencies; hardened containers + migrate job; encrypted
+  backups, guarded restore, automated drill; readiness probe; CI with
+  security scans, drift check, Flutter, Docker smoke, E2E; generated API and
+  database docs; synthetic demo seeder
+
 ## M6 (2026-10-17) — IPD + operations (API + web)
 
 ### Added

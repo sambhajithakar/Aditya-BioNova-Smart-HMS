@@ -14,8 +14,11 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../main.dart';
+import '../app_graph.dart';
+import '../l10n/l10n.dart';
+import '../settings/app_settings.dart';
 import '../sync/outbox.dart';
+import '../util/dates.dart';
 
 const List<String> _genders = ['female', 'male', 'other', 'unknown'];
 
@@ -60,22 +63,20 @@ class _RegisterTabState extends State<RegisterTab> {
   Future<void> _register() async {
     final name = _name.text.trim();
     if (name.length < 2) {
-      setState(() => _error = 'Enter the patient’s full name.');
+      setState(() => _error = context.l10n.registerNameRequired);
       return;
     }
     final phone = _phone.text.trim();
     if (_hasDuplicateCandidate) {
       setState(() {
         _error = null;
-        _notice = 'Looks like an existing patient — duplicate prevented '
-            '(pick them from the list, or edit the details to register '
-            'anyway).';
+        _notice = context.l10n.registerLooksDuplicate;
       });
       return;
     }
 
     final localRef = Outbox.newId();
-    final today = DateTime.now().toUtc().toIso8601String().split('T').first;
+    final today = localDay();
     final op = widget.graph.outbox.enqueue(
       entity: 'patient',
       method: 'POST',
@@ -96,8 +97,7 @@ class _RegisterTabState extends State<RegisterTab> {
     if (op.localRef != localRef) {
       setState(() {
         _error = null;
-        _notice = 'Identical registration already queued — '
-            'duplicate prevented.';
+        _notice = context.l10n.registerDuplicateQueued;
       });
       return;
     }
@@ -108,11 +108,11 @@ class _RegisterTabState extends State<RegisterTab> {
       gender: _gender,
       phone: phone,
     );
+    widget.graph.scheduler.requestSync();
     if (!mounted) return;
     setState(() {
       _error = null;
-      _notice = 'Saved on device — pending sync. Assigned to today’s '
-          'queue as soon as it syncs.';
+      _notice = context.l10n.registerSaved;
     });
     _name.clear();
     _phone.clear();
@@ -122,25 +122,28 @@ class _RegisterTabState extends State<RegisterTab> {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
+    final rural = widget.graph.settings.ruralMode;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text('Register patient (works offline)',
+        Text(l.registerTitle,
             style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 12),
         TextField(
           key: const Key('register-name'),
           controller: _name,
-          decoration: const InputDecoration(labelText: 'Full name'),
+          decoration: InputDecoration(labelText: l.registerName),
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           key: const Key('register-gender'),
           initialValue: _gender,
-          decoration: const InputDecoration(labelText: 'Gender'),
+          decoration: InputDecoration(labelText: l.registerGender),
+          itemHeight: rural ? kRuralTouchTarget + 8 : null,
           items: [
             for (final g in _genders)
-              DropdownMenuItem(value: g, child: Text(g)),
+              DropdownMenuItem(value: g, child: Text(genderLabel(l, g))),
           ],
           onChanged: (v) => setState(() => _gender = v ?? 'unknown'),
         ),
@@ -149,15 +152,16 @@ class _RegisterTabState extends State<RegisterTab> {
           key: const Key('register-phone'),
           controller: _phone,
           keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(labelText: 'Phone (optional)'),
+          decoration: InputDecoration(labelText: l.registerPhone),
         ),
         const SizedBox(height: 12),
         ListTile(
           key: const Key('register-dob'),
           contentPadding: EdgeInsets.zero,
           title: Text(_dob == null
-              ? 'Date of birth — not known (estimated)'
-              : 'Date of birth — ${_dob!.toLocal().toString().split(' ').first}'),
+              ? l.registerDobUnknown
+              : l.registerDob(
+                  _dob!.toLocal().toString().split(' ').first)),
           trailing: TextButton(
             onPressed: () async {
               final now = DateTime.now();
@@ -169,21 +173,19 @@ class _RegisterTabState extends State<RegisterTab> {
               );
               if (picked != null && mounted) setState(() => _dob = picked);
             },
-            child: const Text('Pick'),
+            child: Text(l.pick),
           ),
         ),
         TextField(
           key: const Key('register-allergies'),
           controller: _allergies,
-          decoration: const InputDecoration(
-            labelText: 'Known allergies (write what the family reports)',
-          ),
+          decoration: InputDecoration(labelText: l.registerAllergies),
         ),
         const SizedBox(height: 16),
         FilledButton(
           key: const Key('register-add'),
           onPressed: _register,
-          child: const Text('Register (works offline)'),
+          child: Text(l.registerAdd),
         ),
         if (_notice != null)
           Padding(
@@ -201,8 +203,10 @@ class _RegisterTabState extends State<RegisterTab> {
           ),
         const SizedBox(height: 16),
         Text(
-          'Outbox — pending: ${widget.graph.outbox.count(OpStatus.pending)}, '
-          'conflicted: ${widget.graph.outbox.count(OpStatus.conflicted)}',
+          l.outboxCountsShort(
+            widget.graph.outbox.count(OpStatus.pending),
+            widget.graph.outbox.count(OpStatus.conflicted),
+          ),
           key: const Key('register-outbox-counts'),
           style: Theme.of(context).textTheme.bodySmall,
         ),

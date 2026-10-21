@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 import uuid
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
@@ -22,6 +23,8 @@ class RegisterIn(StrictModel):
     full_name: str = Field(min_length=2, max_length=200)
     email: EmailStr
     password: str = Field(min_length=10, max_length=200)
+    # edition to trial; defaults to settings.default_signup_plan
+    plan_code: str | None = Field(default=None, min_length=2, max_length=40)
 
     @field_validator("organization_slug")
     @classmethod
@@ -51,6 +54,8 @@ class UserOut(BaseModel):
     email: EmailStr
     full_name: str
     status: str
+    # medical/pharmacy council registration printed on prescriptions
+    registration_number: str | None = None
 
 
 class OrganizationOut(BaseModel):
@@ -77,6 +82,11 @@ class AuthSessionOut(BaseModel):
     tokens: TokenPair
 
 
+class EditionRef(BaseModel):
+    code: str
+    name: str
+
+
 class MeOut(BaseModel):
     user: UserOut
     organization: OrganizationOut
@@ -84,12 +94,26 @@ class MeOut(BaseModel):
     branch_id: uuid.UUID | None
     role: str
     permissions: list[str]
+    # M7.1 — commercial edition & account policy for the UI
+    edition: EditionRef | None = None
+    subscription_status: str = "active"
+    features: list[str] = []
+    mfa_enrollment_required: bool = False
+    is_platform_admin: bool = False
 
 
 # --- Branches ----------------------------------------------------------------
+GSTIN_RE = r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$"
+PINCODE_RE = r"^[1-9][0-9]{5}$"
+PHONE_RE = r"^\+?[0-9 -]{6,20}$"
+
+
 class BranchIn(StrictModel):
     name: str = Field(min_length=1, max_length=200)
     code: str = Field(min_length=2, max_length=30)
+    address: str | None = Field(default=None, max_length=300)
+    phone: str | None = Field(default=None, pattern=PHONE_RE)
+    gstin: str | None = Field(default=None, pattern=GSTIN_RE)
 
     @field_validator("code")
     @classmethod
@@ -107,7 +131,84 @@ class BranchOut(BaseModel):
     name: str
     code: str
     status: str
+    address: str | None = None
+    phone: str | None = None
+    gstin: str | None = None
     created_at: datetime
+
+
+class BranchUpdateIn(StrictModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    address: str | None = Field(default=None, max_length=300)
+    phone: str | None = Field(default=None, pattern=PHONE_RE)
+    gstin: str | None = Field(default=None, pattern=GSTIN_RE)
+    status: Literal["active", "inactive"] | None = None
+
+
+class MfaChallengeOut(BaseModel):
+    """Login passed the password step; a second factor is required."""
+
+    mfa_required: bool = True
+    mfa_token: str
+    methods: list[str]
+    expires_in: int
+
+
+class MfaVerifyIn(StrictModel):
+    mfa_token: str = Field(min_length=20, max_length=2000)
+    code: str = Field(min_length=6, max_length=20)
+
+
+class MfaStatusOut(BaseModel):
+    totp_enabled: bool
+    recovery_codes_remaining: int
+
+
+class TotpSetupOut(BaseModel):
+    secret: str
+    otpauth_uri: str
+
+
+class TotpCodeIn(StrictModel):
+    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class RecoveryCodesOut(BaseModel):
+    recovery_codes: list[str]
+
+
+class MfaDisableIn(StrictModel):
+    password: str = Field(min_length=1, max_length=200)
+    code: str = Field(min_length=6, max_length=20)
+
+
+class PasswordChangeIn(StrictModel):
+    current_password: str = Field(min_length=1, max_length=200)
+    new_password: str = Field(min_length=10, max_length=200)
+
+
+class PasswordForgotIn(StrictModel):
+    email: EmailStr
+
+
+class PasswordResetIn(StrictModel):
+    token: str = Field(min_length=20, max_length=200)
+    new_password: str = Field(min_length=10, max_length=200)
+
+
+class SessionOut(BaseModel):
+    id: uuid.UUID
+    created_at: datetime
+    expires_at: datetime
+    user_agent: str | None
+    ip_address: str | None
+    current: bool
+
+
+class InvitationAcceptIn(StrictModel):
+    token: str = Field(min_length=20, max_length=200)
+    password: str = Field(min_length=1, max_length=200)
+    full_name: str | None = Field(default=None, min_length=2, max_length=200)
 
 
 # --- Members ----------------------------------------------------------------
@@ -124,8 +225,55 @@ class MemberOut(BaseModel):
     user_id: uuid.UUID
     email: EmailStr
     full_name: str
+    registration_number: str | None = None
     role_key: str
     branch_id: uuid.UUID | None
+    status: str
+    created_at: datetime
+
+
+_REGNO = r"^[A-Za-z0-9][A-Za-z0-9 ./-]{1,59}$"
+
+
+class ProfileUpdateIn(StrictModel):
+    full_name: str | None = Field(default=None, min_length=2, max_length=200)
+    # e.g. "MMC 2014/05/1234"; null clears it
+    registration_number: str | None = Field(default=None, pattern=_REGNO)
+
+
+class MemberUpdateIn(StrictModel):
+    registration_number: str | None = Field(default=None, pattern=_REGNO)
+    role_key: str | None = Field(default=None, min_length=2, max_length=40)
+    status: Literal["active", "suspended"] | None = None
+    branch_id: uuid.UUID | None = None
+
+
+class InvitationCreateIn(StrictModel):
+    email: EmailStr
+    role_key: str = Field(min_length=2, max_length=40)
+    branch_id: uuid.UUID | None = None
+
+
+class InvitationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    email: str
+    role_key: str
+    branch_id: uuid.UUID | None
+    status: str
+    expires_at: datetime
+    created_at: datetime
+
+
+class OutboxMessageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    channel: str
+    to: str
+    subject: str
+    body: str
     status: str
     created_at: datetime
 
@@ -461,6 +609,8 @@ class VitalsOut(BaseModel):
     height_cm: float | None
     notes: str
     recorded_at: datetime
+    # M8.2: set when these vitals were accepted from a device reading
+    device_reading_id: uuid.UUID | None = None
 
 
 class DiagnosisIn(StrictModel):
@@ -541,6 +691,8 @@ class RxItemIn(StrictModel):
     duration_days: int = Field(ge=1, le=365)
     quantity: str = Field(default="", max_length=100)
     instructions: str = Field(default="", max_length=500)
+    # units the pharmacy may dispense in total; omitted -> dispensable once
+    dispense_quantity: int | None = Field(default=None, ge=1, le=10000)
 
     @field_validator("route")
     @classmethod
@@ -564,6 +716,17 @@ class RxItemOut(BaseModel):
     quantity: str
     instructions: str
     seq: int
+    dispense_quantity: int | None = None
+    # copied from the catalog at read time (inactive drugs included)
+    drug_name: str = ""
+    generic_name: str = ""
+    strength: str = ""
+
+
+class PrescriberOut(BaseModel):
+    user_id: uuid.UUID
+    full_name: str
+    registration_number: str | None = None
 
 
 class PrescriptionIn(StrictModel):
@@ -599,6 +762,7 @@ class PrescriptionOut(BaseModel):
 
 class PrescriptionDetailOut(PrescriptionOut):
     items: list[RxItemOut] = []
+    prescriber: PrescriberOut | None = None
 
 
 class SignRxIn(StrictModel):
@@ -980,6 +1144,7 @@ class LabOrderOut(BaseModel):
     clinical_notes: str
     cancel_reason: str
     created_at: datetime
+    items: list["LabOrderItemOut"] = []
 
     @field_validator("status")
     @classmethod
@@ -988,6 +1153,14 @@ class LabOrderOut(BaseModel):
                      "released", "cancelled"):
             raise ValueError("illegal lab order status")
         return v
+
+
+class LabOrderItemOut(BaseModel):
+    id: uuid.UUID
+    test_id: uuid.UUID
+    test_code: str
+    test_name: str
+    status: str
 
 
 class LabOrderDetailOut(LabOrderOut):
@@ -1036,6 +1209,16 @@ class LabResultValueIn(StrictModel):
             raise ValueError(f"flag must be one of {_LAB_FLAGS}")
         return v
 
+    @model_validator(mode="after")
+    def _has_value(self) -> "LabResultValueIn":
+        _require_lab_value(self.value_text, self.value_numeric)
+        return self
+
+
+def _require_lab_value(value_text: str, value_numeric: float | None) -> None:
+    if value_numeric is None and not value_text.strip():
+        raise ValueError("a result needs value_text or value_numeric")
+
 
 class ImportResultsIn(StrictModel):
     specimen_id: uuid.UUID | None = None
@@ -1054,6 +1237,11 @@ class AmendResultIn(StrictModel):
         if v not in _LAB_FLAGS:
             raise ValueError(f"flag must be one of {_LAB_FLAGS}")
         return v
+
+    @model_validator(mode="after")
+    def _has_value(self) -> "AmendResultIn":
+        _require_lab_value(self.value_text, self.value_numeric)
+        return self
 
 
 class CancelLabOrderIn(StrictModel):
@@ -1191,6 +1379,10 @@ class DischargeIn(StrictModel):
         return v
 
 
+SPO2_ESCALATION_BELOW = 85
+ESCALATION_NOTE_MIN = 10
+
+
 class NursingRecordIn(StrictModel):
     note_type: str = "note"
     note: str = Field(default="", max_length=4000)
@@ -1215,18 +1407,19 @@ class NursingRecordIn(StrictModel):
             raise ValueError("temperature_c supports one decimal place")
         return v
 
-    @field_validator("spo2")
-    @classmethod
-    def _spo2(cls, v: int | None) -> int | None:
-        if v is not None and v < 85:
-            raise ValueError(
-                "spo2 below 85 needs immediate clinical review — "
-                "record it as a note with escalation"
-            )
-        return v
-
     @model_validator(mode="after")
     def _has_content_and_ordered_bp(self) -> "NursingRecordIn":
+        # SpO2 50..84 is a real (hypoxic) reading: it MUST be recorded, but
+        # only together with a documented escalation note (who was informed,
+        # what was done). Physiologically impossible values (<50, >100) are
+        # still rejected by the field range.
+        if (self.spo2 is not None and self.spo2 < SPO2_ESCALATION_BELOW
+                and len(self.note.strip()) < ESCALATION_NOTE_MIN):
+            raise ValueError(
+                f"spo2 below {SPO2_ESCALATION_BELOW} needs an escalation note "
+                f"(at least {ESCALATION_NOTE_MIN} characters: who was "
+                "informed and what was done)"
+            )
         vital = (self.bp_systolic is not None or self.pulse is not None
                  or self.temperature_c is not None or self.spo2 is not None
                  or self.respiratory_rate is not None)
@@ -1430,3 +1623,327 @@ class ReportSummaryOut(BaseModel):
     ipd: IpdReport
     finance: FinanceReport
     inventory: InventoryReport
+
+
+# --- M7.1 tenant administration ---------------------------------------------------
+ASSIGNABLE_ROLE_KEYS = ("owner", "admin", "doctor", "nurse", "receptionist", "pharmacist",
+                        "lab_technician", "billing", "auditor", "support")
+
+
+class OrganizationProfileOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    slug: str
+    status: str
+    legal_name: str | None
+    address_line1: str | None
+    address_line2: str | None
+    city: str | None
+    state: str | None
+    pincode: str | None
+    phone: str | None
+    email: str | None
+    gstin: str | None
+    registration_number: str | None
+    letterhead_note: str | None
+    default_language: str
+    timezone: str
+    mfa_required_roles: list[str]
+    offboarding_requested_at: datetime | None
+    created_at: datetime
+
+
+class OrganizationProfileIn(StrictModel):
+    name: str | None = Field(default=None, min_length=2, max_length=200)
+    legal_name: str | None = Field(default=None, max_length=200)
+    address_line1: str | None = Field(default=None, max_length=200)
+    address_line2: str | None = Field(default=None, max_length=200)
+    city: str | None = Field(default=None, max_length=100)
+    state: str | None = Field(default=None, max_length=100)
+    pincode: str | None = Field(default=None, pattern=PINCODE_RE)
+    phone: str | None = Field(default=None, pattern=PHONE_RE)
+    email: EmailStr | None = None
+    gstin: str | None = Field(default=None, pattern=GSTIN_RE)
+    registration_number: str | None = Field(default=None, max_length=60)
+    letterhead_note: str | None = Field(default=None, max_length=500)
+    default_language: Literal["en", "mr", "hi"] | None = None
+    timezone: str | None = Field(default=None, max_length=64)
+    mfa_required_roles: list[str] | None = None
+
+    @field_validator("mfa_required_roles")
+    @classmethod
+    def _roles(cls, v: list[str] | None) -> list[str] | None:
+        if v is None:
+            return v
+        bad = sorted(set(v) - set(ASSIGNABLE_ROLE_KEYS))
+        if bad:
+            raise ValueError(f"unknown role keys: {', '.join(bad)}")
+        return sorted(set(v))
+
+
+class OnboardingStepOut(BaseModel):
+    key: str
+    done: bool
+
+
+class OnboardingOut(BaseModel):
+    completed: bool
+    steps: list[OnboardingStepOut]
+
+
+class OffboardingIn(StrictModel):
+    password: str = Field(min_length=1, max_length=200)
+    reason: str = Field(min_length=3, max_length=500)
+
+
+# --- M7.1 editions & subscription -----------------------------------------------------
+class PlanOut(BaseModel):
+    code: str
+    name: str
+    description: str
+    tier: int
+    price_monthly_paise: int | None
+    price_annual_paise: int | None
+    currency: str
+    trial_days: int
+    features: list[str]
+    limits: dict[str, int | None]
+    is_active: bool | None = None
+    is_public: bool | None = None
+
+
+class UsageOut(BaseModel):
+    limit: int | None
+    used: int
+
+
+class SubscriptionOut(BaseModel):
+    plan: PlanOut
+    status: str
+    effective_status: str
+    billing_cycle: str
+    trial_ends_at: datetime | None
+    current_period_end: datetime | None
+    read_only_reason: str | None
+    features: list[str]
+    usage: dict[str, UsageOut]
+
+
+class ChangeRequestIn(StrictModel):
+    plan_code: str = Field(min_length=2, max_length=40)
+    billing_cycle: Literal["monthly", "annual"]
+    note: str = Field(default="", max_length=1000)
+
+
+# --- M7.1 support -------------------------------------------------------------------------
+TicketCategory = Literal["technical", "billing", "account", "feature_request",
+                         "data_request", "other"]
+TicketPriority = Literal["low", "normal", "high", "urgent"]
+TicketStatus = Literal["open", "in_progress", "waiting_on_customer", "resolved", "closed"]
+
+
+class SupportTicketIn(StrictModel):
+    subject: str = Field(min_length=3, max_length=200)
+    category: TicketCategory
+    priority: TicketPriority = "normal"
+    body: str = Field(min_length=3, max_length=5000)
+
+
+class SupportMessageIn(StrictModel):
+    body: str = Field(min_length=1, max_length=5000)
+
+
+class PlatformSupportMessageIn(SupportMessageIn):
+    internal: bool = False
+
+
+class SupportTicketOut(BaseModel):
+    id: uuid.UUID
+    number: str
+    subject: str
+    category: str
+    priority: str
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    created_by_name: str | None = None
+    organization_name: str | None = None
+
+
+class SupportMessageOut(BaseModel):
+    id: int
+    author_name: str | None
+    author_side: str
+    body: str
+    internal: bool = False
+    created_at: datetime
+
+
+class SupportTicketDetailOut(SupportTicketOut):
+    messages: list[SupportMessageOut]
+
+
+class PlatformTicketUpdateIn(StrictModel):
+    status: TicketStatus | None = None
+    priority: TicketPriority | None = None
+
+
+# --- M7.1 platform console ---------------------------------------------------------------
+class PlatformOverviewOut(BaseModel):
+    tenants_by_status: dict[str, int]
+    tenants_by_plan: dict[str, int]
+    trials_expiring_7d: int
+    open_tickets: int
+    mrr_paise: int
+    unpriced_active_subscriptions: int
+
+
+class PlatformTenantOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    slug: str
+    status: str
+    created_at: datetime
+    plan_code: str | None
+    subscription_status: str | None
+    effective_status: str | None
+    trial_ends_at: datetime | None
+    users: int
+    branches: int
+    beds: int
+    patients: int
+    offboarding_requested_at: datetime | None
+
+
+class SubscriptionEventOut(BaseModel):
+    id: int
+    from_plan: str | None
+    to_plan: str | None
+    from_status: str | None
+    to_status: str | None
+    reason: str
+    actor_name: str | None
+    created_at: datetime
+
+
+class PlatformTenantDetailOut(PlatformTenantOut):
+    subscription: SubscriptionOut | None
+    limit_overrides: dict[str, int | None] = {}
+    feature_overrides: dict[str, bool] = {}
+    events: list[SubscriptionEventOut]
+
+
+class PlatformTenantUpdateIn(StrictModel):
+    status: Literal["active", "suspended"]
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class PlatformSubscriptionIn(StrictModel):
+    plan_code: str = Field(min_length=2, max_length=40)
+    status: Literal["trialing", "active", "past_due", "read_only", "suspended", "cancelled"]
+    billing_cycle: Literal["monthly", "annual"] = "monthly"
+    trial_ends_at: datetime | None = None
+    current_period_end: datetime | None = None
+    # omitted / null = keep the tenant's current overrides; {} clears them
+    limit_overrides: dict[str, int | None] | None = None
+    feature_overrides: dict[str, bool] | None = None
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class CatalogEntryOut(BaseModel):
+    key: str
+    label: str
+
+
+class CatalogOut(BaseModel):
+    features: list[CatalogEntryOut]
+    limits: list[CatalogEntryOut]
+
+
+class PlanUpdateIn(StrictModel):
+    name: str | None = Field(default=None, min_length=2, max_length=120)
+    description: str | None = Field(default=None, max_length=1000)
+    price_monthly_paise: int | None = Field(default=None, ge=0, le=10**12)
+    price_annual_paise: int | None = Field(default=None, ge=0, le=10**12)
+    trial_days: int | None = Field(default=None, ge=0, le=365)
+    is_active: bool | None = None
+    is_public: bool | None = None
+
+
+class PlanFeaturesIn(StrictModel):
+    features: list[str]
+
+
+class PlanLimitsIn(StrictModel):
+    limits: dict[str, int | None]
+
+
+# --- AI-0 ----------------------------------------------------------------------------
+class AiSettingsOut(BaseModel):
+    enabled_features: list[str]
+    entitled_features: list[str]
+    live_inference: bool
+    copilot_provider: str
+    copilot_provider_region: str
+
+
+class AiSettingsIn(StrictModel):
+    enabled_features: list[str]
+
+
+class CopilotAskIn(StrictModel):
+    question: str = Field(min_length=2, max_length=500)
+    language: Literal["en", "mr", "hi"] | None = None
+
+
+class CopilotComputedWith(BaseModel):
+    function: str
+    args: dict
+    method: str
+
+
+class CopilotAnswerOut(BaseModel):
+    request_id: uuid.UUID
+    answered: bool
+    language: str
+    answer: str
+    figures: dict
+    rows: list[dict]
+    computed_with: CopilotComputedWith | None
+    inference: str          # "mock" | "live" — always shown to the user
+    provider: str
+    model: str
+    credits_charged: int
+    note: str | None = None
+
+
+class CopilotCatalogEntry(BaseModel):
+    function: str
+    label: str
+    args: list[str]
+
+
+class AiUsageOut(BaseModel):
+    period: str
+    used_credits: int
+    limit_credits: int | None
+    # purchased credits left; they do not expire at month end (M8.1)
+    purchased_balance: int = 0
+
+
+class AiRequestOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    feature: str
+    task: str
+    provider: str
+    model: str
+    inference: str
+    data_class: str
+    status: str
+    credits: int
+    latency_ms: int | None
+    created_at: datetime

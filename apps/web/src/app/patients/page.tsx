@@ -5,12 +5,16 @@
  * and the patient profile card. Duplicate 409s show the candidates and ask
  * for an explicit confirmation — the workflow the blueprint requires.
  */
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { PatientCommsPanel } from "@/components/PatientComms";
 import { ApiError, DuplicateCandidate, PageOf, Patient, api } from "@/lib/api";
-import { getLang, t } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/lib/lang";
+import { consumePatientSearch, debounce, onPatientSearch } from "@/lib/quick-search";
 
-type Lang = "en" | "mr" | "hi";
+/** Search-as-you-type waits this long after the last keystroke (one request, not one per key). */
+const SEARCH_DEBOUNCE_MS = 250;
 
 const EMPTY_FORM = {
   full_name: "",
@@ -22,8 +26,8 @@ const EMPTY_FORM = {
   allergies: "",
 };
 
-export default function PatientsPage() {
-  const [lang, setLang] = useState<Lang>("en");
+function PatientsBody() {
+  const { lang } = useLang();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Patient[]>([]);
   const [selected, setSelected] = useState<Patient | null>(null);
@@ -33,23 +37,36 @@ export default function PatientsPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => setLang(getLang()), []);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const seq = useRef(0);
 
   const search = useCallback(async (q: string) => {
+    const mine = ++seq.current; // ignore responses that arrive out of order
     try {
       const page = await api.get<PageOf<Patient>>(
         `/patients?limit=20${q ? `&q=${encodeURIComponent(q)}` : ""}`
       );
-      setResults(page.items);
+      if (mine === seq.current) setResults(page.items);
     } catch {
-      setError("Search failed");
+      if (mine === seq.current) setError("Search failed");
     }
   }, []);
+  const debouncedSearch = useMemo(() => debounce((q: string) => void search(q), SEARCH_DEBOUNCE_MS), [search]);
+  useEffect(() => () => debouncedSearch.cancel(), [debouncedSearch]);
 
+  // Quick search from the shell header / phone search button (in memory).
   useEffect(() => {
-    void search("");
-  }, [search]);
+    const run = (q: string) => {
+      setQuery(q);
+      debouncedSearch.cancel();
+      void search(q);
+      searchRef.current?.focus();
+    };
+    const queued = consumePatientSearch();
+    if (queued) run(queued.q);
+    else void search("");
+    return onPatientSearch((r) => run(r.q));
+  }, [search, debouncedSearch]);
 
   async function submit(allowDuplicates: boolean) {
     setBusy(true);
@@ -93,21 +110,22 @@ export default function PatientsPage() {
   }
 
   return (
-    <AppShell active="patients">
+    <>
       <main className="page">
-        <p className="notice">{t("m2Notice", lang)}</p>
 
-        <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: "1.25rem" }}>
+        <div className="grid two" style={{ gap: "1.25rem" }}>
           <section className="card">
             <h2 style={{ marginTop: 0 }}>{t("patients", lang)}</h2>
             <div className="field">
               <label htmlFor="q">{t("searchPatient", lang)}</label>
               <input
                 id="q"
+                ref={searchRef}
+                type="search"
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
-                  void search(e.target.value);
+                  debouncedSearch(e.target.value);
                 }}
                 placeholder={t("searchPatient", lang)}
               />
@@ -127,7 +145,7 @@ export default function PatientsPage() {
                     <td>
                       <button
                         type="button"
-                        className="ghost"
+                        className="secondary"
                         onClick={() => setSelected(p)}
                       >
                         {p.full_name}
@@ -154,6 +172,7 @@ export default function PatientsPage() {
                 <label htmlFor="full_name">{t("fullName", lang)}</label>
                 <input
                   id="full_name"
+                  data-shortcut="new"
                   required
                   minLength={2}
                   value={form.full_name}
@@ -236,13 +255,13 @@ export default function PatientsPage() {
                 </div>
               )}
 
-              <div style={{ display: "flex", gap: "0.5rem" }}>
+              <div className="sticky-actions" style={{ display: "flex", gap: "0.5rem" }}>
                 <button className="primary" type="submit" disabled={busy}>
                   {t("registerPatient", lang)}
                 </button>
                 {pendingAllow && (
                   <button
-                    className="ghost"
+                    className="secondary"
                     type="button"
                     disabled={busy}
                     onClick={() => void submit(true)}
@@ -281,7 +300,16 @@ export default function PatientsPage() {
             </p>
           </section>
         )}
+        {selected && <PatientCommsPanel key={selected.id} patientId={selected.id} />}
       </main>
+    </>
+  );
+}
+
+export default function PatientsPage() {
+  return (
+    <AppShell active="patients">
+      <PatientsBody />
     </AppShell>
   );
 }

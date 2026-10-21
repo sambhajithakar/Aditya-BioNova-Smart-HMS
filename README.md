@@ -4,12 +4,27 @@ Multi-tenant Hospital & Clinic Management System for Indian clinics and
 hospitals — offline-first mobile workflows (M4+), trilingual UI (English / मराठी / हिंदी),
 role-based access, audit trails and a commercial SaaS business layer.
 
-> **Status: Milestone M1 — Foundation (this repository).**
-> Authentication, multi-tenancy, RBAC and audit logging are implemented and
-> tested. Clinical modules (patients, OPD, prescriptions, billing) are **not
-> built yet**. This software is **not production-ready, not certified and not
-> clinically validated**. Synthetic test data only — never enter real patient
-> data at this stage.
+> **Status: M1–M6 modules + M7.0 hardening + M7.1 tenant administration &
+> SaaS foundation + AI-0 Business Copilot (development branch, under
+> review).** Clinic OPD, pharmacy, laboratory, IPD and operations modules
+> exist with tenant isolation enforced in PostgreSQL; M7.0 added MFA, rate
+> limiting, sessions, invitations, PHI-read auditing, backups and a gated CI;
+> M7.1 added tenant settings, 7 configurable editions (prices not set),
+> entitlements, limits, a vendor platform console and support; AI-0 added a
+> governed AI gateway and a trilingual Business Copilot that currently runs
+> on **mock (rule-based) inference only — no AI provider is connected**.
+> M7.2 added SaaS billing (Razorpay **test mode / local simulator only**),
+> communications v2 (**mock delivery**), the setup wizard, QR check-in,
+> printer profiles, AI-1 (statistical forecasts + cited knowledge search +
+> human-approved agent proposals + scribe drafts), the offline-first Android
+> app v2 (demo APK builds) and a responsive/PWA web shell. **Try it:** [docs/DEMO.md](docs/DEMO.md) (synthetic-data demo on your own computer and phone) · module status: [docs/MODULE_STATUS.md](docs/MODULE_STATUS.md). Release gates:
+> [docs/RELEASE_READINESS.md](docs/RELEASE_READINESS.md). See [TASKS.md](TASKS.md),
+> [docs/COMMERCIAL_FEATURE_MATRIX.md](docs/COMMERCIAL_FEATURE_MATRIX.md) and
+> [docs/AI_ARCHITECTURE.md](docs/AI_ARCHITECTURE.md).
+> This software is **not production-ready, not certified and not clinically
+> validated** — independent security, clinical and legal (DPDP/ABDM/CDSCO)
+> validation is required first. **Synthetic data only — never enter real
+> patient data.**
 
 ## Repository layout
 
@@ -20,7 +35,8 @@ Aditya-BioNova-Smart-HMS/
 │   │   ├── app/        application code (routers, models, security, RLS context)
 │   │   ├── alembic/    database migrations (schema, RLS policies, RBAC seed)
 │   │   └── tests/      pytest suite incl. raw PostgreSQL RLS proofs
-│   └── web/            Next.js 15 + TypeScript web portal (login/dashboard shell)
+│   ├── web/            Next.js 15 + TypeScript web portal (EN / मराठी / हिंदी)
+│   └── mobile/         Flutter Android app (offline-first, encrypted outbox)
 ├── packages/contracts/ OpenAPI snapshot (single source of truth; generated)
 ├── infra/docker/       Dockerfiles + docker-compose (local/staging stack)
 ├── scripts/            setup_local_db.sh, generate-contracts.sh
@@ -31,7 +47,7 @@ Aditya-BioNova-Smart-HMS/
 
 ## Quick start (local development)
 
-Prerequisites: Python 3.12+, Node 20+, PostgreSQL 16 (any local instance).
+Prerequisites: Python 3.12+, Node 22.12+ (required by vitest 5; the Docker image uses 22.23), PostgreSQL 16 (any local instance).
 
 ```bash
 # 1) PostgreSQL with a superuser "hms" listening on 127.0.0.1:5433
@@ -55,13 +71,39 @@ export JWT_SECRET=$(python3 -c "import secrets;print(secrets.token_urlsafe(48))"
 docker compose -f infra/docker/docker-compose.yml up --build
 ```
 
-## Tests
+## Tests (all run in CI on every push/PR)
 
 ```bash
-ruff check apps/api --select F,E --line-length 100   # lint
-cd apps/api && ../../.venv/bin/python -m pytest      # 33 tests (auth, RBAC, RLS, audit)
-cd apps/web && npm run typecheck && npm run build    # type-safe production build
+ruff check apps/api --select F,E --line-length 100
+cd apps/api && pytest                      # 299 tests: auth/MFA, RBAC, RLS, clinical, billing, SaaS, comms, AI
+cd apps/web && npm run lint && npm test && npm run build   # ESLint, 150 unit tests
+cd apps/web && npx playwright test         # 27 E2E against a live, seeded API (see playwright.config.ts)
+cd apps/mobile && flutter analyze && flutter test          # 174 tests
+cd apps/mobile && HMS_ALLOW_DEBUG_SIGNING=1 flutter build apk --release --split-per-abi --dart-define=HMS_DEVICE_SIMULATOR=true   # demo APKs (debug certificate, device simulator on)
+./scripts/backup_restore_drill.sh          # encrypted backup -> restore -> compare
 ```
+
+## Demo (synthetic data, local only)
+
+```bash
+cd apps/api && python ../../scripts/seed_demo.py   # needs ENVIRONMENT=development
+```
+
+Creates three synthetic tenants, each on a different edition, plus the
+vendor console account:
+
+| Tenant | Edition | Accounts |
+|---|---|---|
+| Sunrise Demo Clinic | Clinic Plus + AI | `owner@sunrise-demo.example.com`, `doctor@…`, `nurse@…`, `receptionist@…`, `pharmacist@…`, `labtechnician@…`, `billing@…`, `admin@…`, `auditor@…` |
+| BioNova Demo Hospital | Hospital Advanced | `owner@demo-hospital.example.com` + staff roles; wards, beds, an admission |
+| Gram Arogya Rural Clinic | Rural Clinic | `owner@rural-demo.example.com`, `doctor@…` |
+| Platform console | — | `platform@aditya-bionova.example.com` (super-admin; MFA not enforced in development only) |
+
+Each tenant gets eight invented patients, appointments, a queue, paid
+synthetic invoices and (where the edition allows) stock, a lab order and
+expenses. The script prints the shared demo password. E-mails
+(password reset, invitations) go to the development-only mock outbox at
+`GET /api/v1/dev/outbox` — nothing is ever sent.
 
 ## Project rules
 

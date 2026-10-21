@@ -6,6 +6,18 @@ Per-tenant sequence ``INV-000001`` allocated under a per-organization
 advisory transaction lock (same pattern as UHID), with the unique
 ``uq_invoice_org_number`` constraint as backstop.
 
+GST on the discounted value (M7.0)
+----------------------------------
+Tax is charged on the TAXABLE value, i.e. after discount. An invoice-level
+discount is allocated to the lines in proportion to their pre-tax value
+(qty x unit price); each allocation is rounded DOWN to the paisa and the
+left-over paise go one at a time to the lines with the largest rounding
+remainder (largest-remainder method), so the allocations
+always sum to the discount exactly and no line is discounted below zero.
+Per line: ``tax = round((base - allocated_discount) x rate%)`` and
+``line_total = base + tax``; the document keeps the identity
+``total = subtotal - discount + tax_total`` (= sum(line_total) - discount).
+
 Financial ledger
 ----------------
 ``ledger_entries`` is append-only at the database level. Posting rules:
@@ -29,7 +41,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal
 
 from fastapi import HTTPException
 from sqlalchemy import case, func, select, text
@@ -43,6 +55,7 @@ from ..models import (
     Patient,
     Refund,
 )
+from .clinical import effective_allergies
 
 UHID_ATTEMPTS = 3
 _TOKEN_RE = re.compile(r"[a-z]+")
@@ -85,6 +98,50 @@ def compute_line_total(quantity: int, unit_price: float, tax_rate: float) -> Dec
         Decimal("0.01"), rounding=ROUND_HALF_UP
     )
     return money(base + tax)
+
+
+def compute_invoice_totals(
+    lines: list[tuple[int, float, float]], discount: float | Decimal
+) -> tuple[Decimal, Decimal, Decimal, Decimal, list[Decimal]]:
+    """(subtotal, discount, tax_total, total, line_totals) for
+    ``lines = [(quantity, unit_price, tax_rate)]`` — GST after discount.
+
+    Raises 422 if the discount exceeds the subtotal.
+    """
+    bases = [money(Decimal(str(q)) * money(p)) for q, p, _ in lines]
+    subtotal = money(sum(bases, Decimal("0")))
+    disc = money(discount)
+    if disc > subtotal:
+        raise HTTPException(status_code=422, detail="Discount exceeds subtotal")
+
+    shares = [Decimal("0.00")] * len(bases)
+    if disc > 0:
+        exact = [disc * base / subtotal for base in bases]
+        for i, value in enumerate(exact):
+            shares[i] = value.quantize(Decimal("0.01"), rounding=ROUND_DOWN)
+        leftover = disc - sum(shares, Decimal("0"))
+        cent = Decimal("0.01")
+        # largest remainder first (ties: larger line, then line order)
+        order = sorted(range(len(bases)),
+                       key=lambda i: (-(exact[i] - shares[i]), -bases[i], i))
+        while leftover > 0:
+            for i in order:
+                if leftover <= 0:
+                    break
+                if shares[i] + cent <= bases[i]:
+                    shares[i] += cent
+                    leftover -= cent
+
+    tax_total = Decimal("0")
+    line_totals: list[Decimal] = []
+    for (_, _, rate), base, share in zip(lines, bases, shares):
+        tax = ((base - share) * money(rate) / Decimal("100")).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+        tax_total += tax
+        line_totals.append(money(base + tax))
+    tax_total = money(tax_total)
+    return subtotal, disc, tax_total, money(subtotal - disc + tax_total), line_totals
 
 
 # --- ledger -----------------------------------------------------------------
@@ -201,8 +258,10 @@ def rx_warnings(
         ).all()
     }
 
-    # 1) allergy check against the patient's free-text allergy list
-    tokens = _allergy_tokens(patient.allergies)
+    # 1) allergy check against the patient's free-text allergy list —
+    #    including allergies recorded on records merged INTO this patient
+    allergy_text = effective_allergies(db, patient)
+    tokens = _allergy_tokens(allergy_text)
     if tokens:
         for drug_id in set(item_drug_ids):
             drug = drugs.get(drug_id)
@@ -224,7 +283,7 @@ def rx_warnings(
                     {
                         "kind": "allergy",
                         "message": (
-                            f"Allergy warning: patient records '{patient.allergies}' "
+                            f"Allergy warning: patient records '{allergy_text}' "
                             f"and {drug.generic_name} matches '{hit}'."
                         ),
                         "drug_ids": [str(drug_id)],
@@ -294,6 +353,7 @@ __all__ = [
     "assert_ledger_consistent",
     "assert_valid_drugs",
     "balance_due",
+    "compute_invoice_totals",
     "compute_line_total",
     "money",
     "next_invoice_number",

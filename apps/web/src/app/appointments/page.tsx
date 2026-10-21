@@ -6,15 +6,21 @@
  */
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { PatientPicker } from "@/components/PatientPicker";
+import { SlotSuggestions } from "@/components/SlotSuggestions";
+import Link from "next/link";
 import { ApiError, Appointment, Branch, PageOf, Patient, api } from "@/lib/api";
-import { getLang, t } from "@/lib/i18n";
-
-type Lang = "en" | "mr" | "hi";
+import { t } from "@/lib/i18n";
+import { useLang } from "@/lib/lang";
+import { useInFlight } from "@/lib/idempotency";
+import { defaultBranchId, hasPermission, useMe } from "@/lib/me";
 
 const EMPTY = { patient_id: "", branch_id: "", date: "", time: "", minutes: "30", reason: "" };
 
-export default function AppointmentsPage() {
-  const [lang, setLang] = useState<Lang>("en");
+function AppointmentsBody() {
+  const { lang } = useLang();
+  const me = useMe();
+  const { busy, run } = useInFlight();
   const [items, setItems] = useState<Appointment[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -22,23 +28,22 @@ export default function AppointmentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  useEffect(() => setLang(getLang()), []);
 
   const load = useCallback(async () => {
     try {
       const [apptPage, patientPage, branchList] = await Promise.all([
         api.get<PageOf<Appointment>>("/appointments?limit=50"),
-        api.get<PageOf<Patient>>("/patients?limit=50"),
+        api.get<PageOf<Patient>>("/patients?limit=100"), // labels only
         api.get<Branch[]>("/branches"),
       ]);
       setItems(apptPage.items);
       setPatients(patientPage.items);
       setBranches(branchList.filter((b) => b.status === "active"));
-      setForm((f) => ({ ...f, branch_id: f.branch_id || branchList[0]?.id || "" }));
+      setForm((f) => ({ ...f, branch_id: f.branch_id || defaultBranchId(me, branchList) }));
     } catch {
       setError("Could not load appointments.");
     }
-  }, []);
+  }, [me]);
 
   useEffect(() => {
     void load();
@@ -46,7 +51,15 @@ export default function AppointmentsPage() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!form.patient_id) {
+      setError(t("pickPatientFirst", lang));
+      return;
+    }
     setError(null);
+    await run(() => book());
+  }
+
+  async function book() {
     const startsAt = new Date(`${form.date}T${form.time}:00+05:30`);
     const endsAt = new Date(startsAt.getTime() + Number(form.minutes) * 60_000);
     try {
@@ -79,29 +92,14 @@ export default function AppointmentsPage() {
     patients.find((p) => p.id === id)?.full_name ?? "—";
 
   return (
-    <AppShell active="appointments">
+    <>
       <main className="page">
         <h1 style={{ marginTop: 0 }}>{t("appointments", lang)}</h1>
 
         <section className="card">
           <h3 style={{ marginTop: 0 }}>{t("createAppointment", lang)}</h3>
           <form onSubmit={onSubmit} style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-            <div className="field">
-              <label htmlFor="apq">{t("patients", lang)}</label>
-              <select
-                id="apq"
-                required
-                value={form.patient_id}
-                onChange={(e) => setForm({ ...form, patient_id: e.target.value })}
-              >
-                <option value="">—</option>
-                {patients.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.uhid} — {p.full_name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <PatientPicker id="apq" value={form.patient_id} onChange={(id) => setForm((f) => ({ ...f, patient_id: id }))} />
             <div className="field">
               <label htmlFor="apb">{t("branch", lang)}</label>
               <select
@@ -117,7 +115,7 @@ export default function AppointmentsPage() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="apd">{t("dob", lang)}</label>
+              <label htmlFor="apd">{t("apptDate", lang)}</label>
               <input
                 id="apd"
                 type="date"
@@ -144,7 +142,12 @@ export default function AppointmentsPage() {
                 onChange={(e) => setForm({ ...form, reason: e.target.value })}
               />
             </div>
-            <button className="primary" type="submit" style={{ alignSelf: "end" }}>
+            <SlotSuggestions
+              branchId={form.branch_id}
+              date={form.date}
+              onPick={(time, minutes) => setForm((f) => ({ ...f, time, minutes: String(minutes) }))}
+            />
+            <button className="primary" type="submit" style={{ alignSelf: "end" }} disabled={busy}>
               {t("createAppointment", lang)}
             </button>
           </form>
@@ -170,11 +173,17 @@ export default function AppointmentsPage() {
                   <td>{a.reason || "—"}</td>
                   <td>{a.status}</td>
                   <td>
+                    {a.status === "scheduled" && hasPermission(me, "checkin.manage") && (
+                      <Link href={`/checkin/qr?appointment=${a.id}`} style={{ marginRight: "0.5rem" }}>
+                        {t("checkinQrLink", lang)}
+                      </Link>
+                    )}
                     {(a.status === "scheduled" || a.status === "checked_in") && (
                       <button
-                        className="ghost"
+                        className="secondary"
                         type="button"
-                        onClick={() => void cancel(a.id)}
+                        disabled={busy}
+                        onClick={() => void run(() => cancel(a.id))}
                       >
                         {t("cancel", lang)}
                       </button>
@@ -185,7 +194,7 @@ export default function AppointmentsPage() {
               {items.length === 0 && (
                 <tr>
                   <td colSpan={5} className="muted">
-                    No appointments yet.
+                    {t("noAppointments", lang)}
                   </td>
                 </tr>
               )}
@@ -199,6 +208,14 @@ export default function AppointmentsPage() {
           </p>
         )}
       </main>
+    </>
+  );
+}
+
+export default function AppointmentsPage() {
+  return (
+    <AppShell active="appointments">
+      <AppointmentsBody />
     </AppShell>
   );
 }

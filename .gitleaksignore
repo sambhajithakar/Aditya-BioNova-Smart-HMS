@@ -1,0 +1,8 @@
+# Reviewed false positives (fingerprint = commit:file:rule:line).
+# RFC 6238 appendix-B public TOTP test seed (base32 of "12345678901234567890").
+bec2275962395f7fa89ac3deb8b0880f78724c3a:apps/api/tests/test_m7_security.py:generic-api-key:180
+# Synthetic opaque QR check-in codes used as test fixtures (no secret, no PHI):
+ac113136aae698287329af7ccf1a2ba71a08c1f5:apps/mobile/test/dashboard_and_screens_test.dart:generic-api-key:493
+2ca76a287bbd13f460bbb6a9ee7e64f11ceab130:apps/web/src/lib/setup.test.ts:generic-api-key:26
+# M8.1: synthetic 26-char check-in code (base32 of bytes 0x01..0x10) in a Flutter test
+7f9f4cee273c29cfe3de294a5d9cf0f12c5be976:apps/mobile/test/dashboard_and_screens_test.dart:generic-api-key:500

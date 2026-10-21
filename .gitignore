@@ -40,3 +40,13 @@ playwright-report/
 
 # build artifacts
 apps/web/tsconfig.tsbuildinfo
+
+# Local agent worktrees
+.claude/worktrees/
+
+# Database backups — never commit (may contain PHI in non-dev environments)
+backups/
+*.dump
+*.dump.age
+*.dump.gpg
+*.dump*.sha256

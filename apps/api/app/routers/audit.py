@@ -16,7 +16,7 @@ router = APIRouter(prefix="/audit-events", tags=["audit"])
 @router.get("", response_model=Page)
 def list_audit_events(
     principal: Principal = Depends(require_permission("audit.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     action: str | None = Query(default=None, max_length=80),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),

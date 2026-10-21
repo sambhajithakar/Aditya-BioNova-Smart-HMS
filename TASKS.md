@@ -169,24 +169,160 @@ implementation sessions continue milestone by milestone.)
 - [ ] ⏳ Inpatient day-rate/tariff billing — out of scope until the owner
       decides the pricing model (outpatient billing already covers invoices)
 
-## M7 — SaaS commercial layer + hardening
-- [ ] plans/entitlements/trials/subscriptions, tenant export/offboarding
-- [ ] payment gateway in sandbox (Razorpay/Cashfree/PhonePe shortlist)
-- [ ] MFA, e-mail delivery, rate limiting, backups+restore drill, monitoring,
-      dependency vuln scanning, support tickets
+## M7.0 — Correctness & security hardening ✅ (2026-10-20) — on review branch
+Audit: AUDIT_REPORT.md (3 Critical, 24 High). Draft PR
+sambhajithakar/Aditya-BioNova-Smart-HMS#1 — not merged.
+- [x] Patient safety: editable dose/frequency/duration in web Rx (C1); lab
+      order items + release only when complete + multi-specimen (C2, H7);
+      signed Rx INSERT guard (H1); SpO₂ < 85 with escalation note (H2);
+      merge carries allergies/open records (H3); dispense cap (H4); legal Rx
+      print with prescriber registration no. (H5); `enc_status` (H6)
+- [x] Money integrity: report revenue/refunds from the ledger (H8); invoice
+      row locks + sandbox reservation + `amount_paid` CHECK (H9); dispense
+      Idempotency-Key on Rx +
+      invoices and race-free idempotency (H11, H12); per-attempt keys, refund
+      UI, no double submit in web (H13); invoice/payment/refund immutability;
+      GST on post-discount amount
+- [x] Security: no cross-tenant member attach + invitations (H14);
+      X-Request-ID validation (H15); rate limits + enumeration-safe lockout
+      (H16); production secret enforcement (H17); PHI-read audit, fail-closed
+      (H18); httpOnly refresh cookie, nonce CSP, middleware guard (H19);
+      TOTP MFA + recovery codes; password change/forgot/reset; session list/
+      revoke + absolute lifetime; member suspend/role/branch admin;
+      trusted-proxy IPs; audit-function guard; commit-before-response
+- [x] Android: release INTERNET permission (C3); no backup + fail-closed
+      encrypted store (H23); offline start with PIN app lock (H22); per-user
+      outbox + safe sign-out (H20); offline patients kept in pickers (H24);
+      MFA login, refresh, timeouts, retry/backoff
+- [x] Provider-agnostic communications: mock outbox by default; Brevo e-mail,
+      DLT SMS (HTTP) and Meta WhatsApp Cloud adapters built + unit-tested,
+      hard-suppressed until `COMMS_LIVE_ENABLED` + credentials (owner approval)
+- [x] Ops: hash-locked Python deps; Docker non-root/read-only + migrate job;
+      encrypted backups + guarded restore + automated drill; `/health/ready`;
+      CI with pip-audit, npm audit, gitleaks, alembic drift, Flutter, Docker
+      build + compose smoke, drill, web lint/unit, Playwright E2E
+- [x] Synthetic demo clinic seeder (`scripts/seed_demo.py`, 9 role accounts)
+- [x] Tests at M7.0 sign-off: API 164 · web 43 unit + 5 E2E · Flutter 91 (current counts: TEST_RESULTS.md)
+- [ ] H10 open: dispenses are still valued at cost and not billed — fixed by
+      pharmacy sales billing (MRP + GST) in M9
+- [ ] ⏳ Device QA of the Android build (no Android SDK/devices in CI yet)
+- [ ] ⏳ Independent review of the M7.0 changes (owner/reviewer)
+- [x] Mandatory-MFA policy per role/tenant (delivered in M7.1)
 
-## M8 — Devices (simulator-first) + performance
-- [ ] device registry, observation verification queue, BLE simulator harness,
-      compatibility matrix; barcode workflows; p95 latency measurement
+## M7.1 — Identity, tenant administration & commercial foundation ✅ (2026-10-20) — on review branch
+- [x] Organisation profile, onboarding checklist, branches (address/GSTIN),
+      audit-log viewer, data export, offboarding request/cancel
+- [x] Role-aware mandatory MFA (`mfa_required_roles`), enforced server-side
+- [x] 7 editions as data (Rural Clinic, Clinic Starter, Clinic Plus + AI,
+      Multi-Specialty Clinic, Hospital Core, Hospital Advanced, Enterprise);
+      34 features, 6 limits; **prices NULL** until the owner sets them
+- [x] Trials, read-only mode on lapse, user/branch/bed limits, feature gates
+- [x] Platform console for the vendor super-admin (MFA outside dev): tenants,
+      subscriptions, overrides, plan editor, support queue; aggregate counts
+      only — PHI tables stay tenant-only (raw RLS proof)
+- [x] Customer support tickets with internal notes
+- [x] Web settings/platform/support pages; Android mr/hi i18n + Rural mode
+- [x] `docs/COMMERCIAL_FEATURE_MATRIX.md` generated from the catalogue
+- [ ] ⏳ Owner: set plan prices / quotas (catalogue editor in the console)
+- [ ] Feature keys exist for modules not built yet (Scribe, agents, OT, ER,
+      TPA, ABDM, FHIR …) — switches only, **not features**; see the matrix
 
-## M9 — Release readiness (human gates)
-- [ ] independent security review, clinical validation, legal (DPDP/ABDM/CDSCO)
-      review, supervised pilot 5–10 clinics, release documentation
-- [ ] **Do not claim production-ready until these gates pass.**
+## AI-0 — AI gateway governance + Business Copilot ✅ (2026-10-20) — mock inference
+- [x] Kill switches, tenant opt-in, data classes C0–C3 + provider ceiling,
+      append-only credit ledger with advisory lock, sealed request audit
+- [x] Business Copilot (EN/मराठी/हिंदी): whitelisted report catalogue (9),
+      figures computed from own records, mock/live label, "how computed"
+- [x] Live OpenAI-compatible adapter with redaction — tested with a fake
+      server only; **disabled** (`AI_LIVE_ENABLED=false`)
+- [x] `docs/AI_ARCHITECTURE.md` (architecture, evaluation, roadmap)
+- [ ] ⏳ Owner: approve an AI provider / India-hosted option before any live call
+- [ ] Scribe, agents, RAG, document AI, ML forecasting — not built
+
+## M7.2 — SaaS billing ✅ (2026-10-20) — sandbox / simulator only
+- [x] Razorpay TEST-mode adapter (Orders, checkout + webhook HMAC, refunds)
+      and a dev-only payment simulator; live keys refused at startup
+- [x] Server-priced orders with GST (CGST+SGST / IGST), FY invoice series,
+      credit notes, idempotency, exactly-once fulfilment, reconciliation
+- [x] Trial → paid → past-due (grace) → read-only lifecycle; failed-payment
+      retry; read-only clinics can still pay; AI credit packs
+- [x] Refunds: clinic requests, vendor approves (four-eyes, DB-enforced)
+- [x] Web: /settings/billing, /platform/billing; CI builds the demo APK
+- [ ] Not done: Razorpay Subscriptions/auto-debit, proration, coupons,
+      reseller/partner commission tracking, e-invoicing (IRN), Cashfree adapter
+- [ ] ⏳ Owner: prices, Razorpay test keys → approval for live
+
+## Communications v2 + follow-up CRM ✅ (2026-10-20) — mock delivery
+- [x] Templates (EN/मराठी/हिंदी, placeholder whitelist, no clinical content),
+      consent/opt-out, quiet hours, quotas + spend cap, append-only log,
+      idempotent reminders (+ scheduler entry point), follow-ups, missed visits
+- [ ] ⏳ Owner: vendors + DLT registration before any live message
+
+## Smart Setup, QR check-in, printers ✅ (2026-10-20)
+- [x] Resumable wizard; working hours; fee defaults; Rx template; billing
+      defaults; printer profiles + test pages; slot suggestions
+- [x] Privacy-preserving QR check-in (opaque hashed single-use code),
+      idempotent/race-safe confirm, kiosk shows only the token number
+- [ ] Not done: forced first-login wizard, invoice prefix / fee auto-fill
+      applied to billing, dedicated kiosk device login; physical printers untested
+
+## AI-1 ✅ (2026-10-20) — statistical models + mock inference
+- [x] Forecasts (OPD, beds, pharmacy/inventory demand, no-show) with backtests
+- [x] Knowledge assistant (BM25, cited, approved SOPs only, PHI upload guard)
+- [x] Agent proposals with human approval; Clinical Scribe draft workflow
+- [ ] Not done: ASR, OCR/document AI, embeddings, live provider, name
+      de-identification, scribe panel inside the consultation page
+
+## Android offline-first v2 ✅ (2026-10-20) — APK builds; device QA pending
+- [x] 8-state sync model, dependency ordering + id rewrite, stable
+      idempotency keys, backoff, conflicts with human resolution, revocation
+- [x] Role homes, offline finalisation guard, scanner, PDFs, bounded caches
+- [x] Release APK builds (universal + per-ABI), CI artifact
+- [ ] API follow-ups: Idempotency-Key on POST /appointments and /encounters;
+      If-Match on PATCH /patients; distinct "revoked" 401
+- [ ] Not done: background sync when closed, Devanagari font in PDFs,
+      metered-network adapter, real-device QA, release signing (owner key)
+
+## Web device optimisation + PWA ✅ (2026-10-20) — emulated devices only
+- [x] Phone bottom nav, desktop shortcuts, connectivity banner, PWA (no PHI
+      cached), paper picker, benchmarks (−17 % to −29 % navigation time)
+- [ ] Not done: per-language i18n split (14 kB gzip saving), real hardware QA
+
+## Roadmap after M7.0 (owner decisions of 2026-10-20 applied)
+Order and acceptance criteria: IMPLEMENTATION_PLAN.md.
+- ~~M7.1 Identity & tenant admin~~ ✅ (see above). Still open from the
+  original scope: letterhead/masters UI and branch-scoped data access in RLS
+- **M7.2 SaaS payments** — Razorpay subscriptions in **sandbox only**
+  (Cashfree as alternative), monthly/annual billing, SaaS invoices, AI
+  credit packs, reseller tracking (plans/entitlements/limits/console done)
+- **M8 Billing 2.0** — tariff master, GST invoice (GSTIN, SAC/HSN,
+  CGST/SGST/IGST), FY invoice series, credit notes; Razorpay patient
+  payments (sandbox, webhook signature verification)
+- **M9 Pharmacy commercial** — MRP/selling price, counter sale + GST bill,
+  returns, suppliers/PO/GRN, Schedule H/H1/X registers, pharmacy-only edition
+- **M10 Laboratory commercial** — analyte parameters, age/sex reference
+  ranges + auto-flagging, critical alerts, signed report PDF, lab billing,
+  lab-only edition
+- **M11 Hospital depth** — IPD running bill (bed-days, packages, deposits),
+  discharge summary, MAR, ER triage/MLC, OT scheduling, TPA tracking
+- **M12 Android & offline v2** — background sync, pharmacy/lab/IPD rounds on
+  mobile, mr/hi i18n, crash reporting, device QA matrix
+- **M13 AI Intelligence** — provider-independent gateway; India-hosted
+  options evaluated for sensitive data; **no identifiable patient data to a
+  third-party AI service without privacy/contract/regulatory safeguards**
+  (de-identification + tenant opt-in + audit). Order: Business Copilot
+  (operational analytics, stock/no-show forecasting) → deterministic DDI /
+  dose-range checks → AI Clinical Scribe (voice → draft note, EN/मराठी/हिंदी,
+  clinician must review/accept) → lab-result summaries; CDSCO SaMD review
+- **M14 Integrations & release gates** — ABDM (ABHA/HIP), live comms after
+  approval, FHIR export, observability, PITR/off-site backups, staging IaC,
+  load test, independent pentest, DPDP review, clinical validation,
+  supervised pilot (5–10 sites). **Do not claim production-ready before these
+  human gates pass.**
 
 ## Backlog / decisions pending owner
-- Edition strategy confirmation (one backend, two frontends)
-- Pilot BP/SpO2 device model for physical validation (M8)
-- Hosting provider + payment provider final selection
-- E-mail provider for password reset + appointment reminders (M7 gate)
-- M3 start approval: consultation → prescription → billing → receipt
+- Approve live comms vendors + DLT registration (Brevo vs Amazon SES; SMS
+  vendor; Meta WhatsApp business verification) — sandbox/mock until then
+- Plan prices and quotas for the seven editions (configured in the platform console, not coded)
+- AI provider shortlist + India data-residency decision
+- Hosting provider for private staging
+- Pilot BP/SpO2 device model for physical validation

@@ -6,6 +6,11 @@ Blueprint rules enforced here (§R4):
 * dispensing is FEFO and requires ``pharmacy.dispense``; pharmacists
   dispense against a SIGNED prescription (or a registered patient for
   OTC), never editing the prescription itself;
+* dispensing against an Rx is CAPPED (M7.0 / H4): an item with
+  ``dispense_quantity`` may be dispensed up to that many units in total, an
+  item without it exactly once. Totals span the whole amendment chain (an
+  amended v2 does not reset what v1 already handed out) and the Rx row is
+  locked ``FOR UPDATE`` so concurrent dispenses cannot both pass the check;
 * expired or recalled stock cannot leave the shelf (DB trigger backstop);
 * stock adjustments are audited and reason-coded.
 """
@@ -36,9 +41,11 @@ from ..deps import (
 )
 from ..models import (
     Dispense,
+    DispenseItem,
     DrugCatalog,
     Patient,
     Prescription,
+    PrescriptionItem,
     StockBatch,
     StockMovement,
 )
@@ -54,6 +61,7 @@ from ..schemas import (
     StockMovementOut,
 )
 from ..services.clinical import idempotent_replay, idempotent_store
+from ..services.tenancy import load_branch
 from ..services.pharmacy import (
     EXPIRY_WARNING_DAYS,
     adjust_stock,
@@ -103,7 +111,7 @@ def post_receive_stock(
     request: Request,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: Principal = Depends(require_permission("pharmacy.manage")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> StockBatchOut:
     body = payload.model_dump(mode="json")
     replay = idempotent_replay(
@@ -115,6 +123,8 @@ def post_receive_stock(
     )
     if replay:
         return StockBatchOut.model_validate(replay["body"])
+
+    load_branch(db, principal, payload.branch_id)  # FKs bypass RLS
 
     # same batch number twice at the same branch for the same drug -> 409
     dup = db.scalar(
@@ -181,7 +191,7 @@ def list_stock_batches(
     limit: int = 50,
     offset: int = 0,
     principal: Principal = Depends(require_permission("pharmacy.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = min(max(limit, 1), MAX_LIMIT)
     q = select(StockBatch).where(
@@ -210,7 +220,7 @@ def list_stock_batches(
 @router.get("/stock/alerts", response_model=StockAlertOut)
 def stock_alerts(
     principal: Principal = Depends(require_permission("pharmacy.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> StockAlertOut:
     today = date.today()
     horizon = today + timedelta(days=EXPIRY_WARNING_DAYS)
@@ -267,7 +277,7 @@ def post_adjust_stock(
     payload: AdjustStockIn,
     request: Request,
     principal: Principal = Depends(require_permission("pharmacy.manage")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> StockMovementOut:
     batch = _get_batch(db, principal, batch_id)
     if batch.status == "recalled":
@@ -306,7 +316,7 @@ def list_stock_movements(
     limit: int = 50,
     offset: int = 0,
     principal: Principal = Depends(require_permission("pharmacy.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = min(max(limit, 1), MAX_LIMIT)
     q = select(StockMovement).where(
@@ -330,7 +340,7 @@ def post_dispense(
     request: Request,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: Principal = Depends(require_permission("pharmacy.dispense")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> DispenseOut:
     body = payload.model_dump(mode="json")
     replay = idempotent_replay(
@@ -349,14 +359,19 @@ def post_dispense(
             detail="prescription_id or patient_id is required",
         )
 
+    if payload.branch_id is not None:
+        load_branch(db, principal, payload.branch_id)
+
     rx_drug_ids: set[uuid.UUID] = set()
     patient_id = payload.patient_id
+    rx = None
     if payload.prescription_id is not None:
+        # FOR UPDATE: serializes concurrent dispenses of one prescription
         rx = db.scalar(
             select(Prescription).where(
                 Prescription.id == payload.prescription_id,
                 Prescription.organization_id == principal.organization_id,
-            )
+            ).with_for_update()
         )
         if rx is None:
             raise HTTPException(status_code=404, detail="Prescription not found")
@@ -371,7 +386,6 @@ def post_dispense(
                 detail="patient_id does not match the prescription",
             )
         patient_id = rx.patient_id
-        from ..models import PrescriptionItem
         rx_drug_ids = set(
             db.scalars(
                 select(PrescriptionItem.drug_id).where(
@@ -403,6 +417,8 @@ def post_dispense(
                     "Drug(s) not on prescription: " + ", ".join(not_on_rx)
                 ),
             )
+    if rx is not None:
+        _enforce_rx_dispense_caps(db, principal, rx, payload)
 
     dispense = Dispense(
         organization_id=principal.organization_id,
@@ -454,6 +470,75 @@ def post_dispense(
     return out
 
 
+def _rx_lineage(db: Session, principal: Principal, rx: Prescription) -> list[uuid.UUID]:
+    """This prescription and every version it supersedes (v1 .. vN)."""
+    ids = [rx.id]
+    current = rx.supersedes_id
+    while current is not None and current not in ids and len(ids) < 100:
+        ids.append(current)
+        current = db.scalar(
+            select(Prescription.supersedes_id).where(
+                Prescription.id == current,
+                Prescription.organization_id == principal.organization_id,
+            )
+        )
+    return ids
+
+
+def _enforce_rx_dispense_caps(
+    db: Session, principal: Principal, rx: Prescription, payload: DispenseIn
+) -> None:
+    """409 when this dispense would exceed what the prescription allows.
+
+    Per drug: if every Rx line for it carries ``dispense_quantity`` the cap
+    is their sum; otherwise the drug may be dispensed once (any quantity).
+    Already-dispensed units count across the amendment chain.
+    """
+    caps: dict[uuid.UUID, list[int | None]] = {}
+    for drug_id, qty in db.execute(
+        select(PrescriptionItem.drug_id, PrescriptionItem.dispense_quantity).where(
+            PrescriptionItem.organization_id == principal.organization_id,
+            PrescriptionItem.prescription_id == rx.id,
+        )
+    ).all():
+        caps.setdefault(drug_id, []).append(qty)
+
+    lineage = _rx_lineage(db, principal, rx)
+    dispensed = {
+        drug_id: int(total or 0)
+        for drug_id, total in db.execute(
+            select(DispenseItem.drug_id, func.sum(DispenseItem.quantity))
+            .join(Dispense, Dispense.id == DispenseItem.dispense_id)
+            .where(
+                Dispense.organization_id == principal.organization_id,
+                Dispense.prescription_id.in_(lineage),
+            )
+            .group_by(DispenseItem.drug_id)
+        ).all()
+    }
+    problems: list[str] = []
+    for item in payload.items:
+        quantities = caps.get(item.drug_id, [])
+        already = dispensed.get(item.drug_id, 0)
+        if quantities and all(q is not None for q in quantities):
+            cap = sum(quantities)
+            if already + item.quantity > cap:
+                problems.append(
+                    f"{item.drug_id}: prescribed {cap}, already dispensed "
+                    f"{already}, requested {item.quantity}"
+                )
+        elif already > 0:
+            problems.append(
+                f"{item.drug_id}: already dispensed ({already} units) and the "
+                "prescription sets no dispense quantity"
+            )
+    if problems:
+        raise HTTPException(
+            status_code=409,
+            detail="Dispense exceeds the prescription: " + "; ".join(problems),
+        )
+
+
 def _infer_branch(db: Session, principal: Principal, payload: DispenseIn) -> uuid.UUID:
     """Dispense at the branch where the stock lives: the FIRST batch the FEFO
     allocation will touch. Simplification for M5: resolve the branch with
@@ -483,7 +568,7 @@ def list_dispenses(
     limit: int = 50,
     offset: int = 0,
     principal: Principal = Depends(require_permission("pharmacy.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = min(max(limit, 1), MAX_LIMIT)
     q = select(Dispense).where(

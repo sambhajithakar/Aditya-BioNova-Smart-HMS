@@ -154,9 +154,9 @@ def test_failed_logins_are_audited(client):
     """Failed logins are recorded (org-unattributed: an unknown attacker email
     belongs to no tenant, so only operators/DBAs can review these)."""
     import psycopg2
-    from tests.conftest import PG_HOST, PG_PORT, PG_SUPERUSER
+    from tests.conftest import PG_HOST, PG_PORT, PG_SUPERUSER, TEST_DB
 
-    conn = psycopg2.connect(host=PG_HOST, port=PG_PORT, user=PG_SUPERUSER, dbname="hms_test")
+    conn = psycopg2.connect(host=PG_HOST, port=PG_PORT, user=PG_SUPERUSER, dbname=TEST_DB)
     conn.autocommit = True
     try:
         cur = conn.cursor()

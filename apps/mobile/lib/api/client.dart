@@ -2,21 +2,82 @@
 ///
 /// Authenticated requests carry the session bearer token; errors surface
 /// the API's `detail` verbatim (the same 403/409/422 the web shows).
+///
+/// Session lifecycle (M7.0):
+/// * `POST /auth/login` may answer with an MFA challenge
+///   (`{mfa_required: true, mfa_token}`) — see [login] / [verifyMfa];
+/// * a 401 on an authenticated call triggers ONE refresh-token rotation
+///   (`POST /auth/refresh`, single-flight, new pair persisted before use)
+///   and the call is retried once; only if that fails is the session
+///   reported expired — the outbox is never touched;
+/// * 429 surfaces as [ApiException] with `retryAfter`.
 library;
 
+import '../auth/revocation.dart';
 import '../auth/session.dart';
 import 'transport.dart';
+
+/// Outcome of a refresh attempt.
+enum RefreshOutcome {
+  /// New token pair stored.
+  refreshed,
+
+  /// The server refused the refresh token: the user must sign in again.
+  rejected,
+
+  /// Could not reach the server (offline, timeout, 5xx, 429): try later.
+  unavailable,
+}
+
+/// What `POST /auth/login` answered.
+sealed class LoginOutcome {
+  const LoginOutcome();
+}
+
+/// Signed in; tokens and profile stored.
+class LoginSucceeded extends LoginOutcome {
+  const LoginSucceeded(this.profile);
+
+  final SessionProfile? profile;
+}
+
+/// A second factor is required: call [HmsClient.verifyMfa] with this token.
+class MfaChallenge extends LoginOutcome {
+  const MfaChallenge({
+    required this.mfaToken,
+    this.methods = const ['totp'],
+    this.expiresIn = 300,
+  });
+
+  final String mfaToken;
+  final List<String> methods;
+  final int expiresIn;
+}
 
 class HmsClient {
   HmsClient({
     required this.transport,
     required this.session,
     this.onUnauthorized,
+    this.onSessionEnded,
   });
 
   final ApiTransport transport;
   final Session session;
-  final void Function()? onUnauthorized;
+
+  /// Called when the session is dead (401 and the refresh was rejected).
+  void Function()? onUnauthorized;
+
+  /// Called once per refused refresh with how the session ended — plain
+  /// expiry, or revoked server-side (see `auth/revocation.dart`).
+  void Function(SessionEnd end)? onSessionEnded;
+
+  Future<RefreshOutcome>? _refreshing;
+  String? _lastAccessDenial;
+
+  /// Record the `detail` of a 401 on an authenticated call (the sync engine
+  /// reports its own 401s here too) — it tells revocation from expiry.
+  void noteAccessDenied(String detail) => _lastAccessDenial = detail;
 
   /// Raw call that returns the [ApiResponse] instead of throwing, so the
   /// sync engine can distinguish 409 (conflict) from 5xx (retry later).
@@ -26,21 +87,86 @@ class HmsClient {
     Map<String, dynamic>? body,
     Map<String, String>? extraHeaders,
   }) async {
+    var res = await _sendAuthed(method, path, body, extraHeaders);
+    if (res.status == 401) {
+      noteAccessDenied(res.detail);
+      final outcome = await refresh();
+      if (outcome == RefreshOutcome.refreshed) {
+        res = await _sendAuthed(method, path, body, extraHeaders);
+      }
+      if (res.status == 401 && outcome != RefreshOutcome.unavailable) {
+        onUnauthorized?.call();
+      }
+    }
+    return res;
+  }
+
+  Future<ApiResponse> _sendAuthed(
+    String method,
+    String path,
+    Map<String, dynamic>? body,
+    Map<String, String>? extraHeaders,
+  ) async {
     final token = await session.accessToken();
     final headers = <String, String>{
       if (token != null) 'Authorization': 'Bearer $token',
       ...?extraHeaders,
     };
-    final res = await transport.send(
+    return transport.send(
       method: method,
       path: path,
       body: body,
       headers: headers,
     );
-    if (res.status == 401) {
-      onUnauthorized?.call();
+  }
+
+  /// Rotate the refresh token. Concurrent callers share ONE request: the
+  /// API treats a replayed (already rotated) refresh token as theft and
+  /// revokes the whole session family.
+  Future<RefreshOutcome> refresh() {
+    final inFlight = _refreshing;
+    if (inFlight != null) return inFlight;
+    final next = _doRefresh();
+    _refreshing = next;
+    return next.whenComplete(() => _refreshing = null);
+  }
+
+  Future<RefreshOutcome> _doRefresh() async {
+    final token = await session.refreshToken();
+    if (token == null) return RefreshOutcome.rejected;
+    final ApiResponse res;
+    try {
+      res = await transport.send(
+        method: 'POST',
+        path: '/auth/refresh',
+        body: {'refresh_token': token},
+      );
+    } catch (_) {
+      return RefreshOutcome.unavailable;
     }
-    return res;
+    if (res.ok) {
+      final access = res.body['access_token'];
+      final rotated = res.body['refresh_token'];
+      if (access is! String || rotated is! String) {
+        return RefreshOutcome.unavailable;
+      }
+      await session.rotate(accessToken: access, refreshToken: rotated);
+      _lastAccessDenial = null;
+      return RefreshOutcome.refreshed;
+    }
+    if (res.retryable) return RefreshOutcome.unavailable;
+    // 401/403/422: the refresh token is dead. Keep the profile (and the
+    // outbox) so the same user can sign in again — unless the session was
+    // revoked, which the graph handles through [onSessionEnded].
+    final end = classifySessionEnd(
+      lastAccessDenial: _lastAccessDenial,
+      refreshStatus: res.status,
+      refreshDetail: res.detail,
+    );
+    _lastAccessDenial = null;
+    await session.expire();
+    onSessionEnded?.call(end);
+    return RefreshOutcome.rejected;
   }
 
   /// Same as [sendRaw] but throws [ApiException] on non-2xx responses.
@@ -50,10 +176,10 @@ class HmsClient {
     Map<String, dynamic>? body,
     Map<String, String>? extraHeaders,
   }) async {
-    final res = await sendRaw(method, path,
-        body: body, extraHeaders: extraHeaders);
+    final res =
+        await sendRaw(method, path, body: body, extraHeaders: extraHeaders);
     if (!res.ok) {
-      throw ApiException(res.status, res.detail);
+      throw ApiException(res.status, res.detail, retryAfter: res.retryAfter);
     }
     return res.json;
   }
@@ -70,7 +196,9 @@ class HmsClient {
     return json;
   }
 
-  Future<void> login({
+  /// `POST /auth/login`. Returns [LoginSucceeded] (session stored) or an
+  /// [MfaChallenge]; throws [ApiException] on 401/429/…
+  Future<LoginOutcome> login({
     required String email,
     required String password,
     String? organizationSlug,
@@ -86,16 +214,70 @@ class HmsClient {
       },
     );
     if (!res.ok) {
-      throw ApiException(res.status, res.detail);
+      throw ApiException(res.status, res.detail, retryAfter: res.retryAfter);
     }
+    if (res.body['mfa_required'] == true) {
+      final token = res.body['mfa_token'];
+      if (token is! String || token.isEmpty) {
+        throw ApiException(res.status, 'Malformed MFA challenge');
+      }
+      final methods = res.body['methods'];
+      return MfaChallenge(
+        mfaToken: token,
+        methods: methods is List
+            ? methods.whereType<String>().toList()
+            : const ['totp'],
+        expiresIn: (res.body['expires_in'] as num?)?.toInt() ?? 300,
+      );
+    }
+    return LoginSucceeded(await _storeAuthSession(res));
+  }
+
+  /// `POST /auth/mfa/verify` with a 6-digit TOTP or a recovery code.
+  Future<LoginSucceeded> verifyMfa({
+    required String mfaToken,
+    required String code,
+  }) async {
+    final res = await transport.send(
+      method: 'POST',
+      path: '/auth/mfa/verify',
+      body: {'mfa_token': mfaToken, 'code': code.trim()},
+    );
+    if (!res.ok) {
+      throw ApiException(res.status, res.detail, retryAfter: res.retryAfter);
+    }
+    return LoginSucceeded(await _storeAuthSession(res));
+  }
+
+  Future<SessionProfile?> _storeAuthSession(ApiResponse res) async {
     final tokens = res.body['tokens'];
-    if (tokens is! Map<String, dynamic>) {
+    if (tokens is! Map<String, dynamic> ||
+        tokens['access_token'] is! String ||
+        tokens['refresh_token'] is! String) {
       throw ApiException(res.status, 'Malformed login response');
     }
+    final profile = SessionProfile.fromAuthSession(res.body);
     await session.save(
       accessToken: tokens['access_token'] as String,
       refreshToken: tokens['refresh_token'] as String,
+      profile: profile,
     );
+    return profile;
+  }
+
+  /// Best-effort server-side logout; never throws (sign-out works offline).
+  Future<void> logout() async {
+    try {
+      final token = await session.accessToken();
+      if (token == null) return;
+      await transport.send(
+        method: 'POST',
+        path: '/auth/logout',
+        headers: {'Authorization': 'Bearer $token'},
+      );
+    } catch (_) {
+      // Offline: the local wipe still happens; the server session expires.
+    }
   }
 
   Future<Map<String, dynamic>> me() => requestMap('GET', '/auth/me');
@@ -110,4 +292,81 @@ class HmsClient {
     }
     return json;
   }
+
+  /// `GET /patients?q=` — server-side search (online only).
+  Future<Map<String, dynamic>> searchPatients(String q,
+          {int limit = 50, int offset = 0}) =>
+      requestMap('GET',
+          '/patients?q=${Uri.encodeQueryComponent(q)}&limit=$limit&offset=$offset');
+
+  Future<Map<String, dynamic>> getPatient(String id) =>
+      requestMap('GET', '/patients/$id');
+
+  /// Merge-by-review: only the fields the user ticked, sent online after
+  /// the server record was re-read on screen.
+  Future<Map<String, dynamic>> patchPatient(
+          String id, Map<String, dynamic> fields) =>
+      requestMap('PATCH', '/patients/$id', body: fields);
+
+  /// `GET /reports/summary?from=&to=` (needs `report.read`).
+  Future<Map<String, dynamic>> reportSummary(String from, String to) =>
+      requestMap('GET', '/reports/summary?from=$from&to=$to');
+
+  Future<Map<String, dynamic>> listAppointments(String fromDate, String toDate,
+          {int limit = 100}) =>
+      requestMap('GET',
+          '/appointments?from_date=$fromDate&to_date=$toDate&limit=$limit');
+
+  Future<Map<String, dynamic>> listQueue(String serviceDate,
+          {int limit = 100}) =>
+      requestMap('GET', '/opd/queue?service_date=$serviceDate&limit=$limit');
+
+  Future<Map<String, dynamic>> getPrescription(String id) =>
+      requestMap('GET', '/prescriptions/$id');
+
+  Future<Map<String, dynamic>> listInvoices({int limit = 20}) =>
+      requestMap('GET', '/billing/invoices?limit=$limit');
+
+  Future<Map<String, dynamic>> getInvoice(String id) =>
+      requestMap('GET', '/billing/invoices/$id');
+
+  /// Online-only, server-verified: never queued in the outbox.
+  Future<Map<String, dynamic>> recordPayment({
+    required String invoiceId,
+    required double amount,
+    required String method,
+    required String idempotencyKey,
+  }) async {
+    final json = await request(
+      'POST',
+      '/billing/invoices/$invoiceId/payments',
+      body: {'amount': amount, 'method': method, 'gateway': 'manual'},
+      extraHeaders: {'Idempotency-Key': idempotencyKey},
+    );
+    return json is Map<String, dynamic> ? json : const {};
+  }
+
+  Future<Map<String, dynamic>> completeEncounter(String id) =>
+      requestMap('POST', '/encounters/$id/complete');
+
+  Future<Map<String, dynamic>> listInventoryItems({int limit = 200}) =>
+      requestMap('GET', '/inventory/items?limit=$limit');
+
+  /// Online-only stock adjustment from a reviewed count draft.
+  Future<Object?> postStockAdjustment({
+    required String itemId,
+    required int quantity,
+    required String reason,
+    required String idempotencyKey,
+  }) =>
+      request(
+        'POST',
+        '/inventory/items/$itemId/movements',
+        body: {
+          'movement_type': 'adjustment',
+          'quantity': quantity,
+          'reason': reason,
+        },
+        extraHeaders: {'Idempotency-Key': idempotencyKey},
+      );
 }

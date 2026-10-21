@@ -13,14 +13,20 @@ Blueprint rules enforced (§R3.5):
 * every drug must come from the validated ``drug_catalog`` — free-text
   medication entry is impossible by construction;
 * duplicate-drug warnings are advisory but returned by POST /warnings and
-  embedded in sign failures.
+  embedded in sign failures;
+* POST /prescriptions honours ``Idempotency-Key``; a supplied encounter must
+  belong to this tenant AND to the same patient;
+* the detail view carries the prescriber (name + registration number) and
+  the drug names copied from the catalog at read time — including drugs
+  deactivated since — so a printed Rx always names what was prescribed.
 """
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -37,11 +43,13 @@ from ..models import (
     Patient,
     Prescription,
     PrescriptionItem,
+    User,
 )
 from ..schemas import (
     AmendRxIn,
     DrugOut,
     PageOut,
+    PrescriberOut,
     PrescriptionDetailOut,
     PrescriptionIn,
     PrescriptionOut,
@@ -50,19 +58,39 @@ from ..schemas import (
     SignRxIn,
 )
 from ..services.billing import assert_valid_drugs, rx_warnings
+from ..services.clinical import idempotent_replay, idempotent_store
+from ..services.tenancy import load_encounter
 
 router = APIRouter(prefix="/prescriptions", tags=["prescriptions"])
 
 MAX_LIMIT = 100
 
+# catalog names embed the strength ("Paracetamol 500 mg", "Lidocaine 2%
+# injection"); split it out for the printed Rx
+_STRENGTH_RE = re.compile(
+    r"^(?P<name>.*?)\s+(?P<strength>\d+(?:\.\d+)?\s*(?:(?:mg|mcg|g|ml|iu)\b|%).*)$",
+    re.IGNORECASE,
+)
 
-def _get_rx(db: Session, principal: Principal, rx_id: uuid.UUID) -> Prescription:
-    row = db.scalar(
-        select(Prescription).where(
-            Prescription.id == rx_id,
-            Prescription.organization_id == principal.organization_id,
-        )
+
+def split_strength(catalog_name: str) -> tuple[str, str]:
+    m = _STRENGTH_RE.match(catalog_name)
+    if m is None:
+        return catalog_name, ""
+    return m.group("name"), m.group("strength")
+
+
+def _get_rx(
+    db: Session, principal: Principal, rx_id: uuid.UUID, *, lock: bool = False
+) -> Prescription:
+    stmt = select(Prescription).where(
+        Prescription.id == rx_id,
+        Prescription.organization_id == principal.organization_id,
     )
+    if lock:
+        # serializes sign/amend of one Rx (two amends cannot both build N+1)
+        stmt = stmt.with_for_update()
+    row = db.scalar(stmt)
     if row is None:
         raise HTTPException(status_code=404, detail="Prescription not found")
     return row
@@ -77,8 +105,34 @@ def _detail(db: Session, principal: Principal, rx: Prescription) -> Prescription
         )
         .order_by(PrescriptionItem.seq)
     ).all()
+    # names come from the catalog row itself (no is_active filter): a drug
+    # deactivated after signing must still print on the prescription
+    drugs = {
+        d.id: d
+        for d in db.scalars(
+            select(DrugCatalog).where(
+                DrugCatalog.id.in_({i.drug_id for i in items})
+            )
+        ).all()
+    } if items else {}
     detail = PrescriptionDetailOut.model_validate(rx)
-    detail.items = [RxItemOut.model_validate(i) for i in items]
+    out_items = []
+    for i in items:
+        item = RxItemOut.model_validate(i)
+        drug = drugs.get(i.drug_id)
+        if drug is not None:
+            item.drug_name = drug.generic_name
+            item.generic_name, item.strength = split_strength(drug.generic_name)
+        out_items.append(item)
+    detail.items = out_items
+    if rx.prescriber_user_id is not None:
+        user = db.get(User, rx.prescriber_user_id)
+        if user is not None:
+            detail.prescriber = PrescriberOut(
+                user_id=user.id,
+                full_name=user.full_name,
+                registration_number=user.registration_number,
+            )
     return detail
 
 
@@ -114,6 +168,7 @@ def _build_items(
                 duration_days=item.duration_days,
                 quantity=item.quantity,
                 instructions=item.instructions,
+                dispense_quantity=item.dispense_quantity,
                 seq=seq,
             )
         )
@@ -146,7 +201,7 @@ def list_drugs(
     q: str | None = None,
     limit: int = 50,
     principal: Principal = Depends(require_permission("prescription.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> list[DrugOut]:
     limit = max(1, min(limit, 200))
     stmt = select(DrugCatalog).where(DrugCatalog.is_active.is_(True))
@@ -165,10 +220,26 @@ def list_drugs(
 def create_draft(
     payload: PrescriptionIn,
     request: Request,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: Principal = Depends(require_permission("prescription.sign")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PrescriptionDetailOut:
+    body = payload.model_dump(mode="json")
+    replay = idempotent_replay(
+        db,
+        organization_id=principal.organization_id,
+        key=idempotency_key,
+        endpoint="POST /prescriptions",
+        payload=body,
+    )
+    if replay:
+        return PrescriptionDetailOut.model_validate(replay["body"])
+
     patient = _load_patient(db, principal, payload.patient_id)
+    if payload.encounter_id is not None:
+        # FK checks bypass RLS: prove the encounter is ours and this patient's
+        load_encounter(db, principal, payload.encounter_id,
+                       patient_id=payload.patient_id)
     rx = Prescription(
         organization_id=principal.organization_id,
         encounter_id=payload.encounter_id,
@@ -195,14 +266,24 @@ def create_draft(
         correlation_id=get_correlation_id(request),
         ip_address=get_client_ip(request),
     )
-    return _detail(db, principal, rx)
+    out = _detail(db, principal, rx)
+    idempotent_store(
+        db,
+        organization_id=principal.organization_id,
+        key=idempotency_key,
+        endpoint="POST /prescriptions",
+        payload=body,
+        status=201,
+        body=out.model_dump(mode="json"),
+    )
+    return out
 
 
 @router.post("/{rx_id}/warnings", response_model=RxWarningsOut)
 def check_warnings(
     rx_id: uuid.UUID,
     principal: Principal = Depends(require_permission("prescription.sign")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> RxWarningsOut:
     """Pre-flight safety check (allergy + duplicate) without signing."""
     rx = _get_rx(db, principal, rx_id)
@@ -223,7 +304,7 @@ def list_prescriptions(
     limit: int = 20,
     offset: int = 0,
     principal: Principal = Depends(require_permission("prescription.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = max(1, min(limit, MAX_LIMIT))
     offset = max(0, offset)
@@ -257,7 +338,7 @@ def list_prescriptions(
 def get_prescription(
     rx_id: uuid.UUID,
     principal: Principal = Depends(require_permission("prescription.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PrescriptionDetailOut:
     return _detail(db, principal, _get_rx(db, principal, rx_id))
 
@@ -268,9 +349,9 @@ def sign_prescription(
     payload: SignRxIn,
     request: Request,
     principal: Principal = Depends(require_permission("prescription.sign")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PrescriptionDetailOut:
-    rx = _get_rx(db, principal, rx_id)
+    rx = _get_rx(db, principal, rx_id, lock=True)
     if rx.status != "draft":
         raise HTTPException(
             status_code=409, detail=f"Prescription is {rx.status}, not a draft"
@@ -331,11 +412,11 @@ def amend_prescription(
     payload: AmendRxIn,
     request: Request,
     principal: Principal = Depends(require_permission("prescription.sign")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PrescriptionDetailOut:
     """Create version N+1. The old row is flipped to 'superseded' — the only
     UPDATE the database trigger permits on a signed prescription."""
-    old = _get_rx(db, principal, rx_id)
+    old = _get_rx(db, principal, rx_id, lock=True)
     if old.status == "superseded":
         raise HTTPException(
             status_code=409,

@@ -8,6 +8,17 @@ Blueprint rules enforced here (§R4):
 * a released result can only be superseded by a NEW version — the old row
   is flipped to ``superseded`` by DB trigger, never edited;
 * released/cancelled orders are frozen.
+
+Ordered tests (M7.0 / C2, H7):
+* the tests of an order are persisted as ``lab_order_items`` (ordered ->
+  resulted | cancelled); results are accepted ONLY for tests on the order
+  (422 otherwise) and never with an empty value;
+* an order is released only when EVERY non-cancelled ordered test has a
+  live released result (and no live result is still pending) — a DB
+  trigger refuses any other release, even via raw SQL;
+* an order may take several specimens (e.g. blood + urine), and a rejected
+  specimen can be re-collected while the order is open;
+* specimen barcodes are allocated under a per-tenant advisory lock.
 """
 from __future__ import annotations
 
@@ -15,7 +26,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from ..auditing import record_event
@@ -28,6 +39,7 @@ from ..deps import (
 )
 from ..models import (
     LabOrder,
+    LabOrderItem,
     LabResult,
     LabSpecimen,
     LabTestCatalog,
@@ -40,6 +52,7 @@ from ..schemas import (
     ImportResultsIn,
     LabOrderDetailOut,
     LabOrderIn,
+    LabOrderItemOut,
     LabOrderOut,
     LabResultOut,
     LabSpecimenOut,
@@ -47,28 +60,58 @@ from ..schemas import (
     PageOut,
     RejectSpecimenIn,
 )
+from ..services.tenancy import load_branch, load_encounter
 
 router = APIRouter(prefix="/lab", tags=["lab"])
 
 MAX_LIMIT = 100
 
 BARCODE_ATTEMPTS = 3
+_OPEN_FOR_SPECIMENS = ("ordered", "specimen_collected", "in_progress")
 
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _get_order(db: Session, principal: Principal, order_id: uuid.UUID) -> LabOrder:
-    row = db.scalar(
-        select(LabOrder).where(
-            LabOrder.id == order_id,
-            LabOrder.organization_id == principal.organization_id,
-        )
+def _get_order(
+    db: Session, principal: Principal, order_id: uuid.UUID, *, lock: bool = False
+) -> LabOrder:
+    stmt = select(LabOrder).where(
+        LabOrder.id == order_id,
+        LabOrder.organization_id == principal.organization_id,
     )
+    if lock:
+        # serializes imports/releases/collections on one order
+        stmt = stmt.with_for_update().execution_options(populate_existing=True)
+    row = db.scalar(stmt)
     if row is None:
         raise HTTPException(status_code=404, detail="Lab order not found")
     return row
+
+
+def _order_items(
+    db: Session, principal: Principal, order_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, list[LabOrderItemOut]]:
+    """Ordered tests per order, with code/name from the global catalog."""
+    out: dict[uuid.UUID, list[LabOrderItemOut]] = {oid: [] for oid in order_ids}
+    if not order_ids:
+        return out
+    rows = db.execute(
+        select(LabOrderItem, LabTestCatalog.code, LabTestCatalog.name)
+        .join(LabTestCatalog, LabTestCatalog.id == LabOrderItem.test_id)
+        .where(
+            LabOrderItem.organization_id == principal.organization_id,
+            LabOrderItem.order_id.in_(order_ids),
+        )
+        .order_by(LabOrderItem.created_at, LabTestCatalog.code)
+    ).all()
+    for item, code, name in rows:
+        out[item.order_id].append(
+            LabOrderItemOut(id=item.id, test_id=item.test_id, test_code=code,
+                            test_name=name, status=item.status)
+        )
+    return out
 
 
 def _order_detail(db: Session, principal: Principal, order: LabOrder) -> LabOrderDetailOut:
@@ -85,12 +128,18 @@ def _order_detail(db: Session, principal: Principal, order: LabOrder) -> LabOrde
         ).order_by(LabResult.created_at)
     ).all()
     detail = LabOrderDetailOut.model_validate(order)
+    detail.items = _order_items(db, principal, [order.id])[order.id]
     detail.specimens = [LabSpecimenOut.model_validate(s) for s in specimens]
     detail.results = [LabResultOut.model_validate(r) for r in results]
     return detail
 
 
 def _next_barcode(db: Session, principal: Principal) -> str:
+    # per-tenant lock: concurrent collections cannot compute the same max+1
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+        {"key": f"specimen-barcode:{principal.organization_id}"},
+    )
     last = db.scalar(
         select(func.max(LabSpecimen.barcode)).where(
             LabSpecimen.organization_id == principal.organization_id
@@ -132,7 +181,7 @@ def list_lab_tests(
     q: str | None = None,
     limit: int = 100,
     principal: Principal = Depends(require_permission("lab.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> list[LabTestOut]:
     limit = min(max(limit, 1), MAX_LIMIT)
     query = select(LabTestCatalog).where(LabTestCatalog.is_active.is_(True))
@@ -154,7 +203,7 @@ def post_lab_order(
     payload: LabOrderIn,
     request: Request,
     principal: Principal = Depends(require_permission("lab.order")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> LabOrderDetailOut:
     patient = db.scalar(
         select(Patient).where(
@@ -164,6 +213,11 @@ def post_lab_order(
     )
     if patient is None or patient.status == "merged":
         raise HTTPException(status_code=404, detail="Patient not found")
+    # FK checks bypass RLS: branch/encounter must be visible to this tenant
+    load_branch(db, principal, payload.branch_id)
+    if payload.encounter_id is not None:
+        load_encounter(db, principal, payload.encounter_id,
+                       patient_id=payload.patient_id)
 
     _load_tests(db, payload.test_ids)  # validates against the catalog
 
@@ -177,6 +231,10 @@ def post_lab_order(
         ordered_by=principal.user_id,
     )
     db.add(order)
+    db.flush()
+    for test_id in payload.test_ids:
+        db.add(LabOrderItem(organization_id=principal.organization_id,
+                            order_id=order.id, test_id=test_id))
     db.flush()
     record_event(
         db,
@@ -203,7 +261,7 @@ def list_lab_orders(
     limit: int = 50,
     offset: int = 0,
     principal: Principal = Depends(require_permission("lab.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = min(max(limit, 1), MAX_LIMIT)
     q = select(LabOrder).where(LabOrder.organization_id == principal.organization_id)
@@ -215,15 +273,20 @@ def list_lab_orders(
     rows = db.scalars(
         q.order_by(LabOrder.created_at.desc()).limit(limit).offset(offset)
     ).all()
-    return PageOut(items=[LabOrderOut.model_validate(r) for r in rows],
-                   total=total or 0, limit=limit, offset=offset)
+    items = _order_items(db, principal, [r.id for r in rows])
+    out = []
+    for r in rows:
+        row_out = LabOrderOut.model_validate(r)
+        row_out.items = items[r.id]
+        out.append(row_out)
+    return PageOut(items=out, total=total or 0, limit=limit, offset=offset)
 
 
 @router.get("/orders/{order_id}", response_model=LabOrderDetailOut)
 def get_lab_order(
     order_id: uuid.UUID,
     principal: Principal = Depends(require_permission("lab.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> LabOrderDetailOut:
     return _order_detail(db, principal, _get_order(db, principal, order_id))
 
@@ -234,9 +297,9 @@ def post_cancel_order(
     payload: CancelLabOrderIn,
     request: Request,
     principal: Principal = Depends(require_permission("lab.order")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> LabOrderDetailOut:
-    order = _get_order(db, principal, order_id)
+    order = _get_order(db, principal, order_id, lock=True)
     if order.status not in ("ordered", "specimen_collected"):
         raise HTTPException(
             status_code=409,
@@ -253,6 +316,15 @@ def post_cancel_order(
     order.status = "cancelled"
     order.cancel_reason = payload.reason
     order.updated_at = _now()
+    for item in db.scalars(
+        select(LabOrderItem).where(
+            LabOrderItem.organization_id == principal.organization_id,
+            LabOrderItem.order_id == order.id,
+            LabOrderItem.status == "ordered",
+        )
+    ).all():
+        item.status = "cancelled"
+        item.updated_at = order.updated_at
     record_event(
         db,
         action="lab.order_cancelled",
@@ -276,10 +348,12 @@ def post_collect_specimen(
     payload: CollectSpecimenIn,
     request: Request,
     principal: Principal = Depends(require_permission("lab.order")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> LabSpecimenOut:
-    order = _get_order(db, principal, order_id)
-    if order.status != "ordered":
+    order = _get_order(db, principal, order_id, lock=True)
+    # several specimens per order (blood + urine ...) and re-collection after
+    # a rejection are legal while the order is open
+    if order.status not in _OPEN_FOR_SPECIMENS:
         raise HTTPException(
             status_code=409,
             detail=f"Specimens can only be collected on open orders "
@@ -293,7 +367,8 @@ def post_collect_specimen(
         collected_by=principal.user_id,
     )
     db.add(specimen)
-    order.status = "specimen_collected"
+    if order.status == "ordered":
+        order.status = "specimen_collected"
     order.updated_at = _now()
     db.flush()
     record_event(
@@ -316,7 +391,7 @@ def post_reject_specimen(
     payload: RejectSpecimenIn,
     request: Request,
     principal: Principal = Depends(require_permission("lab.order")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> LabSpecimenOut:
     specimen = db.scalar(
         select(LabSpecimen).where(
@@ -356,9 +431,9 @@ def post_import_results(
     payload: ImportResultsIn,
     request: Request,
     principal: Principal = Depends(require_permission("lab.import")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> LabOrderDetailOut:
-    order = _get_order(db, principal, order_id)
+    order = _get_order(db, principal, order_id, lock=True)
     if order.status not in ("specimen_collected", "in_progress"):
         raise HTTPException(
             status_code=409,
@@ -370,6 +445,23 @@ def post_import_results(
     if len(test_ids) != len(payload.results):
         raise HTTPException(
             status_code=422, detail="Duplicate test_id in results payload"
+        )
+    # only tests that were ORDERED (and not cancelled) can carry a result
+    items = {
+        i.test_id: i
+        for i in db.scalars(
+            select(LabOrderItem).where(
+                LabOrderItem.organization_id == principal.organization_id,
+                LabOrderItem.order_id == order.id,
+                LabOrderItem.status != "cancelled",
+            )
+        ).all()
+    }
+    not_ordered = sorted(str(t) for t in test_ids if t not in items)
+    if not_ordered:
+        raise HTTPException(
+            status_code=422,
+            detail="Test(s) not on this order: " + ", ".join(not_ordered),
         )
 
     # exactly one LIVE result per test per order (uq_labresult_live_per_test):
@@ -407,6 +499,20 @@ def post_import_results(
                 status_code=409,
                 detail=f"Specimen is {specimen.status}; results cannot be imported",
             )
+    else:
+        usable = db.scalar(
+            select(LabSpecimen.id).where(
+                LabSpecimen.organization_id == principal.organization_id,
+                LabSpecimen.order_id == order.id,
+                LabSpecimen.status == "collected",
+            ).limit(1)
+        )
+        if usable is None:
+            raise HTTPException(
+                status_code=409,
+                detail="No usable specimen on this order (all rejected); "
+                       "collect a new specimen first",
+            )
 
     tests_by_id = {t.id: t for t in tests}
     for r in payload.results:
@@ -426,6 +532,10 @@ def post_import_results(
                 imported_by=principal.user_id,
             )
         )
+        item = items[r.test_id]
+        if item.status == "ordered":
+            item.status = "resulted"
+            item.updated_at = _now()
     order.status = "in_progress"
     order.updated_at = _now()
     db.flush()
@@ -493,7 +603,7 @@ def post_verify_result(
     result_id: uuid.UUID,
     request: Request,
     principal: Principal = Depends(require_permission("lab.verify")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> LabResultOut:
     result = db.scalar(
         select(LabResult).where(
@@ -519,16 +629,9 @@ def post_release_result(
     result_id: uuid.UUID,
     request: Request,
     principal: Principal = Depends(require_permission("lab.release")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> LabResultOut:
-    result = db.scalar(
-        select(LabResult).where(
-            LabResult.id == result_id,
-            LabResult.organization_id == principal.organization_id,
-        )
-    )
-    if result is None:
-        raise HTTPException(status_code=404, detail="Lab result not found")
+    result, order = _lock_result_and_order(db, principal, result_id)
     if result.status != "verified":
         raise HTTPException(
             status_code=409,
@@ -538,20 +641,62 @@ def post_release_result(
         db, principal, result, new_status="released",
         action="lab.result_released", request=request,
     )
-    # order completes when every live result on it is released
+    if order.status != "cancelled" and _order_complete(db, principal, order):
+        order.status = "released"
+        order.updated_at = _now()
+    return out
+
+
+def _lock_result_and_order(
+    db: Session, principal: Principal, result_id: uuid.UUID
+) -> tuple[LabResult, LabOrder]:
+    """Lock the parent order, then re-read the result: concurrent releases
+    or amendments of one order serialize and never act on a stale status."""
+    found = db.scalar(
+        select(LabResult.order_id).where(
+            LabResult.id == result_id,
+            LabResult.organization_id == principal.organization_id,
+        )
+    )
+    if found is None:
+        raise HTTPException(status_code=404, detail="Lab result not found")
+    order = _get_order(db, principal, found, lock=True)
+    result = db.scalar(
+        select(LabResult)
+        .where(LabResult.id == result_id,
+               LabResult.organization_id == principal.organization_id)
+        .execution_options(populate_existing=True)
+    )
+    return result, order
+
+
+def _order_complete(db: Session, principal: Principal, order: LabOrder) -> bool:
+    """Release rule: no live result still pending AND every non-cancelled
+    ordered test has a live released result (mirrors the DB trigger)."""
     pending = db.scalar(
         select(func.count()).select_from(LabResult).where(
-            LabResult.order_id == result.order_id,
+            LabResult.organization_id == principal.organization_id,
+            LabResult.order_id == order.id,
             LabResult.status != "released",
             LabResult.status != "superseded",
         )
     )
-    if not pending:
-        order = db.get(LabOrder, result.order_id)
-        if order is not None and order.status != "cancelled":
-            order.status = "released"
-            order.updated_at = _now()
-    return out
+    if pending:
+        return False
+    released = select(LabResult.id).where(
+        LabResult.order_id == LabOrderItem.order_id,
+        LabResult.test_id == LabOrderItem.test_id,
+        LabResult.status == "released",
+    ).exists()
+    missing = db.scalar(
+        select(func.count()).select_from(LabOrderItem).where(
+            LabOrderItem.organization_id == principal.organization_id,
+            LabOrderItem.order_id == order.id,
+            LabOrderItem.status != "cancelled",
+            ~released,
+        )
+    )
+    return not missing
 
 
 @router.post("/results/{result_id}/amend", response_model=LabResultOut,
@@ -561,19 +706,12 @@ def post_amend_result(
     payload: AmendResultIn,
     request: Request,
     principal: Principal = Depends(require_permission("lab.import")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> LabResultOut:
     """Supersede a released result with a NEW audited version (four-eyes:
     amendments are imported by one person and must be re-verified/released
     by another)."""
-    old = db.scalar(
-        select(LabResult).where(
-            LabResult.id == result_id,
-            LabResult.organization_id == principal.organization_id,
-        )
-    )
-    if old is None:
-        raise HTTPException(status_code=404, detail="Lab result not found")
+    old, order = _lock_result_and_order(db, principal, result_id)
     if old.status != "released":
         raise HTTPException(
             status_code=409,
@@ -605,8 +743,7 @@ def post_amend_result(
     )
     db.add(new)
     db.flush()
-    order = db.get(LabOrder, old.order_id)
-    if order is not None and order.status == "released":
+    if order.status == "released":
         order.status = "in_progress"
         order.updated_at = _now()
     record_event(

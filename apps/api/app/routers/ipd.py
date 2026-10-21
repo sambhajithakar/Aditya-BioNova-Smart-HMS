@@ -30,6 +30,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..auditing import record_event
+from ..entitlements import check_limit
 from ..db import get_db
 from ..deps import (
     Principal,
@@ -60,6 +61,7 @@ from ..schemas import (
     WardOut,
 )
 from ..services.clinical import idempotent_replay, idempotent_store
+from ..services.tenancy import load_branch, require_member
 
 router = APIRouter(prefix="/ipd", tags=["ipd"])
 
@@ -144,8 +146,9 @@ def create_ward(
     payload: WardIn,
     request: Request,
     principal: Principal = Depends(require_permission("bed.manage")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> WardOut:
+    load_branch(db, principal, payload.branch_id)  # FKs bypass RLS
     dup = db.scalar(
         select(Ward.id).where(
             Ward.organization_id == principal.organization_id,
@@ -185,7 +188,7 @@ def create_ward(
 def list_wards(
     branch_id: uuid.UUID | None = None,
     principal: Principal = Depends(require_permission("bed.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> list[WardOut]:
     q = select(Ward).where(
         Ward.organization_id == principal.organization_id
@@ -202,8 +205,9 @@ def create_bed(
     payload: BedIn,
     request: Request,
     principal: Principal = Depends(require_permission("bed.manage")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> BedOut:
+    check_limit(db, principal.organization_id, "max_beds")
     ward = db.scalar(
         select(Ward).where(
             Ward.id == payload.ward_id,
@@ -249,7 +253,7 @@ def list_beds(
     ward_id: uuid.UUID | None = None,
     bed_status: str | None = Query(default=None, alias="status"),
     principal: Principal = Depends(require_permission("bed.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> list[BedOut]:
     q = select(Bed).where(Bed.organization_id == principal.organization_id)
     if ward_id:
@@ -274,7 +278,7 @@ def update_bed(
     payload: BedUpdateIn,
     request: Request,
     principal: Principal = Depends(require_permission("bed.manage")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> BedOut:
     bed = db.scalar(
         select(Bed).where(
@@ -313,7 +317,7 @@ def admit_patient(
     request: Request,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: Principal = Depends(require_permission("admission.manage")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> AdmissionOut:
     body = payload.model_dump(mode="json")
     replay = idempotent_replay(
@@ -383,6 +387,10 @@ def admit_patient(
             status_code=409, detail="Patient already has an active admission"
         )
 
+    if payload.attending_user_id is not None:
+        require_member(db, principal, payload.attending_user_id,
+                       field="attending_user_id")
+
     admission = Admission(
         organization_id=principal.organization_id,
         patient_id=patient.id,
@@ -440,7 +448,7 @@ def list_admissions(
     limit: int = 50,
     offset: int = 0,
     principal: Principal = Depends(require_permission("bed.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = min(max(limit, 1), MAX_LIMIT)
     q = select(Admission).where(
@@ -465,7 +473,7 @@ def list_admissions(
 def get_admission(
     admission_id: uuid.UUID,
     principal: Principal = Depends(require_permission("bed.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> AdmissionOut:
     row = _get_admission(db, principal, admission_id)
     return _enrich(db, [row])[0]
@@ -477,7 +485,7 @@ def transfer_admission(
     payload: TransferIn,
     request: Request,
     principal: Principal = Depends(require_permission("admission.manage")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> AdmissionOut:
     admission = _get_admission(db, principal, admission_id)
     if admission.status != "admitted":
@@ -555,7 +563,7 @@ def discharge_admission(
     payload: DischargeIn,
     request: Request,
     principal: Principal = Depends(require_permission("discharge")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> AdmissionOut:
     admission = _get_admission(db, principal, admission_id)
     if admission.status != "admitted":
@@ -599,7 +607,7 @@ def add_nursing_record(
     payload: NursingRecordIn,
     request: Request,
     principal: Principal = Depends(require_permission("nursing.write")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> NursingRecordOut:
     admission = _get_admission(db, principal, admission_id)
     if admission.status != "admitted":
@@ -642,7 +650,7 @@ def list_nursing_records(
     limit: int = 50,
     offset: int = 0,
     principal: Principal = Depends(require_permission("nursing.read")),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ) -> PageOut:
     limit = min(max(limit, 1), MAX_LIMIT)
     admission = _get_admission(db, principal, admission_id)

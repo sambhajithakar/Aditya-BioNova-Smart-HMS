@@ -18,7 +18,7 @@ PG_HOST = os.environ.get("HMS_TEST_HOST", "127.0.0.1")
 PG_PORT = os.environ.get("HMS_TEST_PORT", "5433")
 PG_SUPERUSER = os.environ.get("HMS_TEST_SUPERUSER", "hms")
 APP_PASSWORD = os.environ.get("HMS_APP_PASSWORD", "change_me")
-TEST_DB = "hms_test"
+TEST_DB = os.environ.get("HMS_TEST_DB", "hms_test")
 
 os.environ["DATABASE_URL"] = (
     f"postgresql+psycopg2://hms_app:{APP_PASSWORD}@{PG_HOST}:{PG_PORT}/{TEST_DB}"
@@ -29,6 +29,11 @@ os.environ["MIGRATION_DATABASE_URL"] = (
 os.environ["JWT_SECRET"] = "test-only-secret-not-used-in-production-0123456789"
 os.environ["ENVIRONMENT"] = "test"
 os.environ["CORS_ORIGINS"] = '["http://testserver"]'
+# The suite registers many synthetic clinics from one client address; the
+# abuse limits are exercised with tight values in test_m7_security.py.
+for _var in ("RL_REGISTER_PER_IP", "RL_LOGIN_PER_IP", "RL_REFRESH_PER_IP",
+             "RL_PASSWORD_RESET_PER_IP", "RL_INVITE_ACCEPT_PER_IP"):
+    os.environ[_var] = "100000"
 
 import psycopg2  # noqa: E402
 
