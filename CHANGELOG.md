@@ -1,5 +1,34 @@
 # Changelog
 
+## M8.2 medical device integration, simulated devices (2026-10-21, review branch)
+
+- **Parsers.** The Bluetooth SIG Blood Pressure (0x2A35) and Pulse Oximeter
+  (0x2A5E / 0x2A5F) parsers are written in Python and Dart.
+  - Both reproduce the same 24 synthetic vectors.
+  - The API's parse is authoritative.
+- **Data and API** (migration 0019):
+  - device register (allow-list, address stored only as a hash)
+  - append-only readings with raw payload and provenance
+  - append-only clinician decisions
+  - capture rules: open encounter, branch, device, source and time checks
+  - accept writes through the normal vitals path; reject needs a reason
+  - never accepted automatically
+- **Android:**
+  - simulator (4 virtual devices, 7 scenarios)
+  - pairing with a server check
+  - capture from a consultation only, offline outbox
+  - review with a patient confirmation
+- **Android Bluetooth layer** on flutter_reactive_ble 5.6.0 (BSD-3-Clause):
+  - read-only
+  - live-measurement rule against stored-memory replay
+  - scoped permissions; no location on Android 12+
+  - not validated on hardware
+- **Web:** clinician review panel in the consultation, and Settings → Medical
+  devices.
+- **Docs:** DEVICE_INTEGRATION.md (with the exclusions), DEVICE_SUPPORT.md
+  (validation protocol; no model supported) and
+  HARDWARE_PURCHASE_RECOMMENDATION.md (nothing bought).
+
 ## M8.1 corrections from the PR #1 review (2026-10-21, review branch)
 
 Fixes for the findings of the read-only review. Each change is a separate

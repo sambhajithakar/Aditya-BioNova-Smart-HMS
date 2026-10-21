@@ -45,6 +45,7 @@
 | E-mail notifications (`comms_email`) | — | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | SMS notifications (`comms_sms`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | WhatsApp notifications (`comms_whatsapp`) | — | — | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Bluetooth BP monitor & pulse oximeter capture (`medical_devices`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | AI clinical voice scribe (`ai_scribe`) | — | — | ✅ | ✅ | ✅ | ✅ | ✅ |
 | AI business copilot (`ai_copilot`) | — | — | ✅ | ✅ | ✅ | ✅ | ✅ |
 | AI operations agents (`ai_agents`) | — | — | — | — | — | ✅ | ✅ |

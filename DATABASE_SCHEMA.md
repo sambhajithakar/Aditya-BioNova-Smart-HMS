@@ -65,7 +65,7 @@
 
 ## Migrations
 
-Database at Alembic head **0018** (catalog read from PostgreSQL 16). Files in `apps/api/alembic/versions/`.
+Database at Alembic head **0019** (catalog read from PostgreSQL 16). Files in `apps/api/alembic/versions/`.
 
 | Revision | Down | File | Summary |
 |---|---|---|---|
@@ -87,6 +87,7 @@ Database at Alembic head **0018** (catalog read from PostgreSQL 16). Files in `a
 | 0016 | 0015 | `0016_ai1.py` | AI-1: forecasting model runs, knowledge base (RAG), agent proposals with human approval, Clinical Scribe draft workflow. |
 | 0017 | 0016 | `0017_m81_billing_fixes.py` | M8.1: SaaS billing corrections. |
 | 0018 | 0017 | `0018_ai_credit_carry_over.py` | M8.1: purchased AI credits no longer expire at month end. |
+| 0019 | 0018 | `0019_m82_medical_devices.py` | M8.2: medical device register, device readings with provenance, clinician review decisions. |
 
 ## Application role
 
@@ -122,6 +123,8 @@ Database at Alembic head **0018** (catalog read from PostgreSQL 16). Files in `a
 | [comms_patient_preferences](#comms_patient_preferences) | yes | 1 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [comms_templates](#comms_templates) | yes | 1 | 0 | SELECT, INSERT, UPDATE |
 | [comms_tenant_settings](#comms_tenant_settings) | yes | 1 | 0 | SELECT, INSERT, UPDATE |
+| [device_reading_decisions](#device_reading_decisions) | yes | 1 | 1 | SELECT, INSERT |
+| [device_readings](#device_readings) | yes | 1 | 1 | SELECT, INSERT |
 | [dispense_items](#dispense_items) | yes | 1 | 1 | SELECT, INSERT |
 | [dispenses](#dispenses) | yes | 1 | 1 | SELECT, INSERT |
 | [drug_catalog](#drug_catalog) | **no** | 0 | 0 | SELECT |
@@ -144,6 +147,7 @@ Database at Alembic head **0018** (catalog read from PostgreSQL 16). Files in `a
 | [lab_specimens](#lab_specimens) | yes | 1 | 1 | SELECT, INSERT, UPDATE, DELETE |
 | [lab_test_catalog](#lab_test_catalog) | **no** | 0 | 0 | SELECT |
 | [ledger_entries](#ledger_entries) | yes | 1 | 1 | SELECT, INSERT |
+| [medical_devices](#medical_devices) | yes | 1 | 1 | SELECT, INSERT, UPDATE |
 | [member_invitations](#member_invitations) | yes | 1 | 0 | SELECT, INSERT, UPDATE |
 | [memberships](#memberships) | yes | 4 | 0 | SELECT, INSERT, UPDATE, DELETE |
 | [mfa_recovery_codes](#mfa_recovery_codes) | **no** | 0 | 0 | SELECT, INSERT, UPDATE, DELETE |
@@ -1281,6 +1285,113 @@ Database at Alembic head **0018** (catalog read from PostgreSQL 16). Files in `a
   - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
   - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
 
+### device_reading_decisions
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `reading_id` | uuid | no |  |
+| `decision` | character varying(10) | no |  |
+| `reason` | character varying(300) | no | `''::character varying` |
+| `surface` | character varying(10) | no |  |
+| `vitals_id` | uuid | yes |  |
+| `decided_by` | uuid | yes |  |
+| `decided_at` | timestamp with time zone | no | `now()` |
+
+**Primary key** `device_reading_decisions_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `device_reading_decisions_decided_by_fkey`: `FOREIGN KEY (decided_by) REFERENCES users(id) ON DELETE SET NULL`
+- `device_reading_decisions_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `device_reading_decisions_reading_id_fkey`: `FOREIGN KEY (reading_id) REFERENCES device_readings(id) ON DELETE CASCADE`
+- `device_reading_decisions_vitals_id_fkey`: `FOREIGN KEY (vitals_id) REFERENCES encounter_vitals(id) ON DELETE SET NULL`
+
+**Unique constraints**
+
+- `uq_devdec_reading`: `UNIQUE (reading_id)`
+
+**Check constraints**
+
+- `ck_devdec_decision`: `CHECK (decision::text = ANY (ARRAY['accepted'::character varying, 'rejected'::character varying]::text[]))`
+- `ck_devdec_reason`: `CHECK (decision::text = 'accepted'::text OR length(btrim(reason::text)) >= 3)`
+- `ck_devdec_surface`: `CHECK (surface::text = ANY (ARRAY['web'::character varying, 'android'::character varying]::text[]))`
+
+**RLS policies**
+
+- `device_reading_decisions_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
+**Triggers**
+
+- `trg_device_reading_decisions_append_only`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `forbid_device_record_mutation()`
+
+### device_readings
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `device_id` | uuid | no |  |
+| `patient_id` | uuid | no |  |
+| `encounter_id` | uuid | no |  |
+| `capture_id` | uuid | no |  |
+| `kind` | character varying(20) | no |  |
+| `characteristic` | character varying(4) | no |  |
+| `raw_hex` | character varying(128) | no |  |
+| `raw_sha256` | character varying(64) | no |  |
+| `parsed` | jsonb | no |  |
+| `source` | character varying(10) | no |  |
+| `device_time` | timestamp with time zone | yes |  |
+| `captured_at` | timestamp with time zone | no |  |
+| `received_at` | timestamp with time zone | no | `now()` |
+| `clock_skew` | boolean | no |  |
+| `captured_by` | uuid | yes |  |
+| `app_version` | character varying(40) | no | `''::character varying` |
+
+**Primary key** `device_readings_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `device_readings_captured_by_fkey`: `FOREIGN KEY (captured_by) REFERENCES users(id) ON DELETE SET NULL`
+- `device_readings_device_id_fkey`: `FOREIGN KEY (device_id) REFERENCES medical_devices(id) ON DELETE CASCADE`
+- `device_readings_encounter_id_fkey`: `FOREIGN KEY (encounter_id) REFERENCES encounters(id) ON DELETE CASCADE`
+- `device_readings_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `device_readings_patient_id_fkey`: `FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE`
+
+**Unique constraints**
+
+- `uq_devread_capture`: `UNIQUE (organization_id, capture_id)`
+
+**Check constraints**
+
+- `ck_devread_char`: `CHECK (characteristic::text = ANY (ARRAY['2a35'::character varying, '2a5e'::character varying, '2a5f'::character varying]::text[]))`
+- `ck_devread_kind`: `CHECK (kind::text = ANY (ARRAY['blood_pressure'::character varying, 'spo2'::character varying]::text[]))`
+- `ck_devread_sha`: `CHECK (raw_sha256::text ~ '^[0-9a-f]{64}$'::text)`
+- `ck_devread_source`: `CHECK (source::text = ANY (ARRAY['ble'::character varying, 'simulator'::character varying]::text[]))`
+
+**Indexes**
+
+- `ix_devread_encounter`: `btree (organization_id, encounter_id, received_at)`
+
+**RLS policies**
+
+- `device_readings_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
+**Triggers**
+
+- `trg_device_readings_append_only`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `forbid_device_record_mutation()`
+
 ### dispense_items
 
 - Row-level security: enabled
@@ -1452,11 +1563,13 @@ Database at Alembic head **0018** (catalog read from PostgreSQL 16). Files in `a
 | `notes` | character varying(500) | no | `''::character varying` |
 | `recorded_by` | uuid | yes |  |
 | `recorded_at` | timestamp with time zone | no | `now()` |
+| `device_reading_id` | uuid | yes |  |
 
 **Primary key** `encounter_vitals_pkey`: `PRIMARY KEY (id)`
 
 **Foreign keys**
 
+- `encounter_vitals_device_reading_id_fkey`: `FOREIGN KEY (device_reading_id) REFERENCES device_readings(id) ON DELETE SET NULL`
 - `encounter_vitals_encounter_id_fkey`: `FOREIGN KEY (encounter_id) REFERENCES encounters(id) ON DELETE CASCADE`
 - `encounter_vitals_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
 - `encounter_vitals_recorded_by_fkey`: `FOREIGN KEY (recorded_by) REFERENCES users(id) ON DELETE SET NULL`
@@ -1476,6 +1589,7 @@ Database at Alembic head **0018** (catalog read from PostgreSQL 16). Files in `a
 **Indexes**
 
 - `ix_vitals_org_enc`: `btree (organization_id, encounter_id)`
+- `uq_vitals_device_reading` (UNIQUE, partial): `btree (device_reading_id)` WHERE `(device_reading_id IS NOT NULL)`
 
 **RLS policies**
 
@@ -2298,6 +2412,60 @@ Database at Alembic head **0018** (catalog read from PostgreSQL 16). Files in `a
 **Triggers**
 
 - `trg_ledger_append_only`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `forbid_ledger_mutation()`
+
+### medical_devices
+
+- Row-level security: enabled
+- Grants for hms_app: SELECT, INSERT, UPDATE
+
+| Column | Type | Nullable | Default |
+|---|---|---|---|
+| `id` | uuid | no | `gen_random_uuid()` |
+| `organization_id` | uuid | no |  |
+| `branch_id` | uuid | yes |  |
+| `kind` | character varying(20) | no |  |
+| `label` | character varying(80) | no |  |
+| `manufacturer` | character varying(80) | no | `''::character varying` |
+| `model` | character varying(80) | no | `''::character varying` |
+| `serial` | character varying(80) | no | `''::character varying` |
+| `firmware` | character varying(40) | no | `''::character varying` |
+| `address_hash` | character varying(64) | no |  |
+| `is_simulator` | boolean | no | `false` |
+| `status` | character varying(10) | no | `'active'::character varying` |
+| `registered_by` | uuid | yes |  |
+| `created_at` | timestamp with time zone | no | `now()` |
+| `retired_by` | uuid | yes |  |
+| `retired_at` | timestamp with time zone | yes |  |
+
+**Primary key** `medical_devices_pkey`: `PRIMARY KEY (id)`
+
+**Foreign keys**
+
+- `medical_devices_branch_id_fkey`: `FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE`
+- `medical_devices_organization_id_fkey`: `FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE`
+- `medical_devices_registered_by_fkey`: `FOREIGN KEY (registered_by) REFERENCES users(id) ON DELETE SET NULL`
+- `medical_devices_retired_by_fkey`: `FOREIGN KEY (retired_by) REFERENCES users(id) ON DELETE SET NULL`
+
+**Check constraints**
+
+- `ck_meddev_kind`: `CHECK (kind::text = ANY (ARRAY['bp_monitor'::character varying, 'pulse_oximeter'::character varying]::text[]))`
+- `ck_meddev_retired`: `CHECK ((status::text = 'retired'::text) = (retired_at IS NOT NULL))`
+- `ck_meddev_status`: `CHECK (status::text = ANY (ARRAY['active'::character varying, 'retired'::character varying]::text[]))`
+
+**Indexes**
+
+- `ix_meddev_org`: `btree (organization_id, status)`
+- `uq_meddev_active_address` (UNIQUE, partial): `btree (organization_id, address_hash)` WHERE `((status)::text = 'active'::text)`
+
+**RLS policies**
+
+- `medical_devices_tenant` FOR ALL TO public
+  - USING `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+  - WITH CHECK `(organization_id = (NULLIF(current_setting('app.current_org_id'::text, true), ''::text))::uuid)`
+
+**Triggers**
+
+- `trg_medical_devices_guard`: BEFORE UPDATE OR DELETE FOR EACH ROW -> `guard_medical_device()`
 
 ### member_invitations
 
@@ -3887,6 +4055,7 @@ Database at Alembic head **0018** (catalog read from PostgreSQL 16). Files in `a
 | `forbid_closed_laborder()` | trigger | plpgsql |
 | `forbid_comms_log_mutation()` | trigger | plpgsql |
 | `forbid_completed_encounter_delete()` | trigger | plpgsql |
+| `forbid_device_record_mutation()` | trigger | plpgsql |
 | `forbid_dispense_mutation()` | trigger | plpgsql |
 | `forbid_expense_mutation()` | trigger | plpgsql |
 | `forbid_invoice_regression()` | trigger | plpgsql |
@@ -3905,25 +4074,26 @@ Database at Alembic head **0018** (catalog read from PostgreSQL 16). Files in `a
 | `forbids_audit_mutation()` | trigger | plpgsql |
 | `guard_ai_proposal()` | trigger | plpgsql |
 | `guard_kb_document()` | trigger | plpgsql |
+| `guard_medical_device()` | trigger | plpgsql |
 | `guard_saas_order_transition()` | trigger | plpgsql |
 | `guard_saas_refund_transition()` | trigger | plpgsql |
 | `guard_scribe_session()` | trigger | plpgsql |
 
 ## Seeded RBAC catalogue
 
-69 permission keys (seeded by migrations):
+73 permission keys (seeded by migrations):
 
-`admission.manage`, `ai.agents.approve`, `ai.agents.use`, `ai.audit.read`, `ai.copilot.use`, `ai.forecast.read`, `ai.knowledge.manage`, `ai.knowledge.use`, `ai.scribe.use`, `ai.settings.manage`, `appointment.read`, `appointment.write`, `audit.read`, `bed.manage`, `bed.read`, `billing.invoice`, `billing.payment`, `billing.read`, `billing.refund`, `billing.saas.pay`, `billing.saas.read`, `billing.saas.refund_request`, `branch.manage`, `branch.read`, `checkin.manage`, `comms.consent`, `comms.manage`, `comms.read`, `comms.send`, `discharge`, `encounter.read`, `encounter.write`, `expense.manage`, `expense.read`, `followup.create`, `followup.read`, `followup.write`, `inventory.manage`, `inventory.read`, `lab.import`, `lab.order`, `lab.read`, `lab.release`, `lab.verify`, `member.manage`, `member.read`, `nursing.read`, `nursing.write`, `org.manage`, `org.offboard`, `org.read`, `org.transfer_ownership`, `patient.merge`, `patient.read`, `patient.write`, `pharmacy.dispense`, `pharmacy.manage`, `pharmacy.read`, `prescription.read`, `prescription.sign`, `queue.manage`, `queue.read`, `report.read`, `setup.manage`, `setup.read`, `subscription.manage`, `subscription.read`, `support.read`, `support.write`
+`admission.manage`, `ai.agents.approve`, `ai.agents.use`, `ai.audit.read`, `ai.copilot.use`, `ai.forecast.read`, `ai.knowledge.manage`, `ai.knowledge.use`, `ai.scribe.use`, `ai.settings.manage`, `appointment.read`, `appointment.write`, `audit.read`, `bed.manage`, `bed.read`, `billing.invoice`, `billing.payment`, `billing.read`, `billing.refund`, `billing.saas.pay`, `billing.saas.read`, `billing.saas.refund_request`, `branch.manage`, `branch.read`, `checkin.manage`, `comms.consent`, `comms.manage`, `comms.read`, `comms.send`, `device.capture`, `device.manage`, `device.read`, `device.review`, `discharge`, `encounter.read`, `encounter.write`, `expense.manage`, `expense.read`, `followup.create`, `followup.read`, `followup.write`, `inventory.manage`, `inventory.read`, `lab.import`, `lab.order`, `lab.read`, `lab.release`, `lab.verify`, `member.manage`, `member.read`, `nursing.read`, `nursing.write`, `org.manage`, `org.offboard`, `org.read`, `org.transfer_ownership`, `patient.merge`, `patient.read`, `patient.write`, `pharmacy.dispense`, `pharmacy.manage`, `pharmacy.read`, `prescription.read`, `prescription.sign`, `queue.manage`, `queue.read`, `report.read`, `setup.manage`, `setup.read`, `subscription.manage`, `subscription.read`, `support.read`, `support.write`
 
 | System role | Permissions |
 |---|---|
-| `admin` | admission.manage, ai.agents.approve, ai.agents.use, ai.audit.read, ai.copilot.use, ai.forecast.read, ai.knowledge.manage, ai.knowledge.use, ai.settings.manage, appointment.read, appointment.write, audit.read, bed.manage, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, billing.saas.pay, billing.saas.read, branch.manage, branch.read, checkin.manage, comms.consent, comms.manage, comms.read, comms.send, discharge, encounter.read, encounter.write, expense.manage, expense.read, followup.create, followup.read, followup.write, inventory.manage, inventory.read, lab.import, lab.order, lab.read, lab.release, lab.verify, member.manage, member.read, nursing.read, nursing.write, org.manage, org.read, patient.merge, patient.read, patient.write, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, setup.manage, setup.read, subscription.manage, subscription.read, support.read, support.write |
+| `admin` | admission.manage, ai.agents.approve, ai.agents.use, ai.audit.read, ai.copilot.use, ai.forecast.read, ai.knowledge.manage, ai.knowledge.use, ai.settings.manage, appointment.read, appointment.write, audit.read, bed.manage, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, billing.saas.pay, billing.saas.read, branch.manage, branch.read, checkin.manage, comms.consent, comms.manage, comms.read, comms.send, device.manage, device.read, discharge, encounter.read, encounter.write, expense.manage, expense.read, followup.create, followup.read, followup.write, inventory.manage, inventory.read, lab.import, lab.order, lab.read, lab.release, lab.verify, member.manage, member.read, nursing.read, nursing.write, org.manage, org.read, patient.merge, patient.read, patient.write, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, setup.manage, setup.read, subscription.manage, subscription.read, support.read, support.write |
 | `auditor` | ai.audit.read, audit.read, billing.saas.read, branch.read, comms.read, member.read, org.read, subscription.read |
 | `billing` | ai.copilot.use, ai.knowledge.use, appointment.read, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, billing.saas.read, branch.read, expense.manage, expense.read, lab.read, member.read, org.read, patient.read, pharmacy.read, report.read, setup.read, subscription.read |
-| `doctor` | admission.manage, ai.copilot.use, ai.forecast.read, ai.knowledge.use, ai.scribe.use, appointment.read, bed.read, billing.read, branch.read, comms.consent, comms.send, discharge, encounter.read, encounter.write, expense.read, followup.create, followup.read, followup.write, inventory.read, lab.order, lab.read, lab.release, lab.verify, member.read, nursing.read, nursing.write, org.read, patient.read, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, setup.read |
+| `doctor` | admission.manage, ai.copilot.use, ai.forecast.read, ai.knowledge.use, ai.scribe.use, appointment.read, bed.read, billing.read, branch.read, comms.consent, comms.send, device.capture, device.read, device.review, discharge, encounter.read, encounter.write, expense.read, followup.create, followup.read, followup.write, inventory.read, lab.order, lab.read, lab.release, lab.verify, member.read, nursing.read, nursing.write, org.read, patient.read, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, setup.read |
 | `lab_technician` | ai.knowledge.use, bed.read, branch.read, lab.import, lab.order, lab.read, lab.verify, member.read, org.read, patient.read, setup.read |
-| `nurse` | admission.manage, ai.forecast.read, ai.knowledge.use, appointment.read, bed.read, branch.read, encounter.read, encounter.write, followup.read, inventory.read, lab.order, lab.read, member.read, nursing.read, nursing.write, org.read, patient.read, pharmacy.read, prescription.read, queue.read, report.read, setup.read |
-| `owner` | admission.manage, ai.agents.approve, ai.agents.use, ai.audit.read, ai.copilot.use, ai.forecast.read, ai.knowledge.manage, ai.knowledge.use, ai.scribe.use, ai.settings.manage, appointment.read, appointment.write, audit.read, bed.manage, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, billing.saas.pay, billing.saas.read, billing.saas.refund_request, branch.manage, branch.read, checkin.manage, comms.consent, comms.manage, comms.read, comms.send, discharge, encounter.read, encounter.write, expense.manage, expense.read, followup.create, followup.read, followup.write, inventory.manage, inventory.read, lab.import, lab.order, lab.read, lab.release, lab.verify, member.manage, member.read, nursing.read, nursing.write, org.manage, org.offboard, org.read, org.transfer_ownership, patient.merge, patient.read, patient.write, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, setup.manage, setup.read, subscription.manage, subscription.read, support.read, support.write |
+| `nurse` | admission.manage, ai.forecast.read, ai.knowledge.use, appointment.read, bed.read, branch.read, device.capture, device.read, device.review, encounter.read, encounter.write, followup.read, inventory.read, lab.order, lab.read, member.read, nursing.read, nursing.write, org.read, patient.read, pharmacy.read, prescription.read, queue.read, report.read, setup.read |
+| `owner` | admission.manage, ai.agents.approve, ai.agents.use, ai.audit.read, ai.copilot.use, ai.forecast.read, ai.knowledge.manage, ai.knowledge.use, ai.scribe.use, ai.settings.manage, appointment.read, appointment.write, audit.read, bed.manage, bed.read, billing.invoice, billing.payment, billing.read, billing.refund, billing.saas.pay, billing.saas.read, billing.saas.refund_request, branch.manage, branch.read, checkin.manage, comms.consent, comms.manage, comms.read, comms.send, device.capture, device.manage, device.read, device.review, discharge, encounter.read, encounter.write, expense.manage, expense.read, followup.create, followup.read, followup.write, inventory.manage, inventory.read, lab.import, lab.order, lab.read, lab.release, lab.verify, member.manage, member.read, nursing.read, nursing.write, org.manage, org.offboard, org.read, org.transfer_ownership, patient.merge, patient.read, patient.write, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, prescription.sign, queue.manage, queue.read, report.read, setup.manage, setup.read, subscription.manage, subscription.read, support.read, support.write |
 | `pharmacist` | ai.forecast.read, ai.knowledge.use, bed.read, branch.read, inventory.read, lab.read, member.read, org.read, patient.read, pharmacy.dispense, pharmacy.manage, pharmacy.read, prescription.read, setup.read |
 | `receptionist` | admission.manage, ai.forecast.read, ai.knowledge.use, appointment.read, appointment.write, bed.read, billing.invoice, billing.payment, billing.read, branch.read, checkin.manage, comms.consent, comms.read, comms.send, followup.read, followup.write, lab.read, member.read, org.read, patient.read, patient.write, pharmacy.read, prescription.read, queue.manage, queue.read, setup.read |
 | `support` | org.read, support.read, support.write |

@@ -1,9 +1,21 @@
 # M8.2 — Bluetooth BP monitors and pulse oximeters: implementation plan
 
-> **Status: PROPOSED. Awaiting the owner's approval. No M8.2 code has been
-> written.** This plan does not claim that any device is supported. A device
-> is listed as supported only after it has been validated on physical
-> hardware (§8).
+> **Status (2026-10-21):** approved by the owner on 2026-10-21, with these
+> conditions:
+> - clinician review on BOTH web and Android
+> - flutter_reactive_ble only after a licence check
+> - simulator first
+> - exclusions documented
+> - no purchases without approval
+>
+> **Where each phase stands:**
+> - Phases M8.2a–e are implemented and tested with simulated devices; see
+>   [DEVICE_INTEGRATION.md](DEVICE_INTEGRATION.md).
+> - Phase M8.2f (hardware validation) has **not started**. It waits for
+>   approval of [HARDWARE_PURCHASE_RECOMMENDATION.md](HARDWARE_PURCHASE_RECOMMENDATION.md).
+>
+> No device is supported. A device is listed as supported only after it has
+> been validated on physical hardware ([DEVICE_SUPPORT.md](DEVICE_SUPPORT.md)).
 
 ## 1. Scope
 
