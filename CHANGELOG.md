@@ -1,5 +1,26 @@
 # Changelog
 
+## Evaluation demo kit (2026-10-21, review branch)
+
+- **Self-run demo** (docs/DEMO.md): `scripts/demo-up.sh` / `demo-up.ps1`
+  start the synthetic-data stack on the owner's computer with a Compose
+  overlay.
+  - development mode
+  - seed job
+  - LAN-bound web and API; PostgreSQL stays on loopback
+  - non-Secure cookies, because the demo is plain HTTP
+  - CI runs it end to end
+- **Seed:** each demo clinic gets two SIMULATED devices and two simulated
+  readings pending review on an open consultation.
+- **Android LAN demo build** (`--dart-define=HMS_DEMO_LAN=true`):
+  - the server address is typed on the phone
+  - plain http only to private addresses; production servers refused
+  - DEMO strip on every screen
+  - cleartext policy overlay applied to that build only; refuses the
+    release key
+- **Reports:** docs/MODULE_STATUS.md (COMPLETE / PARTIAL / MISSING / NOT
+  TESTED, and real versus simulated, for every module).
+
 ## M8.2 medical device integration, simulated devices (2026-10-21, review branch)
 
 - **Parsers.** The Bluetooth SIG Blood Pressure (0x2A35) and Pulse Oximeter

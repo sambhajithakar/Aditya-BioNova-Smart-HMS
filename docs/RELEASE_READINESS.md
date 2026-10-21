@@ -1,6 +1,6 @@
 # Release readiness checklist — Aditya BioNova Smart HMS
 
-Status at 2026-10-21 (after the M8.1 corrections), branch `claude/pensive-albattani-n0zcba` (draft PR #1).
+Status at 2026-10-21 (after M8.2 and the demo kit), branch `claude/pensive-albattani-n0zcba` (draft PR #1).
 **Verdict: NOT production-ready.** The engineering gates below are green on
 synthetic data. The human, legal and clinical gates are still open, and they
 cannot be closed by writing more code.
@@ -11,17 +11,18 @@ Legend: ✅ done and evidenced · 🟡 partial · ⬜ not started / owner action
 
 | Gate | State | Evidence |
 |---|---|---|
-| API tests (real PostgreSQL, RLS on) | ✅ 312 passed, 94.24% coverage (CI floor 90%) | TEST_RESULTS.md |
-| Migrations 0001→0018: round-trip and `alembic check` drift | ✅ | CI "API" job |
+| API tests (real PostgreSQL, RLS on) | ✅ 353 passed, 94.41% coverage (CI floor 90%) | TEST_RESULTS.md |
+| Migrations 0001→0019: round-trip and `alembic check` drift | ✅ | CI "API" job |
 | Backup → tamper guard → restore drill | ✅ 668/668 rows, fingerprints identical | `scripts/backup_restore_drill.sh` |
-| Web: typecheck, lint, unit, build | ✅ 156 unit tests | CI "Web" job |
-| Web E2E in a live browser (API + DB, no mocks) | ✅ 28/28 | `apps/web/e2e` |
-| Flutter analyze + tests | ✅ 177 passed | CI "Mobile" job |
-| Android APK builds (release mode, debug certificate by explicit opt-in) | ✅ universal 75.7 MB; release without a key now fails by design | CI `android-apk` artifact; `apksigner verify` |
+| Web: typecheck, lint, unit, build | ✅ 159 unit tests | CI "Web" job |
+| Web E2E in a live browser (API + DB, no mocks) | ✅ 29/29 | `apps/web/e2e` |
+| Flutter analyze + tests | ✅ 237 passed | CI "Mobile" job |
+| Android APK builds (release mode, debug certificate by explicit opt-in) | ✅ universal 77.5 MB; release without a key now fails by design | CI `android-apk` artifact; `apksigner verify` |
 | PR #1 review findings (H1, M1–M4, L1–L2, A1, W1 and lows) | ✅ fixed with regression tests (M8.1) | CHANGELOG.md |
 | M8.2 device capture and review (simulated devices) | ✅ parsers, API, Android, web, E2E | docs/DEVICE_INTEGRATION.md |
 | Dependency audit (pip-audit, npm audit), secret scan (gitleaks) | ✅ | CI |
 | Docker build and compose smoke | ✅ | CI |
+| Synthetic-data demo kit (compose overlay, seed, LAN demo APK) | ✅ in CI (`scripts/demo-up.sh`); the Windows script and phone install are not yet run | docs/DEMO.md, docs/MODULE_STATUS.md |
 
 ## B. Product gates (owner decisions)
 

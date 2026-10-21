@@ -17,7 +17,7 @@ role-based access, audit trails and a commercial SaaS business layer.
 > communications v2 (**mock delivery**), the setup wizard, QR check-in,
 > printer profiles, AI-1 (statistical forecasts + cited knowledge search +
 > human-approved agent proposals + scribe drafts), the offline-first Android
-> app v2 (demo APK builds) and a responsive/PWA web shell. Release gates:
+> app v2 (demo APK builds) and a responsive/PWA web shell. **Try it:** [docs/DEMO.md](docs/DEMO.md) (synthetic-data demo on your own computer and phone) · module status: [docs/MODULE_STATUS.md](docs/MODULE_STATUS.md). Release gates:
 > [docs/RELEASE_READINESS.md](docs/RELEASE_READINESS.md). See [TASKS.md](TASKS.md),
 > [docs/COMMERCIAL_FEATURE_MATRIX.md](docs/COMMERCIAL_FEATURE_MATRIX.md) and
 > [docs/AI_ARCHITECTURE.md](docs/AI_ARCHITECTURE.md).
