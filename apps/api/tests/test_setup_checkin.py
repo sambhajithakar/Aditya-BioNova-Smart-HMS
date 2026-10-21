@@ -492,6 +492,36 @@ def test_existing_queue_entry_is_reused(client, clinic):
     assert c["queue_entry"]["token_number"] == manual.json()["token_number"]
 
 
+def test_queue_entry_at_another_branch_is_not_reused(client):
+    """M8.1: a patient already queued at branch A who scans the QR for an
+    appointment at branch B is not silently attached to A's queue."""
+    c = _clinic(client, tag="twobranch")
+    org_id = c["auth"]["organization"]["id"]
+    _sql("UPDATE subscriptions SET limit_overrides = '{\"max_branches\": 5}' "
+         "WHERE organization_id = %s", (org_id,))
+    b2 = client.post(f"{API}/branches", json={"name": "Second", "code": "SEC"},
+                     headers=c["h"])
+    assert b2.status_code == 201, b2.text
+    p = _patient(client, c)
+    at_a = client.post(f"{API}/opd/queue", json={"patient_id": p["id"],
+                                                  "branch_id": c["branch"]["id"]},
+                       headers=c["h"])
+    assert at_a.status_code == 201, at_a.text
+    appt = _appointment(client, {**c, "branch": b2.json()}, p)
+    token = _issue(client, c["h"], appt["id"]).json()["token"]
+    r = client.post(f"{API}/checkin/confirm", json={"code": token}, headers=c["h"])
+    assert r.status_code == 409 and "another branch" in r.json()["detail"]
+    # nothing was consumed: once the branch-A visit is skipped, the same
+    # code checks the patient in at branch B
+    cancel = client.post(f"{API}/opd/queue/{at_a.json()['id']}/skip", headers=c["h"])
+    assert cancel.status_code == 200, cancel.text
+    ok = client.post(f"{API}/checkin/confirm", json={"code": token}, headers=c["h"])
+    assert ok.status_code == 200, ok.text
+    (branch,) = _sql("SELECT branch_id::text FROM opd_queue WHERE id = %s",
+                     (ok.json()["queue_entry"]["id"],))[0]
+    assert branch == b2.json()["id"]
+
+
 def test_cross_tenant_token_is_a_generic_404(client, clinic, other):
     token = _issue(client, clinic["h"],
                    _appointment(client, clinic, _patient(client, clinic))["id"]).json()["token"]

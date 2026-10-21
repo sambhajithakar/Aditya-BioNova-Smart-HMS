@@ -227,6 +227,11 @@ def verify(
 
 def _confirm(db: Session, principal: Principal, request: Request,
              code: str) -> tuple[str, uuid.UUID, OpdQueueEntry]:
+    # Lock order, as in issue_token: the appointment first, then its token.
+    # Locking the token first could deadlock against a concurrent re-issue.
+    token = _load_token(db, principal, code, lock=False)
+    db.execute(select(Appointment.id).where(Appointment.id == token.appointment_id)
+               .with_for_update())
     token = _load_token(db, principal, code, lock=True)
     if token.used_at is not None:
         entry = db.get(OpdQueueEntry, token.queue_entry_id) if token.queue_entry_id else None
@@ -242,13 +247,20 @@ def _confirm(db: Session, principal: Principal, request: Request,
     today = clinic_today()
     lock_service_day(db, principal.organization_id, today)
     # already queued today (e.g. added at the desk before the QR was scanned):
-    # attach to that entry instead of issuing a second token
+    # attach to that entry instead of issuing a second token. A patient has at
+    # most one active queue entry per day; if it is at ANOTHER branch, say so
+    # rather than silently checking them in where they are not (M8.1).
     entry = db.scalar(select(OpdQueueEntry).where(
         OpdQueueEntry.organization_id == principal.organization_id,
         OpdQueueEntry.patient_id == appt.patient_id,
         OpdQueueEntry.service_date == today,
         OpdQueueEntry.status.in_(_ACTIVE_QUEUE),
     ).order_by(OpdQueueEntry.token_number))
+    if entry is not None and entry.branch_id != appt.branch_id:
+        raise HTTPException(
+            status_code=409,
+            detail="Patient is already in today's queue at another branch; complete or "
+                   "cancel that visit before checking in here")
     reused = entry is not None
     if entry is None:
         entry = issue_queue_entry(db, principal, request, patient_id=appt.patient_id,
