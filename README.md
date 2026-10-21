@@ -79,7 +79,7 @@ cd apps/api && pytest                      # 299 tests: auth/MFA, RBAC, RLS, cli
 cd apps/web && npm run lint && npm test && npm run build   # ESLint, 150 unit tests
 cd apps/web && npx playwright test         # 27 E2E against a live, seeded API (see playwright.config.ts)
 cd apps/mobile && flutter analyze && flutter test          # 174 tests
-cd apps/mobile && flutter build apk --release --split-per-abi   # demo APKs (debug certificate)
+cd apps/mobile && HMS_ALLOW_DEBUG_SIGNING=1 flutter build apk --release --split-per-abi   # demo APKs (debug certificate)
 ./scripts/backup_restore_drill.sh          # encrypted backup -> restore -> compare
 ```
 

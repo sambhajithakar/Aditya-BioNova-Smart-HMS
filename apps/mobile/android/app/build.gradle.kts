@@ -12,9 +12,13 @@ plugins {
 // The keystore and its passwords live ONLY in android/key.properties and the
 // .keystore/.jks file itself; android/.gitignore excludes key.properties,
 // **/*.keystore and **/*.jks, so no key material can enter the repository.
-// Without that file (a fresh clone, CI) the build still compiles, signed
-// with the debug key, and `flutter run --release` keeps working — but it is
-// NOT a distributable build.
+//
+// Without that file a RELEASE build fails (M8.1), so a debug-signed APK can
+// never be mistaken for a distributable one. Demo and CI builds opt in to
+// the Android debug key explicitly:
+//   HMS_ALLOW_DEBUG_SIGNING=1 flutter build apk --release
+// (or the Gradle property -Phms.allowDebugSigning=true). Debug builds and
+// `flutter run` are unaffected.
 //
 // One-time setup on the release machine:
 //   keytool -genkeypair -v -keystore ~/keys/aditya-bionova-release.jks \
@@ -26,6 +30,8 @@ plugins {
 //   keyPassword=…
 // ---------------------------------------------------------------------------
 val keystorePropertiesFile = rootProject.file("key.properties")
+val allowDebugSigning = System.getenv("HMS_ALLOW_DEBUG_SIGNING") == "1" ||
+    (project.findProperty("hms.allowDebugSigning") as String?) == "true"
 val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile.exists()) {
         keystorePropertiesFile.inputStream().use { load(it) }
@@ -65,13 +71,28 @@ android {
 
     buildTypes {
         release {
-            signingConfig = if (keystorePropertiesFile.exists()) {
-                signingConfigs.getByName("release")
-            } else {
-                // Debug key only: local testing, never distribution.
-                signingConfigs.getByName("debug")
+            signingConfig = when {
+                keystorePropertiesFile.exists() -> signingConfigs.getByName("release")
+                // explicit opt-in only: local testing and demos, never distribution
+                allowDebugSigning -> signingConfigs.getByName("debug")
+                else -> null
             }
         }
+    }
+}
+
+// Fail before anything is built when a release variant is requested without
+// the owner's key and without the explicit debug-signing opt-in.
+gradle.taskGraph.whenReady {
+    val releaseRequested = allTasks.any {
+        it.project == project && it.name.startsWith("assemble") && it.name.endsWith("Release") ||
+            it.project == project && it.name.startsWith("bundle") && it.name.endsWith("Release")
+    }
+    if (releaseRequested && !keystorePropertiesFile.exists() && !allowDebugSigning) {
+        throw GradleException(
+            "Release signing key missing: create android/key.properties " +
+                "(docs/ANDROID_BUILD.md §3), or set HMS_ALLOW_DEBUG_SIGNING=1 to build " +
+                "a debug-signed APK for local testing only (never distribute it).")
     }
 }
 

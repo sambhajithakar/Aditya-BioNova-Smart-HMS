@@ -263,6 +263,11 @@ jobs:
       - name: Build release APKs (no keystore in CI -> Android debug certificate)
         # The runner image ships the Android SDK. No signing key is ever stored
         # in the repository or CI; a real release needs the owner's keystore.
+        # Without key.properties a release build fails unless debug signing is
+        # explicitly allowed (M8.1): these are demo artefacts, never for
+        # distribution.
+        env:
+          HMS_ALLOW_DEBUG_SIGNING: "1"
         run: |
           export JAVA_HOME="$JAVA_HOME_21_X64"
           flutter build apk --release

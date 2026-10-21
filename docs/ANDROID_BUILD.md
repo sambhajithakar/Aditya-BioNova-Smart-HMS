@@ -83,6 +83,7 @@ flutter build apk --release \
   --dart-define=API_BASE=https://api.<your-domain> \
   --build-name=1.0.0 --build-number=1
 # output: build/app/outputs/flutter-apk/app-release.apk
+# (requires android/key.properties, section 3; otherwise the build stops)
 ```
 
 A release build refuses to start against a non-HTTPS `API_BASE` (start-up
@@ -159,8 +160,14 @@ by a Play-distributed build and must not be given to clinics.
   APKs).
 * Rotate the upload key if a maintainer with access leaves or a machine is
   compromised (Play Console → App integrity → request upload key reset).
-* Without `key.properties` the Gradle config falls back to the **debug**
-  key: such an APK is for local testing only.
+* Without `key.properties` a **release build fails** (M8.1) with a message
+  pointing here.
+  - A demo build must opt in to the Android debug key explicitly:
+    `HMS_ALLOW_DEBUG_SIGNING=1 flutter build apk --release`, or
+    `-Phms.allowDebugSigning=true`.
+  - Such an APK is for local testing only. CI's `android-apk` job sets the
+    variable for its demo artefacts.
+  - Debug builds and `flutter run` are unaffected.
 
 ## 4. Device QA checklist (not yet done — no devices available)
 
