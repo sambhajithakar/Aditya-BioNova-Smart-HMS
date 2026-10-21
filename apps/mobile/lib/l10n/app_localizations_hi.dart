@@ -1473,7 +1473,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get readingClockSkew => 'उपकरण की घड़ी फ़ोन से अलग है।';
 
   @override
-  String get demoBanner => 'डेमो';
+  String get demoBanner => 'डेमो · केवल कृत्रिम डेटा';
 
   @override
   String get demoServerTitle => 'डेमो सर्वर';

@@ -1477,7 +1477,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get readingClockSkew => 'The device clock differs from the phone\'s.';
 
   @override
-  String get demoBanner => 'DEMO';
+  String get demoBanner => 'DEMO · synthetic data only';
 
   @override
   String get demoServerTitle => 'Demo server';

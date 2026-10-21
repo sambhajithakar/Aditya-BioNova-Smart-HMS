@@ -2563,7 +2563,7 @@ abstract class AppLocalizations {
   /// No description provided for @demoBanner.
   ///
   /// In en, this message translates to:
-  /// **'DEMO'**
+  /// **'DEMO · synthetic data only'**
   String get demoBanner;
 
   /// No description provided for @demoServerTitle.

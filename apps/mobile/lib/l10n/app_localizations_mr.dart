@@ -1471,7 +1471,7 @@ class AppLocalizationsMr extends AppLocalizations {
   String get readingClockSkew => 'उपकरणाचे घड्याळ फोनपेक्षा वेगळे आहे.';
 
   @override
-  String get demoBanner => 'डेमो';
+  String get demoBanner => 'डेमो · फक्त कृत्रिम माहिती';
 
   @override
   String get demoServerTitle => 'डेमो सर्व्हर';

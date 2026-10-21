@@ -84,16 +84,37 @@ Widget ruralTextScale(BuildContext context, Widget? child) {
   );
 }
 
-/// `MaterialApp.builder` for the LAN demo build: a permanent "DEMO"
-/// corner ribbon over every screen (no-op in other builds).
+/// `MaterialApp.builder` for the LAN demo build: a permanent red strip
+/// "DEMO · synthetic data only" above every screen (no-op in other builds).
 Widget demoBanner(BuildContext context, Widget? child) {
   final body = child ?? const SizedBox.shrink();
   if (!kDemoLan) return body;
-  return Banner(
-    message: context.l10n.demoBanner,
-    location: BannerLocation.topEnd,
-    color: const Color(0xFFB00020),
-    child: body,
+  final media = MediaQuery.of(context);
+  return Column(
+    children: [
+      Material(
+        key: const Key('demo-strip'),
+        color: const Color(0xFFB00020),
+        child: Padding(
+          padding: EdgeInsets.only(top: media.padding.top),
+          child: SizedBox(
+            width: double.infinity,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Text(
+                context.l10n.demoBanner,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ),
+      ),
+      Expanded(
+        child: MediaQuery.removePadding(context: context, removeTop: true, child: body),
+      ),
+    ],
   );
 }
 

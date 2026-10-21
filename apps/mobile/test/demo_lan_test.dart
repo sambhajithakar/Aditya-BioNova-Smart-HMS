@@ -128,6 +128,18 @@ void main() {
     });
   });
 
+  testWidgets('the DEMO strip is shown only in the demo build', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      localizationsDelegates: kLocalizationsDelegates,
+      supportedLocales: kSupportedLocales,
+      builder: demoBanner,
+      home: const Scaffold(body: Text('screen')),
+    ));
+    expect(find.text('screen'), findsOneWidget);
+    expect(find.byKey(const Key('demo-strip')), kDemoLan ? findsOneWidget : findsNothing);
+    if (kDemoLan) expect(find.text('DEMO · synthetic data only'), findsOneWidget);
+  });
+
   test('ordinary builds are not demo builds', () {
     expect(kDemoLan, isFalse);
   }, skip: kDemoLan ? 'run with HMS_DEMO_LAN=true' : false);
