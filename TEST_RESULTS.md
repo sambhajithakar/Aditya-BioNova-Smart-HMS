@@ -1,4 +1,27 @@
-# Test Results — M8.1 corrections (2026-10-21)
+# Test Results — M8.2 medical device integration, simulated devices (2026-10-21)
+
+Executed on 2026-10-21 on the review branch after the M8.2 commits, with
+synthetic data and SIMULATED device payloads only. No physical Bluetooth
+device was used.
+
+| Suite | Result |
+|---|---|
+| API tests (`pytest --cov=app --cov-fail-under=90`) | ✅ **353 passed, 0 failed** (312 after M8.1; +28 parser tests, +13 device API tests); coverage **94.41%** |
+| Migrations | ✅ 0019 upgrade / downgrade / upgrade, full round-trip, `alembic check` clean; single head `0019` |
+| Web typecheck, lint, unit | ✅ 0 errors; **159** unit tests |
+| Web E2E (live API + PostgreSQL + Chromium) | ✅ **29/29** (incl. device review: simulated capture → accept with confirmation → vitals; reject with reason) |
+| Flutter analyze / test | ✅ no issues; **226** passed (+27 parser, +10 simulator/capture/review, +12 Bluetooth transport against a fake BLE stack) |
+| Android release APK (demo, simulator on) | ✅ builds with flutter_reactive_ble, 77.5 MB, debug certificate; merged manifest inspected with aapt (Bluetooth permissions scoped, no location on Android 12+, Bluetooth/location not required). **Not run on a device** |
+| Shared parser vectors | ✅ 24 synthetic vectors reproduced by both parsers; CI checks the file is current |
+| Secret scan | ✅ no leaks |
+| GitHub Actions run 60 (`f2043e3`) | ✅ all jobs incl. the APK build |
+
+**Not tested:** any real Bluetooth radio, bonding or device. See
+docs/DEVICE_SUPPORT.md.
+
+---
+
+## Previous run: M8.1 corrections (2026-10-21)
 
 All of the following were **executed** on 2026-10-21 on the review branch,
 after the M8.1 commits, using synthetic data only.
