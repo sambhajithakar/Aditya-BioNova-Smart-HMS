@@ -47,7 +47,7 @@ Aditya-BioNova-Smart-HMS/
 
 ## Quick start (local development)
 
-Prerequisites: Python 3.12+, Node 20+, PostgreSQL 16 (any local instance).
+Prerequisites: Python 3.12+, Node 22.12+ (required by vitest 5; the Docker image uses 22.23), PostgreSQL 16 (any local instance).
 
 ```bash
 # 1) PostgreSQL with a superuser "hms" listening on 127.0.0.1:5433

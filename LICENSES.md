@@ -45,6 +45,7 @@ files was checked against its installed metadata or LICENSE file.
 | Package | Version | Licence |
 |---|---|---|
 | pytest | 9.1.1 | MIT |
+| pytest-cov / coverage (coverage measurement in CI, M8.1) | 7.1.0 / 7.16.2 | MIT / Apache-2.0 |
 | ↳ iniconfig / pluggy / packaging / pygments | 2.3.1 / 1.7.0 / 26.3 / 2.21.0 | MIT / MIT / Apache-2.0 OR BSD-2-Clause / BSD-2-Clause |
 | httpx / httpcore (FastAPI TestClient) | 0.28.1 / 1.0.9 | BSD-3-Clause / BSD-3-Clause |
 | certifi (httpx) | 2026.10.19 | MPL-2.0 (unmodified; file-level copyleft only) |

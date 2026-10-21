@@ -202,7 +202,7 @@ sambhajithakar/Aditya-BioNova-Smart-HMS#1 — not merged.
       CI with pip-audit, npm audit, gitleaks, alembic drift, Flutter, Docker
       build + compose smoke, drill, web lint/unit, Playwright E2E
 - [x] Synthetic demo clinic seeder (`scripts/seed_demo.py`, 9 role accounts)
-- [x] Tests: API 164 · web 43 unit + 5 E2E · Flutter 91 — see TEST_RESULTS.md
+- [x] Tests at M7.0 sign-off: API 164 · web 43 unit + 5 E2E · Flutter 91 (current counts: TEST_RESULTS.md)
 - [ ] H10 open: dispenses are still valued at cost and not billed — fixed by
       pharmacy sales billing (MRP + GST) in M9
 - [ ] ⏳ Device QA of the Android build (no Android SDK/devices in CI yet)

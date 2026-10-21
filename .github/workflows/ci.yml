@@ -61,7 +61,9 @@ jobs:
         run: ./scripts/setup_local_db.sh
       - name: Run test suite (auth, RBAC, cross-tenant RLS, ops probes)
         working-directory: apps/api
-        run: pytest -q
+        # coverage is measured in CI since M8.1 (pytest-cov is in the dev lock);
+        # the floor sits below the measured 94% to catch large regressions only
+        run: pytest -q --cov=app --cov-report=term:skip-covered --cov-fail-under=90
       - name: Migration drift (alembic check — ORM models vs migrations)
         working-directory: apps/api
         env:
