@@ -200,6 +200,7 @@ describe("feature-gated navigation", () => {
       aiKnowledge: "ai_rag",
       aiAgents: "ai_agents",
       aiScribe: "ai_scribe",
+      medicalDevices: "medical_devices",
     });
     for (const f of Object.values(map)) expect(FEATURE_KEYS).toContain(f);
   });

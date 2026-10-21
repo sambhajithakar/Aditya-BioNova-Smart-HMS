@@ -44,6 +44,7 @@ export const FEATURE_KEYS = [
   "comms_email",
   "comms_sms",
   "comms_whatsapp",
+  "medical_devices",
   "ai_scribe",
   "ai_copilot",
   "ai_agents",

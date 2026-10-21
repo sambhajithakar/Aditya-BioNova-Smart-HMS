@@ -17,6 +17,7 @@ import { billingDictionaries } from "./i18n-billing";
 import { commsDictionaries } from "./i18n-comms";
 import { ai1Dictionaries } from "./i18n-ai1";
 import { deviceDictionaries } from "./i18n-device";
+import { medicalDeviceDictionaries } from "./i18n-meddev";
 import { saasDictionaries } from "./i18n-saas";
 import { setupDictionaries } from "./i18n-setup";
 
@@ -1129,6 +1130,7 @@ export const dictionaries: Record<Lang, Dict> = {
     ...setupDictionaries.en,
     ...ai1Dictionaries.en,
     ...deviceDictionaries.en,
+    ...medicalDeviceDictionaries.en,
   },
   mr: {
     ...coreDictionaries.mr,
@@ -1139,6 +1141,7 @@ export const dictionaries: Record<Lang, Dict> = {
     ...setupDictionaries.mr,
     ...ai1Dictionaries.mr,
     ...deviceDictionaries.mr,
+    ...medicalDeviceDictionaries.mr,
   },
   hi: {
     ...coreDictionaries.hi,
@@ -1149,6 +1152,7 @@ export const dictionaries: Record<Lang, Dict> = {
     ...setupDictionaries.hi,
     ...ai1Dictionaries.hi,
     ...deviceDictionaries.hi,
+    ...medicalDeviceDictionaries.hi,
   },
 };
 

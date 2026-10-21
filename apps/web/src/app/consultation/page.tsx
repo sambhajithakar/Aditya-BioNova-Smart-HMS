@@ -8,6 +8,7 @@
  * encounter.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { DeviceReadingsPanel } from "@/components/DeviceReadings";
 import { AppShell } from "@/components/AppShell";
 import { PatientPicker, patientLabel } from "@/components/PatientPicker";
 import {
@@ -27,6 +28,7 @@ import { useLang } from "@/lib/lang";
 import { NeedsConnection, useOnline } from "@/components/device/online";
 import { defaultBranchId, useCan, useMe } from "@/lib/me";
 import { useInFlight } from "@/lib/idempotency";
+import { hasFeature } from "@/lib/saas";
 import {
   FREQUENCIES,
   ROUTES,
@@ -465,6 +467,16 @@ function Consultation() {
                   </table>
                 </div>
               )}
+              {hasFeature(me, "medical_devices") &&
+                (can("device.review") || can("device.capture")) && (
+                  <DeviceReadingsPanel
+                    key={open.id}
+                    encounterId={open.id}
+                    patientLabel={patient ? `${patient.full_name} (${patient.uhid})` : ""}
+                    canReview={editable && online && can("device.review") && canWrite}
+                    onAccepted={() => void openEncounter(open.id)}
+                  />
+                )}
             </section>
 
             <section className="card">

@@ -449,3 +449,14 @@ textarea.wide { width: 100%; }
 @media (max-width: 760px) {
   .shell-banner { padding: 0.5rem 0.75rem; }
 }
+
+/* M8.2: marks synthetic device readings and simulated devices */
+.badge {
+  display: inline-block;
+  padding: 0.05rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #fde68a;
+  color: #713f12;
+}

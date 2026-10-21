@@ -34,6 +34,13 @@ export const NAV: ShellNavItem[] = [
   { key: "branches", label: "navBranches", href: "/settings/branches", perm: "branch.read" },
   { key: "printers", label: "navPrinters", href: "/settings/printers", perm: "setup.read" },
   {
+    key: "medicalDevices",
+    label: "navMedicalDevices",
+    href: "/settings/devices",
+    perm: "device.read",
+    feature: "medical_devices",
+  },
+  {
     key: "subscription",
     label: "navSubscription",
     href: "/settings/subscription",
