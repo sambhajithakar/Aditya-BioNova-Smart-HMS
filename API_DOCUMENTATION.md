@@ -86,7 +86,7 @@ it does not exist in staging or production builds.
 
 ## Endpoints
 
-Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 248 operations in 34 tags.
+Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 256 operations in 35 tags.
 
 ### Summary
 
@@ -187,6 +187,14 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 248 op
 | communications | POST | `/api/v1/comms/templates/preview` | `comms.read` |  |
 | communications | PATCH | `/api/v1/comms/templates/{template_id}` | `comms.manage` |  |
 | dev | GET | `/api/v1/dev/outbox` | public |  |
+| devices | GET | `/api/v1/device-readings` | public |  |
+| devices | POST | `/api/v1/device-readings` | `device.capture` |  |
+| devices | GET | `/api/v1/device-readings/{reading_id}` | public |  |
+| devices | POST | `/api/v1/device-readings/{reading_id}/accept` | `device.review` |  |
+| devices | POST | `/api/v1/device-readings/{reading_id}/reject` | `device.review` |  |
+| devices | GET | `/api/v1/devices` | `device.read` |  |
+| devices | POST | `/api/v1/devices` | `device.manage` |  |
+| devices | POST | `/api/v1/devices/{device_id}/retire` | `device.manage` |  |
 | encounters | GET | `/api/v1/encounters` | `encounter.read` |  |
 | encounters | POST | `/api/v1/encounters` | `encounter.write` |  |
 | encounters | GET | `/api/v1/encounters/{encounter_id}` | `encounter.read` |  |
@@ -1463,6 +1471,105 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 248 op
 | Parameter | In | Type | Required |
 |---|---|---|---|
 | `limit` | query | integer | no |
+
+### devices
+
+#### `GET /api/v1/device-readings`
+
+**List Readings**
+
+- Permission: public
+- operationId: `list_readings_api_v1_device_readings_get`
+- Request body: -
+- Response: `200 list[ReadingOut]`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `encounter_id` | query | string(uuid) | yes |
+| `status` | query | string | no |
+
+#### `POST /api/v1/device-readings`
+
+**Capture Reading**
+
+- Permission: `device.capture`
+- operationId: `capture_reading_api_v1_device_readings_post`
+- Request body: `ReadingIn`
+- Response: `201 ReadingOut`
+
+#### `GET /api/v1/device-readings/{reading_id}`
+
+**Get Reading**
+
+- Permission: public
+- operationId: `get_reading_api_v1_device_readings__reading_id__get`
+- Request body: -
+- Response: `200 ReadingOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `reading_id` | path | string(uuid) | yes |
+
+#### `POST /api/v1/device-readings/{reading_id}/accept`
+
+**Accept Reading** - The clinician confirms the reading belongs to this patient, now; it is
+
+- Permission: `device.review`
+- operationId: `accept_reading_api_v1_device_readings__reading_id__accept_post`
+- Request body: `AcceptIn`
+- Response: `200 ReadingOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `reading_id` | path | string(uuid) | yes |
+
+#### `POST /api/v1/device-readings/{reading_id}/reject`
+
+**Reject Reading**
+
+- Permission: `device.review`
+- operationId: `reject_reading_api_v1_device_readings__reading_id__reject_post`
+- Request body: `RejectIn`
+- Response: `200 ReadingOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `reading_id` | path | string(uuid) | yes |
+
+#### `GET /api/v1/devices`
+
+**List Devices**
+
+- Permission: `device.read`
+- operationId: `list_devices_api_v1_devices_get`
+- Request body: -
+- Response: `200 list[DeviceOut]`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `include_retired` | query | boolean | no |
+
+#### `POST /api/v1/devices`
+
+**Register Device**
+
+- Permission: `device.manage`
+- operationId: `register_device_api_v1_devices_post`
+- Request body: `DeviceIn`
+- Response: `201 DeviceOut`
+
+#### `POST /api/v1/devices/{device_id}/retire`
+
+**Retire Device**
+
+- Permission: `device.manage`
+- operationId: `retire_device_api_v1_devices__device_id__retire_post`
+- Request body: -
+- Response: `200 DeviceOut`
+
+| Parameter | In | Type | Required |
+|---|---|---|---|
+| `device_id` | path | string(uuid) | yes |
 
 ### encounters
 
@@ -3341,6 +3448,14 @@ Spec: **Aditya BioNova Smart HMS API** version `0.1.0-m1`, OpenAPI 3.1.0. 248 op
 
 Field lists of the request/response schemas referenced above (`*` = required).
 
+### AcceptIn
+
+| Field | Type |
+|---|---|
+| `surface`* | string (web, android) |
+| `note` | string |
+| `confirm_patient`* | boolean |
+
 ### AdjustStockIn
 
 | Field | Type |
@@ -3850,6 +3965,17 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `remaining`* | integer \| null |
 | `purchased_expire` | boolean |
 
+### DecisionOut
+
+| Field | Type |
+|---|---|
+| `decision`* | string |
+| `reason`* | string |
+| `surface`* | string |
+| `vitals_id`* | string(uuid) \| null |
+| `decided_by`* | string(uuid) \| null |
+| `decided_at`* | string(date-time) |
+
 ### DeliveryOut
 
 | Field | Type |
@@ -3878,6 +4004,38 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `total`* | integer |
 | `limit`* | integer |
 | `offset`* | integer |
+
+### DeviceIn
+
+| Field | Type |
+|---|---|
+| `kind`* | string (bp_monitor, pulse_oximeter) |
+| `label`* | string |
+| `ble_address`* | string |
+| `manufacturer` | string |
+| `model` | string |
+| `serial` | string |
+| `firmware` | string |
+| `branch_id` | string(uuid) \| null |
+| `is_simulator` | boolean |
+
+### DeviceOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `kind`* | string |
+| `label`* | string |
+| `manufacturer`* | string |
+| `model`* | string |
+| `serial`* | string |
+| `firmware`* | string |
+| `branch_id`* | string(uuid) \| null |
+| `is_simulator`* | boolean |
+| `status`* | string |
+| `created_at`* | string(date-time) |
+| `retired_at`* | string(date-time) \| null |
+| `hardware_validated` | boolean |
 
 ### DiagnosisIn
 
@@ -5329,6 +5487,50 @@ Field lists of the request/response schemas referenced above (`*` = required).
 |---|---|
 | `doctor_user_id` | string(uuid) \| null |
 
+### ReadingIn
+
+| Field | Type |
+|---|---|
+| `capture_id`* | string(uuid) |
+| `device_id`* | string(uuid) |
+| `ble_address`* | string |
+| `encounter_id`* | string(uuid) |
+| `characteristic`* | string (2a35, 2a5e, 2a5f) |
+| `raw_hex`* | string |
+| `source`* | string (ble, simulator) |
+| `captured_at`* | string(date-time) |
+| `app_version` | string |
+| `client_parsed` | object \| null |
+
+### ReadingOut
+
+| Field | Type |
+|---|---|
+| `id`* | string(uuid) |
+| `device_id`* | string(uuid) |
+| `device_label`* | string |
+| `device_is_simulator`* | boolean |
+| `patient_id`* | string(uuid) |
+| `encounter_id`* | string(uuid) |
+| `capture_id`* | string(uuid) |
+| `kind`* | string |
+| `characteristic`* | string |
+| `values`* | object |
+| `exact`* | object |
+| `unit`* | string |
+| `flags`* | list[string] |
+| `raw_hex`* | string |
+| `raw_sha256`* | string |
+| `source`* | string |
+| `device_time`* | string(date-time) \| null |
+| `captured_at`* | string(date-time) |
+| `received_at`* | string(date-time) |
+| `clock_skew`* | boolean |
+| `captured_by`* | string(uuid) \| null |
+| `app_version`* | string |
+| `status`* | string (pending_review, accepted, rejected) |
+| `decision`* | DecisionOut \| null |
+
 ### ReceiptOut
 
 | Field | Type |
@@ -5392,6 +5594,13 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `email`* | string(email) |
 | `password`* | string |
 | `plan_code` | string \| null |
+
+### RejectIn
+
+| Field | Type |
+|---|---|
+| `surface`* | string (web, android) |
+| `reason`* | string |
 
 ### RejectSpecimenIn
 
@@ -5904,6 +6113,7 @@ Field lists of the request/response schemas referenced above (`*` = required).
 | `height_cm`* | number \| null |
 | `notes`* | string |
 | `recorded_at`* | string(date-time) |
+| `device_reading_id` | string(uuid) \| null |
 
 ### WardIn
 

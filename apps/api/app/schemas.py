@@ -609,6 +609,8 @@ class VitalsOut(BaseModel):
     height_cm: float | None
     notes: str
     recorded_at: datetime
+    # M8.2: set when these vitals were accepted from a device reading
+    device_reading_id: uuid.UUID | None = None
 
 
 class DiagnosisIn(StrictModel):

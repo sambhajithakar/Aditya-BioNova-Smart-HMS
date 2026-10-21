@@ -33,6 +33,7 @@ from .routers import (
     billing,
     branches,
     dev,
+    devices,
     encounters,
     expenses,
     health,
@@ -69,7 +70,7 @@ _REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{1,64}$")
 _PHI_PATH_RE = re.compile(
     r"^/api/v1/(patients|encounters|prescriptions|lab|ipd|opd|appointments"
     r"|billing/invoices|billing/payments|pharmacy/dispenses"
-    r"|ai/scribe|follow-ups|comms/patients|comms/delivery-log)(/|$)"
+    r"|ai/scribe|follow-ups|comms/patients|comms/delivery-log|device-readings)(/|$)"
 )
 _UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
@@ -229,6 +230,7 @@ def create_app() -> FastAPI:
         (billing.router, "billing"), (pharmacy.router, "pharmacy"),
         (lab.router, "laboratory"), (ipd.router, "ipd"), (inventory.router, "inventory"),
         (expenses.router, "expenses"), (reports.router, "reports_basic"),
+        (devices.router, "medical_devices"),
     ]
     for r, feature in gated:
         app.include_router(r, prefix=BASE_PREFIX,

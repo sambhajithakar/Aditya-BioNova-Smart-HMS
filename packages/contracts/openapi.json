@@ -9636,6 +9636,422 @@
         }
       }
     },
+    "/api/v1/devices": {
+      "post": {
+        "tags": [
+          "devices"
+        ],
+        "summary": "Register Device",
+        "operationId": "register_device_api_v1_devices_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "devices"
+        ],
+        "summary": "List Devices",
+        "operationId": "list_devices_api_v1_devices_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "include_retired",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Retired"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeviceOut"
+                  },
+                  "title": "Response List Devices Api V1 Devices Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/devices/{device_id}/retire": {
+      "post": {
+        "tags": [
+          "devices"
+        ],
+        "summary": "Retire Device",
+        "operationId": "retire_device_api_v1_devices__device_id__retire_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Device Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/device-readings": {
+      "post": {
+        "tags": [
+          "devices"
+        ],
+        "summary": "Capture Reading",
+        "operationId": "capture_reading_api_v1_device_readings_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadingIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "devices"
+        ],
+        "summary": "List Readings",
+        "operationId": "list_readings_api_v1_device_readings_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "encounter_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Encounter Id"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(all|pending_review|accepted|rejected)$",
+              "default": "all",
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReadingOut"
+                  },
+                  "title": "Response List Readings Api V1 Device Readings Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/device-readings/{reading_id}": {
+      "get": {
+        "tags": [
+          "devices"
+        ],
+        "summary": "Get Reading",
+        "operationId": "get_reading_api_v1_device_readings__reading_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reading_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Reading Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/device-readings/{reading_id}/accept": {
+      "post": {
+        "tags": [
+          "devices"
+        ],
+        "summary": "Accept Reading",
+        "description": "The clinician confirms the reading belongs to this patient, now; it is\nwritten to the encounter's vitals through the normal vitals path (same\nvalidation, guards and audit event as manual entry).",
+        "operationId": "accept_reading_api_v1_device_readings__reading_id__accept_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reading_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Reading Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/device-readings/{reading_id}/reject": {
+      "post": {
+        "tags": [
+          "devices"
+        ],
+        "summary": "Reject Reading",
+        "operationId": "reject_reading_api_v1_device_readings__reading_id__reject_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reading_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Reading Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/ai/settings": {
       "get": {
         "tags": [
@@ -12967,6 +13383,35 @@
   },
   "components": {
     "schemas": {
+      "AcceptIn": {
+        "properties": {
+          "surface": {
+            "type": "string",
+            "enum": [
+              "web",
+              "android"
+            ],
+            "title": "Surface"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Note",
+            "default": ""
+          },
+          "confirm_patient": {
+            "type": "boolean",
+            "title": "Confirm Patient"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "surface",
+          "confirm_patient"
+        ],
+        "title": "AcceptIn"
+      },
       "AdjustStockIn": {
         "properties": {
           "quantity": {
@@ -15196,6 +15641,61 @@
         "title": "CreditsOut",
         "description": "``plan_allowance`` resets every month. Purchased credits do NOT expire:\n``purchased`` is the balance still available from every pack ever bought."
       },
+      "DecisionOut": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "title": "Decision"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "surface": {
+            "type": "string",
+            "title": "Surface"
+          },
+          "vitals_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitals Id"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "decided_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Decided At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision",
+          "reason",
+          "surface",
+          "vitals_id",
+          "decided_by",
+          "decided_at"
+        ],
+        "title": "DecisionOut"
+      },
       "DeliveryOut": {
         "properties": {
           "id": {
@@ -15363,6 +15863,169 @@
           "offset"
         ],
         "title": "DeliveryPage"
+      },
+      "DeviceIn": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "bp_monitor",
+              "pulse_oximeter"
+            ],
+            "title": "Kind"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 2,
+            "title": "Label"
+          },
+          "ble_address": {
+            "type": "string",
+            "pattern": "^(([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}|SIM-[0-9A-Fa-f]{8})$",
+            "title": "Ble Address"
+          },
+          "manufacturer": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Manufacturer",
+            "default": ""
+          },
+          "model": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Model",
+            "default": ""
+          },
+          "serial": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Serial",
+            "default": ""
+          },
+          "firmware": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Firmware",
+            "default": ""
+          },
+          "branch_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch Id"
+          },
+          "is_simulator": {
+            "type": "boolean",
+            "title": "Is Simulator",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "label",
+          "ble_address"
+        ],
+        "title": "DeviceIn"
+      },
+      "DeviceOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "manufacturer": {
+            "type": "string",
+            "title": "Manufacturer"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "serial": {
+            "type": "string",
+            "title": "Serial"
+          },
+          "firmware": {
+            "type": "string",
+            "title": "Firmware"
+          },
+          "branch_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch Id"
+          },
+          "is_simulator": {
+            "type": "boolean",
+            "title": "Is Simulator"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "retired_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retired At"
+          },
+          "hardware_validated": {
+            "type": "boolean",
+            "title": "Hardware Validated",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "label",
+          "manufacturer",
+          "model",
+          "serial",
+          "firmware",
+          "branch_id",
+          "is_simulator",
+          "status",
+          "created_at",
+          "retired_at"
+        ],
+        "title": "DeviceOut"
       },
       "DiagnosisIn": {
         "properties": {
@@ -22713,6 +23376,257 @@
         "title": "QueueStatusIn",
         "description": "Doctor assignment for call/start transitions."
       },
+      "ReadingIn": {
+        "properties": {
+          "capture_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Capture Id"
+          },
+          "device_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Device Id"
+          },
+          "ble_address": {
+            "type": "string",
+            "pattern": "^(([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}|SIM-[0-9A-Fa-f]{8})$",
+            "title": "Ble Address"
+          },
+          "encounter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Encounter Id"
+          },
+          "characteristic": {
+            "type": "string",
+            "enum": [
+              "2a35",
+              "2a5e",
+              "2a5f"
+            ],
+            "title": "Characteristic"
+          },
+          "raw_hex": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 2,
+            "pattern": "^[0-9a-fA-F]+$",
+            "title": "Raw Hex"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "ble",
+              "simulator"
+            ],
+            "title": "Source"
+          },
+          "captured_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Captured At"
+          },
+          "app_version": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "App Version",
+            "default": ""
+          },
+          "client_parsed": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Parsed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "capture_id",
+          "device_id",
+          "ble_address",
+          "encounter_id",
+          "characteristic",
+          "raw_hex",
+          "source",
+          "captured_at"
+        ],
+        "title": "ReadingIn"
+      },
+      "ReadingOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "device_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Device Id"
+          },
+          "device_label": {
+            "type": "string",
+            "title": "Device Label"
+          },
+          "device_is_simulator": {
+            "type": "boolean",
+            "title": "Device Is Simulator"
+          },
+          "patient_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Patient Id"
+          },
+          "encounter_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Encounter Id"
+          },
+          "capture_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Capture Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "characteristic": {
+            "type": "string",
+            "title": "Characteristic"
+          },
+          "values": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Values"
+          },
+          "exact": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Exact"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "flags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Flags"
+          },
+          "raw_hex": {
+            "type": "string",
+            "title": "Raw Hex"
+          },
+          "raw_sha256": {
+            "type": "string",
+            "title": "Raw Sha256"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "device_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Time"
+          },
+          "captured_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Captured At"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Received At"
+          },
+          "clock_skew": {
+            "type": "boolean",
+            "title": "Clock Skew"
+          },
+          "captured_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Captured By"
+          },
+          "app_version": {
+            "type": "string",
+            "title": "App Version"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending_review",
+              "accepted",
+              "rejected"
+            ],
+            "title": "Status"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecisionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "device_id",
+          "device_label",
+          "device_is_simulator",
+          "patient_id",
+          "encounter_id",
+          "capture_id",
+          "kind",
+          "characteristic",
+          "values",
+          "exact",
+          "unit",
+          "flags",
+          "raw_hex",
+          "raw_sha256",
+          "source",
+          "device_time",
+          "captured_at",
+          "received_at",
+          "clock_skew",
+          "captured_by",
+          "app_version",
+          "status",
+          "decision"
+        ],
+        "title": "ReadingOut"
+      },
       "ReceiptOut": {
         "properties": {
           "invoice": {
@@ -22966,6 +23880,31 @@
           "password"
         ],
         "title": "RegisterIn"
+      },
+      "RejectIn": {
+        "properties": {
+          "surface": {
+            "type": "string",
+            "enum": [
+              "web",
+              "android"
+            ],
+            "title": "Surface"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 3,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "surface",
+          "reason"
+        ],
+        "title": "RejectIn"
       },
       "RejectSpecimenIn": {
         "properties": {
@@ -25355,6 +26294,18 @@
             "type": "string",
             "format": "date-time",
             "title": "Recorded At"
+          },
+          "device_reading_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Reading Id"
           }
         },
         "type": "object",
