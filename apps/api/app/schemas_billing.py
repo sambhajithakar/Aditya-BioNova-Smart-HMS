@@ -161,11 +161,16 @@ class RefundDecisionIn(_In):
 
 
 class CreditsOut(BaseModel):
+    """``plan_allowance`` resets every month. Purchased credits do NOT expire:
+    ``purchased`` is the balance still available from every pack ever bought."""
     period: str
     plan_allowance: int | None
+    allowance_used: int
     purchased: int
+    purchased_total: int
     used: int
     remaining: int | None
+    purchased_expire: bool = False
 
 
 class CreditPackIn(_In):

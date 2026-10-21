@@ -149,10 +149,12 @@ function BillingBody() {
             {t("billCreditsLine")
               .replace("{period}", credits.period)
               .replace("{allowance}", credits.plan_allowance === null ? "∞" : String(credits.plan_allowance))
+              .replace("{allowanceUsed}", String(credits.allowance_used))
               .replace("{purchased}", String(credits.purchased))
               .replace("{used}", String(credits.used))
               .replace("{remaining}", credits.remaining === null ? "∞" : String(credits.remaining))}
           </p>
+          <p className="muted">{t("billCreditsCarry")}</p>
         </section>
       )}
 

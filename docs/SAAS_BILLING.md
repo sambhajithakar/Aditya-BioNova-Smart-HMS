@@ -32,6 +32,34 @@ never shares tables, endpoints or permissions with it.
 - No proration in M7.2. Renewing the same plan extends from the current
   period end; changing plan starts a new period at payment time.
 
+## AI credits: monthly allowance and purchased packs
+
+- **Plan allowance.** Each edition includes `ai_credits_monthly` credits.
+  The allowance resets every month, in the clinic's calendar.
+- **Purchased packs never expire (M8.1).** A paid AI credit pack is a `grant`
+  in the append-only `ai_credit_ledger`.
+  - A request is paid from the month's allowance first.
+  - Only the part the allowance cannot cover is drawn from purchased credits,
+    as a `pack_use` entry.
+  - Purchased balance = all grants − all `pack_use` entries, across every
+    month. Unused purchased credits carry over indefinitely.
+  - There is no month-end expiry. Any future expiry policy would have to be
+    disclosed to clinics and approved by the owner first.
+- `GET /saas/credits` reports:
+
+  | Field | Meaning |
+  |---|---|
+  | `plan_allowance`, `allowance_used` | This month's allowance and how much of it is used |
+  | `purchased` | Purchased balance still available |
+  | `purchased_total` | Every pack ever bought |
+  | `used` | All credits spent this month |
+  | `remaining` | What is available now |
+  | `purchased_expire` | Always `false` |
+
+- The subscription's `usage.ai_credits_monthly` shows the allowance alone.
+- Before M8.1 (sandbox only, no real purchases), packs counted only in the
+  month they were bought. Earlier sandbox ledger rows are not re-classified.
+
 ## Payment flow
 
 ```

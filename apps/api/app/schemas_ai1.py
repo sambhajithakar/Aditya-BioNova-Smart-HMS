@@ -274,5 +274,7 @@ class UsageBreakdownOut(BaseModel):
     period: str
     used_credits: int
     limit_credits: int | None
+    # purchased credits left; they do not expire at month end (M8.1)
+    purchased_balance: int = 0
     rows: list[UsageBreakdownRow]
     features: dict

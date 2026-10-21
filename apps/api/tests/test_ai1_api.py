@@ -606,6 +606,12 @@ def test_usage_breakdown_and_ai_disabled_fallbacks(client, monkeypatch):
     row = next(r for r in u["rows"] if r["task"] == "rag.answer")
     assert row["inference"] == "mock" and row["credits"] == 0 and row["ok"] == 1
     assert u["features"]["ai_document"]["implemented"] is False
+    # M8.1: the period is validated instead of being silently replaced
+    for bad in ("2026-13", "2026-1x", "x" * 7):
+        assert client.get(f"/api/v1/ai/governance/usage?period={bad}",
+                          headers=h).status_code == 422
+    assert client.get("/api/v1/ai/governance/usage?period=2025-01",
+                      headers=h).json()["period"] == "2025-01"
     monkeypatch.setattr(get_settings(), "ai_enabled", False)
     off = client.post("/api/v1/ai/knowledge/ask", json={"question": "soiled dressings bag"},
                       headers=h).json()

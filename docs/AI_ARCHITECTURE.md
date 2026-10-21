@@ -257,6 +257,14 @@ reached: ai_credits_monthly (<n>)"` if `used + reserved + estimate > limit`; ins
 `reserve`; after the call insert `settle` (actual) and `release` (difference). Failed
 or suppressed calls settle at 0. Totals are recomputable from the ledger (nightly
 consistency check). Usage is surfaced in `/subscription` `usage.ai_credits_monthly`.
+**As built (M8.1).** There is no running-totals table. Usage is the ledger sum
+under a per-tenant advisory lock. The ledger has four entry types:
+- `consume`: drawn from the monthly allowance
+- `grant`: a purchased pack
+- `pack_use`: drawn from purchased credits once the allowance is spent
+- `adjust`: reserved
+
+Purchased credits never expire. See docs/SAAS_BILLING.md.
 
 ### 2.4 Data classification
 

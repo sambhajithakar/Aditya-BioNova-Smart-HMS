@@ -28,7 +28,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 
-from ..ai.gateway import credits_granted  # noqa: F401  (re-exported)
+from ..ai.gateway import credits_purchased, purchased_balance  # noqa: F401  (re-exported)
 from ..auditing import record_event, record_security_event
 from ..config import Settings, get_settings
 from ..models import AiCreditEntry, Organization, Plan, Subscription

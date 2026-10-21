@@ -17,7 +17,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from .. import ratelimit
-from ..ai.gateway import credits_used
+from ..ai.gateway import allowance_used, credits_used
 from ..auditing import record_event
 from ..config import get_settings
 from ..db import get_db, set_request_context
@@ -242,13 +242,17 @@ def list_refunds(principal: Principal = Depends(require_permission("billing.saas
 @router.get("/credits", response_model=CreditsOut)
 def ai_credits(principal: Principal = Depends(require_permission("billing.saas.read")),
                db: Session = Depends(get_db, scope="function")) -> CreditsOut:
-    ent = load_entitlements(db, principal.organization_id)
+    org = principal.organization_id
+    ent = load_entitlements(db, org)
     allowance = ent.limits.get("ai_credits_monthly")
-    purchased = service.credits_granted(db, principal.organization_id)
-    used = credits_used(db, principal.organization_id)
-    remaining = None if allowance is None else allowance + purchased - used
+    from_allowance = allowance_used(db, org)
+    balance = service.purchased_balance(db, org)
+    remaining = (None if allowance is None
+                 else max(0, allowance - from_allowance) + balance)
     return CreditsOut(period=service.credit_period(), plan_allowance=allowance,
-                      purchased=purchased, used=used, remaining=remaining)
+                      allowance_used=from_allowance, purchased=balance,
+                      purchased_total=service.credits_purchased(db, org),
+                      used=credits_used(db, org), remaining=remaining)
 
 
 # --- provider webhooks (no session; the HMAC signature is the authentication) ------

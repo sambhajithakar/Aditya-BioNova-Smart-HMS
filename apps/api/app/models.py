@@ -2548,7 +2548,12 @@ class AiRequest(Base):
 
 
 class AiCreditEntry(Base):
-    """Append-only AI credit ledger; usage = SUM(consume) for the clinic-month."""
+    """Append-only AI credit ledger.
+
+    ``consume``  — drawn from the plan's monthly allowance (resets monthly);
+    ``grant``    — purchased credit pack (never expires);
+    ``pack_use`` — drawn from purchased credits once the allowance is used up;
+    ``adjust``   — reserved for manual corrections."""
 
     __tablename__ = "ai_credit_ledger"
 
@@ -2571,7 +2576,9 @@ class AiCreditEntry(Base):
     )
 
     __table_args__ = (
-        CheckConstraint("entry_type IN ('consume','grant','adjust')", name="ck_aicredit_type"),
+        CheckConstraint("entry_type IN ('consume','grant','adjust','pack_use')",
+                        name="ck_aicredit_type"),
         CheckConstraint("period ~ '^[0-9]{4}-[0-9]{2}$'", name="ck_aicredit_period"),
         Index("ix_aicredit_org_period", "organization_id", "period"),
+        Index("ix_aicredit_org_type", "organization_id", "entry_type"),
     )

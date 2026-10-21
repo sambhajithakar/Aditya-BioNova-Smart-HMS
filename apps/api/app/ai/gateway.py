@@ -73,23 +73,52 @@ def current_period() -> str:
     return f"{today.year:04d}-{today.month:02d}"
 
 
+def _ledger_sum(db: Session, organization_id: uuid.UUID, entry_types: tuple[str, ...],
+                period: str | None) -> int:
+    q = select(func.coalesce(func.sum(AiCreditEntry.credits), 0)).where(
+        AiCreditEntry.organization_id == organization_id,
+        AiCreditEntry.entry_type.in_(entry_types))
+    if period is not None:
+        q = q.where(AiCreditEntry.period == period)
+    return int(db.scalar(q) or 0)
+
+
+def allowance_used(db: Session, organization_id: uuid.UUID, period: str | None = None) -> int:
+    """Credits drawn from the plan's MONTHLY allowance in ``period`` (resets monthly)."""
+    return _ledger_sum(db, organization_id, ("consume",), period or current_period())
+
+
 def credits_used(db: Session, organization_id: uuid.UUID, period: str | None = None) -> int:
-    return int(db.scalar(
-        select(func.coalesce(func.sum(AiCreditEntry.credits), 0)).where(
-            AiCreditEntry.organization_id == organization_id,
-            AiCreditEntry.period == (period or current_period()),
-            AiCreditEntry.entry_type == "consume",
-        )) or 0)
+    """All credits spent in ``period``: monthly allowance plus purchased credits."""
+    return _ledger_sum(db, organization_id, ("consume", "pack_use"),
+                       period or current_period())
 
 
-def credits_granted(db: Session, organization_id: uuid.UUID, period: str | None = None) -> int:
-    """Credits added on top of the plan allowance (purchased AI credit packs)."""
-    return int(db.scalar(
-        select(func.coalesce(func.sum(AiCreditEntry.credits), 0)).where(
-            AiCreditEntry.organization_id == organization_id,
-            AiCreditEntry.period == (period or current_period()),
-            AiCreditEntry.entry_type == "grant",
-        )) or 0)
+def credits_purchased(db: Session, organization_id: uuid.UUID) -> int:
+    """Every purchased credit ever granted, whatever month it was bought in."""
+    return _ledger_sum(db, organization_id, ("grant",), None)
+
+
+def purchased_balance(db: Session, organization_id: uuid.UUID) -> int:
+    """Purchased credits still available. They NEVER expire: the balance is all
+    grants minus all ``pack_use`` across every period (M8.1)."""
+    return max(0, credits_purchased(db, organization_id)
+               - _ledger_sum(db, organization_id, ("pack_use",), None))
+
+
+def split_charge(db: Session, organization_id: uuid.UUID, allowance: int | None,
+                 cost: int) -> tuple[int, int] | None:
+    """How ``cost`` would be paid: (from the monthly allowance, from purchased
+    credits), or None when the two together cannot cover it. ``allowance``
+    None means unlimited."""
+    if allowance is None:
+        return cost, 0
+    left = max(0, allowance - allowance_used(db, organization_id))
+    from_allowance = min(cost, left)
+    from_pack = cost - from_allowance
+    if from_pack > purchased_balance(db, organization_id):
+        return None
+    return from_allowance, from_pack
 
 
 def tenant_enabled_features(db: Session, organization_id: uuid.UUID) -> list[str]:
@@ -148,13 +177,11 @@ def dispatch(
             db.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"),
                        {"k": f"ai-credits:{org_id}"})
             limit = ent.limits.get("ai_credits_monthly")
-            if limit is not None:
-                limit += credits_granted(db, org_id)  # purchased packs (M7.2)
-            if limit is not None and credits_used(db, org_id) + cost > limit:
+            if split_charge(db, org_id, limit, cost) is None:
                 raise HTTPException(
                     status.HTTP_403_FORBIDDEN,
-                    detail=f"Plan limit reached: ai_credits_monthly ({limit}). "
-                           "Upgrade your plan.")
+                    detail=f"Plan limit reached: ai_credits_monthly ({limit}) and no "
+                           "purchased credits left. Upgrade your plan or buy credits.")
         try:
             result = provider.run(req, settings)
         except TimeoutError:
@@ -184,8 +211,14 @@ def dispatch(
     db.add(row)
     db.flush()
     if charged:
-        db.add(AiCreditEntry(organization_id=org_id, period=current_period(),
-                             entry_type="consume", credits=charged, ai_request_id=row.id,
-                             actor_user_id=principal.user_id, reason=req.task))
+        # still under the per-tenant advisory lock taken for the check above
+        split = split_charge(db, org_id, ent.limits.get("ai_credits_monthly"), charged)
+        from_allowance, from_pack = split if split is not None else (charged, 0)
+        for entry_type, credits in (("consume", from_allowance), ("pack_use", from_pack)):
+            if credits:
+                db.add(AiCreditEntry(organization_id=org_id, period=current_period(),
+                                     entry_type=entry_type, credits=credits,
+                                     ai_request_id=row.id, actor_user_id=principal.user_id,
+                                     reason=req.task))
         db.flush()
     return result, row.id

@@ -3,13 +3,15 @@ clinic-month, and the honest implementation status of every AI feature.
 Mounted with the Copilot router's gate (any AI edition)."""
 from __future__ import annotations
 
+import re
 from datetime import date
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
-from ..ai.gateway import credits_used, current_period, tenant_enabled_features
+from ..ai.gateway import credits_used, current_period, purchased_balance, \
+    tenant_enabled_features
 from ..config import get_settings
 from ..db import get_db
 from ..deps import Principal, require_permission
@@ -17,6 +19,8 @@ from ..entitlements import load_entitlements
 from ..models import AiRequest
 from ..schemas_ai1 import UsageBreakdownOut, UsageBreakdownRow
 from ..timeutil import clinic_day_bounds
+
+_PERIOD_RE = re.compile(r"\d{4}-(0[1-9]|1[0-2])")
 
 router = APIRouter(prefix="/ai/governance", tags=["ai-governance"])
 
@@ -42,7 +46,9 @@ FEATURE_STATUS = {
 def usage_breakdown(period: str | None = None,
                     principal: Principal = Depends(require_permission("ai.audit.read")),
                     db: Session = Depends(get_db, scope="function")) -> UsageBreakdownOut:
-    period = period if period and len(period) == 7 else current_period()
+    if period is not None and not _PERIOD_RE.fullmatch(period):
+        raise HTTPException(422, detail="period must be YYYY-MM")
+    period = period or current_period()
     y, m = int(period[:4]), int(period[5:7])
     start = clinic_day_bounds(date(y, m, 1))[0]
     end = clinic_day_bounds(date(y + (m == 12), m % 12 + 1, 1))[0]
@@ -67,6 +73,7 @@ def usage_breakdown(period: str | None = None,
     return UsageBreakdownOut(
         period=period, used_credits=credits_used(db, principal.organization_id, period),
         limit_credits=ent.limits.get("ai_credits_monthly"),
+        purchased_balance=purchased_balance(db, principal.organization_id),
         rows=[UsageBreakdownRow(feature=r[0], task=r[1], inference=r[2], requests=r[3],
                                 ok=int(r[4] or 0), credits=int(r[5] or 0)) for r in rows],
         features=features)

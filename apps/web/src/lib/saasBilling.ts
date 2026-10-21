@@ -116,7 +116,11 @@ export type SaasRefund = {
 export type CreditsOut = {
   period: string;
   plan_allowance: number | null;
+  allowance_used: number;
+  /** purchased credits still available; they do not expire at month end */
   purchased: number;
+  purchased_total: number;
+  purchased_expire: boolean;
   used: number;
   remaining: number | null;
 };

@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..ai import copilot
-from ..ai.gateway import AIRequest, credits_used, current_period, dispatch, \
+from ..ai.gateway import AIRequest, credits_used, current_period, dispatch, purchased_balance, \
     tenant_enabled_features
 from ..ai.providers import MockProvider, OpenAICompatibleProvider
 from ..auditing import record_event
@@ -165,7 +165,8 @@ def usage(
     ent = load_entitlements(db, principal.organization_id)
     return AiUsageOut(period=current_period(),
                       used_credits=credits_used(db, principal.organization_id),
-                      limit_credits=ent.limits.get("ai_credits_monthly"))
+                      limit_credits=ent.limits.get("ai_credits_monthly"),
+                      purchased_balance=purchased_balance(db, principal.organization_id))
 
 
 @router.get("/requests", response_model=list[AiRequestOut])

@@ -178,9 +178,47 @@ def test_live_calls_consume_credits_until_the_limit(client, live_llm):
     assert third.status_code == 403 and "ai_credits_monthly" in third.json()["detail"]
     assert len(fake.calls) == 2  # refused before any call
     usage = client.get("/api/v1/ai/usage", headers=h).json()
-    assert usage == {"period": usage["period"], "used_credits": 2, "limit_credits": 2}
+    assert usage == {"period": usage["period"], "used_credits": 2, "limit_credits": 2,
+                     "purchased_balance": 0}
     sub = client.get("/api/v1/subscription", headers=h).json()
     assert sub["usage"]["ai_credits_monthly"] == {"limit": 2, "used": 2}
+
+
+def test_purchased_credits_do_not_expire_at_month_end(client, live_llm):
+    """M8.1: a pack bought in an earlier month is still usable now. The monthly
+    allowance is spent first; the excess is drawn from purchased credits."""
+    org, h = _paid_clinic(client)
+    oid = org["organization"]["id"]
+    _set_ai_limit(oid, 1)
+    su = psycopg2.connect(host=PG_HOST, port=PG_PORT, user=PG_SUPERUSER, dbname=TEST_DB)
+    su.autocommit = True
+    with su.cursor() as cur:
+        # bought 3 credits long ago and used 1 of them in a later month
+        cur.execute("INSERT INTO ai_credit_ledger (organization_id, period, entry_type, "
+                    "credits, reason) VALUES (%s, '2025-01', 'grant', 3, 'purchased pack'), "
+                    "(%s, '2025-02', 'pack_use', 1, 'copilot')", (oid, oid))
+    credits = client.get("/api/v1/saas/credits", headers=h).json()
+    assert credits["purchased"] == 2 and credits["purchased_total"] == 3
+    assert credits["purchased_expire"] is False and credits["remaining"] == 3
+    live_llm({"function": "collections_total", "args": {"period": "this_month"}})
+    for _ in range(3):  # 1 from this month's allowance, then 2 from the old pack
+        r = _ask(client, h, "collections this month")
+        assert r.status_code == 200 and r.json()["credits_charged"] == 1, r.text
+    fourth = _ask(client, h, "collections this month")
+    assert fourth.status_code == 403 and "purchased credits" in fourth.json()["detail"]
+    with su.cursor() as cur:
+        cur.execute("SELECT entry_type, sum(credits) FROM ai_credit_ledger WHERE "
+                    "organization_id = %s AND period NOT LIKE '2025-%%' GROUP BY 1", (oid,))
+        assert dict(cur.fetchall()) == {"consume": 1, "pack_use": 2}
+    su.close()
+    credits = client.get("/api/v1/saas/credits", headers=h).json()
+    assert (credits["allowance_used"], credits["purchased"], credits["used"],
+            credits["remaining"]) == (1, 0, 3, 0)
+    usage = client.get("/api/v1/ai/usage", headers=h).json()
+    assert usage["used_credits"] == 3 and usage["purchased_balance"] == 0
+    # the plan quota shown on the subscription is the allowance alone
+    sub = client.get("/api/v1/subscription", headers=h).json()
+    assert sub["usage"]["ai_credits_monthly"] == {"limit": 1, "used": 1}
 
 
 def test_concurrent_requests_never_overspend(client, live_llm):
