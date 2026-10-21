@@ -18,6 +18,7 @@ from app import models  # noqa: E402,F401  (register metadata)
 from app import models_billing  # noqa: E402,F401
 from app import models_comms  # noqa: E402,F401
 from app import models_setup  # noqa: E402,F401
+from app import models_devices  # noqa: E402,F401
 from app.ai import models_ai1  # noqa: E402,F401
 
 config = context.config

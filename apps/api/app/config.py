@@ -123,6 +123,9 @@ class Settings(BaseSettings):
     # itself a paid plan).
     # simulator | razorpay; unset → simulator in development/test, razorpay elsewhere
     payments_provider: str | None = None
+    # M8.2: synthetic Bluetooth readings. Unset: on in development/test,
+    # off elsewhere; production refuses to start with it on.
+    device_simulator_enabled: bool | None = None
     razorpay_key_id: str | None = None            # must start with rzp_test_
     razorpay_key_secret: str | None = None
     razorpay_webhook_secret: str | None = None
@@ -173,6 +176,8 @@ class Settings(BaseSettings):
             raise ValueError("PLATFORM_MFA_REQUIRED cannot be disabled outside development/test")
         if self.payments_provider == "simulator":
             raise ValueError("PAYMENTS_PROVIDER=simulator is only allowed in development/test")
+        if self.device_simulator_enabled:
+            raise ValueError("DEVICE_SIMULATOR_ENABLED is only allowed in development/test")
         if not self.field_encryption_key:
             raise ValueError(
                 f"FIELD_ENCRYPTION_KEY is required when ENVIRONMENT={self.environment!r}"
@@ -182,6 +187,12 @@ class Settings(BaseSettings):
     @property
     def is_dev(self) -> bool:
         return self.environment in _DEV_ENVIRONMENTS
+
+    @property
+    def device_simulator(self) -> bool:
+        if self.device_simulator_enabled is None:
+            return self.is_dev
+        return bool(self.device_simulator_enabled) and self.is_dev
 
 
 @lru_cache

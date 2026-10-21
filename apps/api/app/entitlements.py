@@ -54,6 +54,7 @@ FEATURES: dict[str, str] = {
     "comms_email": "E-mail notifications",
     "comms_sms": "SMS notifications",
     "comms_whatsapp": "WhatsApp notifications",
+    "medical_devices": "Bluetooth BP monitor & pulse oximeter capture",
     "ai_scribe": "AI clinical voice scribe",
     "ai_copilot": "AI business copilot",
     "ai_agents": "AI operations agents",

@@ -780,6 +780,11 @@ class EncounterVitals(Base):
     notes: Mapped[str] = mapped_column(
         String(500), nullable=False, default="", server_default=""
     )
+    # M8.2: the device reading this row was accepted from (NULL: manual entry)
+    device_reading_id: Mapped[UUID_PK | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("device_readings.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     recorded_by: Mapped[UUID_PK | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
@@ -789,6 +794,8 @@ class EncounterVitals(Base):
     )
 
     __table_args__ = (
+        Index("uq_vitals_device_reading", "device_reading_id", unique=True,
+              postgresql_where=text("device_reading_id IS NOT NULL")),
         CheckConstraint(
             "bp_systolic IS NULL OR bp_systolic BETWEEN 40 AND 300",
             name="ck_vitals_sys",
