@@ -1,6 +1,7 @@
 "use client";
 
 /** Header + language switch for unauthenticated pages (login, reset, invite). */
+import Link from "next/link";
 import { ReactNode } from "react";
 import { LANGS } from "@/lib/i18n";
 import { useLang } from "@/lib/lang";
@@ -27,6 +28,9 @@ export function PublicShell({ children }: { children: ReactNode }) {
       </header>
       <main className="page">
         <div className="card narrow">{children}</div>
+        <p className="muted" style={{ textAlign: "center" }}>
+          <Link href="/licenses">{t("openSourceLicences")}</Link>
+        </p>
       </main>
     </>
   );

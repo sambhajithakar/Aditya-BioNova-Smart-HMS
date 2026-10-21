@@ -23,6 +23,7 @@ import 'app_graph.dart';
 import 'auth/app_lock.dart' show AppLock;
 import 'boot.dart';
 import 'l10n/l10n.dart';
+import 'legal/licenses.dart' show registerAdditionalLicenses;
 import 'screens/home_screen.dart' show openHome;
 import 'screens/lock_screen.dart';
 import 'screens/login_screen.dart';
@@ -33,6 +34,7 @@ export 'app_graph.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  registerAdditionalLicenses();
   runApp(HmsRoot(initial: await bootDevice()));
 }
 

@@ -130,6 +130,12 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get settingsMenu;
 
+  /// No description provided for @openSourceLicences.
+  ///
+  /// In en, this message translates to:
+  /// **'Open-source licences'**
+  String get openSourceLicences;
+
   /// No description provided for @refresh.
   ///
   /// In en, this message translates to:

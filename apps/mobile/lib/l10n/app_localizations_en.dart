@@ -25,6 +25,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsMenu => 'Settings';
 
   @override
+  String get openSourceLicences => 'Open-source licences';
+
+  @override
   String get refresh => 'Refresh';
 
   @override

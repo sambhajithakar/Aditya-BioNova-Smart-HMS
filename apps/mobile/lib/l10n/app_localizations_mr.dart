@@ -25,6 +25,9 @@ class AppLocalizationsMr extends AppLocalizations {
   String get settingsMenu => 'सेटिंग्ज';
 
   @override
+  String get openSourceLicences => 'मुक्त-स्रोत परवाने';
+
+  @override
   String get refresh => 'रीफ्रेश करा';
 
   @override

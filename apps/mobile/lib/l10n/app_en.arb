@@ -11,6 +11,7 @@
     "description": "Follow the phone language setting"
   },
   "settingsMenu": "Settings",
+  "openSourceLicences": "Open-source licences",
   "refresh": "Refresh",
   "cancel": "Cancel",
   "back": "Back",

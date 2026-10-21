@@ -25,6 +25,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get settingsMenu => 'सेटिंग्स';
 
   @override
+  String get openSourceLicences => 'ओपन-सोर्स लाइसेंस';
+
+  @override
   String get refresh => 'रीफ़्रेश करें';
 
   @override

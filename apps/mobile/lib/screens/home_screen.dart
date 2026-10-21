@@ -32,6 +32,7 @@ import '../app_graph.dart';
 import '../auth/features.dart';
 import '../auth/roles.dart';
 import '../l10n/l10n.dart';
+import '../legal/licenses.dart';
 import 'appointments_tab.dart';
 import 'billing_tab.dart';
 import 'consult_tab.dart';
@@ -400,6 +401,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onSelected: (value) {
               if (value == 'rural') settings.setRuralMode(!rural);
               if (value == 'reports') _openReports();
+              if (value == 'licences') openLicences(context);
             },
             itemBuilder: (_) => [
               CheckedPopupMenuItem<String>(
@@ -418,6 +420,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   value: 'reports',
                   child: Text(l.reportsTitle),
                 ),
+              PopupMenuItem<String>(
+                key: const Key('menu-licences'),
+                value: 'licences',
+                child: Text(l.openSourceLicences),
+              ),
               if (_features.edition != null)
                 PopupMenuItem<String>(
                   key: const Key('edition-label'),

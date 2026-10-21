@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildCsp } from "./lib/csp";
 
 const PRESENCE_COOKIE = "hms_session";
-const PUBLIC_PAGES = ["/login", "/forgot-password", "/reset-password", "/accept-invite"];
+const PUBLIC_PAGES = ["/login", "/forgot-password", "/reset-password", "/accept-invite", "/licenses"];
 const BLOCKED_PROXY = [
   "/api/v1/auth/login",
   "/api/v1/auth/refresh",
