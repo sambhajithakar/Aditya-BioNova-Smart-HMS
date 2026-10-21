@@ -527,6 +527,14 @@ def test_scribe_consent_draft_accept_flow(client):
     assert "DRAFT" in d["disclaimer"]
     assert client.post(f"/api/v1/ai/scribe/sessions/{s['id']}/accept",
                        json={**d["prefill"], "reviewed": False}, headers=h).status_code == 422
+    # M8.1: another doctor of the clinic can neither feed nor sign this session
+    colleague = _member(client, h, "doctor")
+    assert client.post(f"/api/v1/ai/scribe/sessions/{s['id']}/transcript",
+                       json={"transcript": TRANSCRIPT}, headers=colleague).status_code == 403
+    stolen = client.post(f"/api/v1/ai/scribe/sessions/{s['id']}/accept",
+                         json={**d["prefill"], "reviewed": True}, headers=colleague)
+    assert stolen.status_code == 403 and "started this scribe session" in stolen.json()[
+        "detail"]
     edited = {**d["prefill"], "assessment": "Viral fever (clinician reviewed)",
               "reviewed": True}
     acc = client.post(f"/api/v1/ai/scribe/sessions/{s['id']}/accept", json=edited,

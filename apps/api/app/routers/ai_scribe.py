@@ -95,6 +95,15 @@ def _get(db: Session, principal: Principal, sid: uuid.UUID) -> ScribeSession:
     return s
 
 
+def _own(principal: Principal, s: ScribeSession) -> None:
+    """Only the clinician who took the patient's consent and ran the session
+    may feed it a transcript or sign its draft into the record (M8.1). A
+    colleague who takes over starts their own session."""
+    if s.clinician_id != principal.user_id:
+        raise HTTPException(403, detail="Only the clinician who started this scribe session "
+                                        "can add to it or accept its draft")
+
+
 def _out(db: Session, principal: Principal, s: ScribeSession,
          problems: list[str] | None = None) -> ScribeSessionOut:
     consent = db.get(ScribeConsent, s.consent_id)
@@ -183,6 +192,7 @@ def transcript(sid: uuid.UUID, payload: ScribeTranscriptIn, request: Request,
                db: Session = Depends(get_db, scope="function")) -> ScribeSessionOut:
     require_perm(principal, "encounter.write")
     s = _get(db, principal, sid)
+    _own(principal, s)
     if s.status not in ("consented", "drafted"):
         raise HTTPException(409, detail=f"Scribe session is {s.status}")
     audio = S.AudioMeta(**payload.audio.model_dump()) if payload.audio else None
@@ -244,6 +254,7 @@ def accept(sid: uuid.UUID, payload: ScribeAcceptIn, request: Request,
     if not payload.reviewed:
         raise HTTPException(422, detail="Confirm that you reviewed and edited the draft")
     s = _get(db, principal, sid)
+    _own(principal, s)
     if s.status != "drafted" or not s.draft_valid:
         raise HTTPException(409, detail=f"Scribe session is {s.status}; nothing to accept")
     fields = {k: v for k, v in payload.model_dump().items() if k != "reviewed" and v.strip()}
