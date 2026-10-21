@@ -368,15 +368,8 @@ jobs:
           lan="$(hostname -I | awk '{print $1}')"
           curl -sf "http://$lan:3000/login" >/dev/null              # reachable beyond loopback
           curl -sf "http://$lan:8000/api/v1/health" | grep -q '"environment":"development"'
-          tok="$(curl -sf http://127.0.0.1:8000/api/v1/auth/login -H 'Content-Type: application/json' \
-            -d '{"email":"owner@sunrise-demo.example.com","password":"Demo-Sunrise-2026!"}' \
-            | python3 -c 'import json,sys;print(json.load(sys.stdin)["tokens"]["access_token"])')"
-          n="$(curl -sf http://127.0.0.1:8000/api/v1/devices -H "Authorization: Bearer $tok" \
-            | python3 -c 'import json,sys;print(sum(d["is_simulator"] for d in json.load(sys.stdin)))')"
-          test "$n" = 2
-          pending="$(curl -sf "http://127.0.0.1:8000/api/v1/device-readings?status=pending_review" \
-            -H "Authorization: Bearer $tok" | python3 -c 'import json,sys;print(len(json.load(sys.stdin)))')"
-          test "$pending" = 2                                       # never auto-accepted
+          # 2 simulated devices and 2 readings pending review (never auto-accepted)
+          python3 scripts/demo_check.py http://127.0.0.1:8000/api/v1 owner@sunrise-demo.example.com
           # web sign-in over plain HTTP: the session cookie must not be Secure-only
           hdrs="$(curl -s -D - -o /dev/null "http://$lan:3000/api/session/login" \
             -H 'Content-Type: application/json' -H "Origin: http://$lan:3000" \
