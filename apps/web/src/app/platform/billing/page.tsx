@@ -21,19 +21,22 @@ function PlatformBillingBody() {
   const { busy, error, notice, setError, setNotice, act } = useAction();
   const [orders, setOrders] = useState<SaasOrder[]>([]);
   const [refunds, setRefunds] = useState<SaasRefund[]>([]);
+  const [processing, setProcessing] = useState<SaasRefund[]>([]);
   const [packs, setPacks] = useState<CatalogPack[]>([]);
   const [prices, setPrices] = useState<Record<string, string>>({});
   const [issues, setIssues] = useState<ReconciliationIssue[] | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [o, r, p] = await Promise.all([
+      const [o, r, q, p] = await Promise.all([
         api.get<SaasOrder[]>("/platform/billing/orders?limit=50"),
         api.get<SaasRefund[]>("/platform/billing/refunds"),
+        api.get<SaasRefund[]>("/platform/billing/refunds?status=processing"),
         api.get<CatalogPack[]>("/platform/billing/credit-packs"),
       ]);
       setOrders(o);
       setRefunds(r);
+      setProcessing(q);
       setPacks(p);
       setPrices(Object.fromEntries(p.map((k) => [k.code, k.price_paise ? (k.price_paise / 100).toFixed(2) : ""])));
     } catch (err) {
@@ -48,6 +51,15 @@ function PlatformBillingBody() {
   const decide = (r: SaasRefund, approve: boolean) =>
     act(async () => {
       const out = await api.post<SaasRefund>(`/platform/billing/refunds/${r.id}/decide`, { approve, note: "" });
+      setNotice(`${t("billRefund")}: ${t(`billRefund_${out.status}`)}`);
+      await load();
+    });
+
+  // an approved refund whose provider outcome is unknown; the API asks the
+  // provider for this refund first, so this never refunds twice
+  const resume = (r: SaasRefund) =>
+    act(async () => {
+      const out = await api.post<SaasRefund>(`/platform/billing/refunds/${r.id}/resume`, {});
       setNotice(`${t("billRefund")}: ${t(`billRefund_${out.status}`)}`);
       await load();
     });
@@ -112,6 +124,21 @@ function PlatformBillingBody() {
           </ul>
         )}
         <p className="muted">{t("billFourEyes")}</p>
+        {processing.length > 0 && (
+          <>
+            <h3>{t("billProcessingQueue")}</h3>
+            <ul data-testid="refund-processing">
+              {processing.map((r) => (
+                <li key={r.id}>
+                  {fmtDateTime(r.created_at)} · {money(r.amount_paise)} · {r.error ?? t("billRefund_processing")}{" "}
+                  <button type="button" disabled={busy} onClick={() => void resume(r)}>
+                    {t("billResume")}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </section>
 
       <section className="card" style={{ marginTop: "1rem" }}>

@@ -13,14 +13,14 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from .. import ratelimit
 from ..ai.gateway import credits_used
 from ..auditing import record_event
 from ..config import get_settings
-from ..db import get_db
+from ..db import get_db, set_request_context
 from ..deps import Principal, get_client_ip, get_correlation_id, require_permission, \
     require_platform_admin
 from ..entitlements import load_entitlements
@@ -323,6 +323,42 @@ def platform_decide_refund(refund_id: uuid.UUID, payload: RefundDecisionIn, requ
     _paudit(db, principal, request, f"platform.saas_refund.{refund.status}", refund.id,
             {"organization_id": str(refund.organization_id),
              "amount_paise": refund.amount_paise})
+    if refund.status != "processing":
+        return refund
+    # the approval is durable BEFORE any money moves (see service.decide_refund)
+    _commit_keeping_scope(db, principal)
+    return _execute_refund(db, principal, request, refund.id)
+
+
+@platform.post("/refunds/{refund_id}/resume", response_model=RefundOut)
+def platform_resume_refund(refund_id: uuid.UUID, request: Request,
+                           principal: Principal = Depends(require_platform_admin),
+                           db: Session = Depends(get_db, scope="function")) -> SaasRefund:
+    """Re-check an approved refund whose provider outcome is not yet known
+    (listed by reconciliation as ``refund_processing``). Never refunds twice:
+    the provider is asked for this refund's reference first."""
+    refund = db.get(SaasRefund, refund_id)
+    if refund is None:
+        raise HTTPException(404, detail="Refund not found")
+    if refund.status != "processing":
+        raise HTTPException(409, detail=f"Refund is {refund.status}, not processing")
+    return _execute_refund(db, principal, request, refund.id)
+
+
+def _commit_keeping_scope(db: Session, principal: Principal) -> None:
+    """Commit, then reinstall the request's transaction-local RLS context."""
+    db.commit()
+    set_request_context(db, user_id=str(principal.user_id),
+                        org_id=str(principal.organization_id))
+    db.execute(text("SELECT set_config('app.platform_admin', 'true', true)"))
+
+
+def _execute_refund(db: Session, principal: Principal, request: Request,
+                    refund_id: uuid.UUID) -> SaasRefund:
+    refund = service.execute_refund(db, refund_id)
+    _paudit(db, principal, request, f"platform.saas_refund.{refund.status}", refund.id,
+            {"organization_id": str(refund.organization_id),
+             "amount_paise": refund.amount_paise, "error": refund.error})
     return refund
 
 

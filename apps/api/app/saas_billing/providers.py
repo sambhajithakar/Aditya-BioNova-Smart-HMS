@@ -50,7 +50,20 @@ def signature_ok(secret: str | None, message: bytes, signature: str | None) -> b
 
 
 class ProviderError(RuntimeError):
-    pass
+    """``definitive`` is True when the provider answered and refused (HTTP 4xx).
+    Otherwise (network error, timeout, 5xx) the outcome is unknown: the
+    request may have been carried out, so a money movement must be checked
+    with the provider before it is retried."""
+
+    def __init__(self, message: str, *, definitive: bool = False) -> None:
+        super().__init__(message)
+        self.definitive = definitive
+
+
+@dataclass
+class ProviderRefund:
+    provider_refund_id: str
+    status: str  # provider status, e.g. "processed" | "pending" | "failed"
 
 
 @dataclass
@@ -72,6 +85,10 @@ class PaymentProvider(Protocol):
 
     def refund(self, provider_payment_id: str, amount_paise: int, notes: dict[str, str]
                ) -> str: ...
+
+    def find_refund(self, provider_payment_id: str, reference: str) -> ProviderRefund | None:
+        """The refund of this payment whose ``notes.refund`` is ``reference``."""
+        ...
 
     def fetch_order_status(self, provider_order_id: str) -> str | None: ...
 
@@ -102,7 +119,7 @@ class RazorpayProvider:
         except OSError as exc:
             raise ProviderError(f"Razorpay unreachable: {type(exc).__name__}") from exc
         if status >= 300:
-            raise ProviderError(f"Razorpay HTTP {status}")
+            raise ProviderError(f"Razorpay HTTP {status}", definitive=400 <= status < 500)
         return json.loads(raw or b"{}")
 
     def create_order(self, *, amount_paise: int, currency: str, receipt: str,
@@ -123,10 +140,19 @@ class RazorpayProvider:
     def refund(self, provider_payment_id: str, amount_paise: int,
                notes: dict[str, str]) -> str:
         data = self._call("POST", f"/payments/{provider_payment_id}/refund",
-                          {"amount": amount_paise, "notes": notes})
+                          {"amount": amount_paise, "notes": notes,
+                           "receipt": notes.get("refund", "")[:40]})
         if not str(data.get("id", "")).startswith("rfnd_"):
             raise ProviderError("Razorpay returned an unexpected refund")
         return data["id"]
+
+    def find_refund(self, provider_payment_id: str, reference: str) -> ProviderRefund | None:
+        data = self._call("GET", f"/payments/{provider_payment_id}/refunds?count=100")
+        for item in data.get("items") or []:
+            if (item.get("notes") or {}).get("refund") == reference \
+                    or item.get("receipt") == reference[:40]:
+                return ProviderRefund(str(item.get("id")), str(item.get("status") or ""))
+        return None
 
     def fetch_order_status(self, provider_order_id: str) -> str | None:
         return self._call("GET", f"/orders/{provider_order_id}").get("status")
@@ -168,6 +194,9 @@ class SimulatorProvider:
     def refund(self, provider_payment_id: str, amount_paise: int,
                notes: dict[str, str]) -> str:
         return "rfnd_SIM" + secrets.token_hex(8)
+
+    def find_refund(self, provider_payment_id: str, reference: str) -> ProviderRefund | None:
+        return None  # no remote state: an unresolved simulator refund is simply re-issued
 
     def fetch_order_status(self, provider_order_id: str) -> str | None:
         return None  # the simulator has no remote state; reconciliation uses local rows

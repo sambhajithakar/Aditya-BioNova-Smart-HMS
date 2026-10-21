@@ -62,6 +62,16 @@ Razorpay ──POST /saas/webhooks/razorpay──▶ HMAC(raw body, webhook_secr
   to recover.
 - **Failed-payment recovery.** `POST /saas/orders/{id}/retry` creates a
   fresh order at today's price.
+- **Late payments are honoured (M8.1).** UPI and net-banking confirmations
+  can arrive after an order has expired (24 h) or been cancelled.
+  - If the provider captured the money, the order is fulfilled at its own
+    price and audited as `saas.payment.late`.
+  - The clinic's money is never kept without delivering what it paid for.
+  - If the clinic already renewed through another order, the vendor sees two
+    captures and can refund one.
+- **Forged signatures are audited.** A failed checkout signature check is
+  written to the audit trail in its own transaction (`saas.payment.signature_invalid`),
+  so the record survives the request's rollback.
 
 ## Refunds (four-eyes)
 
@@ -71,12 +81,27 @@ Razorpay ──POST /saas/webhooks/razorpay──▶ HMAC(raw body, webhook_secr
 2. A platform administrator decides (`/platform/billing/refunds/{id}/decide`):
    - The requester can never decide. This is enforced by the API and by a
      database CHECK.
-   - On approval, the provider's refund API is called and a **credit note**
-     (`BNS-CN/FY/n`) is issued. The GST split is back-calculated from the
-     refunded amount.
+   - On approval, the refund is first committed as `processing`. Only then
+     is the provider's refund API called, with the refund id as its
+     reference (`notes.refund` and `receipt`).
+   - On success it becomes `processed` and a **credit note** (`BNS-CN/FY/n`)
+     is issued. The GST split is back-calculated from the refunded amount.
+   - A definite refusal by the provider (HTTP 4xx) marks it `failed`.
+   - An unknown outcome (timeout, network error, 5xx) leaves it `processing`
+     with the error noted. The money may or may not have moved.
+     Reconciliation lists it as `refund_processing`, and
+     `POST /platform/billing/refunds/{id}/resume` (the console's
+     *Re-check with provider* button) asks the provider for a refund with that
+     reference **before** requesting a new one, so a refund is never paid twice.
+   - Database transitions (trigger): `requested → rejected | processing`,
+     `processing → processed | failed`. Everything else is refused.
+   - A refund returns money only. It does not take back the subscription
+     period or AI credits already granted; doing so is a vendor decision made
+     case by case (product decision, M8.1).
 3. Invoices are never edited. `saas_payments`, `saas_invoices` and
-   `saas_webhook_events` are append-only (trigger). Orders and refunds can
-   only move forward.
+   `saas_webhook_events` are append-only: a trigger refuses changes, and since
+   M8.1 the application role also has no UPDATE or DELETE grant on them.
+   Orders and refunds can only move forward.
 
 ## Lifecycle
 
@@ -100,8 +125,9 @@ effective-status rule from M7.1.
 - captured payments on unpaid orders
 - duplicate captures
 - webhooks rejected, failed or mismatched in the last 30 days
-- failed refunds
-- (Razorpay only, optional) orders Razorpay reports as paid that are not paid locally
+- failed refunds, and approved refunds still `processing`
+- (Razorpay only, optional) orders Razorpay reports as paid that are not paid
+  locally, including created, failed and expired orders
 
 ## Configuration
 

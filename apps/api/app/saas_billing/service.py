@@ -25,11 +25,11 @@ from typing import Iterator
 
 from fastapi import HTTPException
 from sqlalchemy import func, select, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 
 from ..ai.gateway import credits_granted  # noqa: F401  (re-exported)
-from ..auditing import record_event
+from ..auditing import record_event, record_security_event
 from ..config import Settings, get_settings
 from ..models import AiCreditEntry, Organization, Plan, Subscription
 from ..models_billing import AiCreditPack, SaasInvoice, SaasOrder, SaasPayment, SaasRefund, \
@@ -44,19 +44,37 @@ from .providers import PaymentProvider, ProviderError, get_provider
 def system_scope(db: Session, organization_id: uuid.UUID | None = None) -> Iterator[None]:
     """Open the commercial tables for billing state changes (same GUC as the
     platform console) and, optionally, the tenant context of the order so the
-    audit trail lands in that tenant. Restored on exit."""
-    prev_org = db.execute(text("SELECT current_setting('app.current_org_id', true)")).scalar()
+    audit trail lands in that tenant.
+
+    On exit the PREVIOUS values are restored, so a nested call or a platform
+    console request keeps its own scope. If the block failed and left the
+    transaction aborted, nothing can be executed; the rollback that follows
+    discards these transaction-local settings anyway, so restoring is skipped
+    rather than masking the original error."""
+    prev_admin, prev_org = db.execute(text(
+        "SELECT current_setting('app.platform_admin', true), "
+        "current_setting('app.current_org_id', true)")).one()
     db.execute(text("SELECT set_config('app.platform_admin', 'true', true)"))
     if organization_id is not None:
         db.execute(text("SELECT set_config('app.current_org_id', :v, true)"),
                    {"v": str(organization_id)})
-    try:
-        yield
-    finally:
-        db.execute(text("SELECT set_config('app.platform_admin', '', true)"))
+
+    def restore() -> None:
+        db.execute(text("SELECT set_config('app.platform_admin', :v, true)"),
+                   {"v": prev_admin or ""})
         if organization_id is not None:
             db.execute(text("SELECT set_config('app.current_org_id', :v, true)"),
                        {"v": prev_org or ""})
+
+    try:
+        yield
+    except BaseException:
+        try:
+            restore()
+        except DBAPIError:
+            pass  # aborted transaction: the caller's rollback resets the GUCs
+        raise
+    restore()
 
 
 # --- money helpers ------------------------------------------------------------------
@@ -231,6 +249,16 @@ def record_payment(db: Session, order_id: uuid.UUID, organization_id: uuid.UUID,
                          resource_type="saas_order", resource_id=str(order.id),
                          metadata={"payment": provider_payment_id})
             return "already_paid"
+        if order.status in ("expired", "cancelled"):
+            # The provider took the money after the order expired or was
+            # cancelled (a slow UPI/net-banking confirmation, or a checkout
+            # left open). Refusing it would keep the clinic's money without
+            # giving anything; the order is honoured at its own price and
+            # flagged so the vendor can contact the clinic or refund.
+            record_event(db, action="saas.payment.late",
+                         organization_id=str(order.organization_id),
+                         resource_type="saas_order", resource_id=str(order.id),
+                         metadata={"payment": provider_payment_id, "was": order.status})
         order.status = "paid"
         order.paid_at = datetime.now(timezone.utc)
         order.failure_reason = None
@@ -345,9 +373,11 @@ def verify_checkout(db: Session, order: SaasOrder, provider_payment_id: str,
     provider = get_provider(get_settings(), order.provider)
     if not provider.checkout_signature_ok(order.provider_order_id, provider_payment_id,
                                           signature):
-        record_event(db, action="saas.payment.signature_invalid",
-                     organization_id=str(order.organization_id), resource_type="saas_order",
-                     resource_id=str(order.id), metadata={"payment": provider_payment_id[:64]})
+        # own transaction: the 400 below rolls the request back
+        record_security_event(action="saas.payment.signature_invalid",
+                              organization_id=str(order.organization_id),
+                              resource_type="saas_order", resource_id=str(order.id),
+                              metadata={"payment": provider_payment_id[:64]})
         raise HTTPException(400, detail="Payment signature verification failed")
     # the signature binds this payment id to this order; the amount is the order's
     return record_payment(db, order.id, order.organization_id,
@@ -421,7 +451,7 @@ def handle_webhook(db: Session, provider_name: str, raw_body: bytes, signature: 
 def refundable_paise(db: Session, payment: SaasPayment) -> int:
     taken = db.scalar(select(func.coalesce(func.sum(SaasRefund.amount_paise), 0)).where(
         SaasRefund.payment_id == payment.id,
-        SaasRefund.status.in_(("requested", "processed")))) or 0
+        SaasRefund.status.in_(("requested", "processing", "processed")))) or 0
     return payment.amount_paise - int(taken)
 
 
@@ -449,7 +479,12 @@ def request_refund(db: Session, *, organization_id: uuid.UUID, actor_user_id: uu
 
 def decide_refund(db: Session, refund_id: uuid.UUID, *, approve: bool,
                   decider_user_id: uuid.UUID, note: str) -> SaasRefund:
-    """Platform (vendor) decision. Caller must already hold the platform scope."""
+    """Platform (vendor) decision. Caller must already hold the platform scope.
+
+    An approval only moves the refund to ``processing``; the caller COMMITS
+    that, then calls :func:`execute_refund`. The provider is never called
+    inside the decision transaction, so a crash after the provider has moved
+    the money can no longer lose the record that it did."""
     refund = db.scalar(select(SaasRefund).where(SaasRefund.id == refund_id).with_for_update())
     if refund is None:
         raise HTTPException(404, detail="Refund not found")
@@ -459,40 +494,73 @@ def decide_refund(db: Session, refund_id: uuid.UUID, *, approve: bool,
         raise HTTPException(403, detail="Four-eyes rule: the requester cannot decide")
     refund.decided_by, refund.decided_at = decider_user_id, datetime.now(timezone.utc)
     refund.decision_note = note[:500] or None
-    if not approve:
-        refund.status = "rejected"
-        db.flush()
-        return refund
-    payment = db.get(SaasPayment, refund.payment_id)
-    order = db.get(SaasOrder, payment.order_id)
-    try:
-        refund.provider_refund_id = get_provider(get_settings(), order.provider).refund(
-            payment.provider_payment_id, refund.amount_paise, {"refund": str(refund.id)})
-        refund.status = "processed"
-    except ProviderError as exc:
-        refund.status, refund.error = "failed", str(exc)[:300]
-        db.flush()
-        return refund
+    refund.status = "processing" if approve else "rejected"
     db.flush()
+    return refund
+
+
+def execute_refund(db: Session, refund_id: uuid.UUID) -> SaasRefund:
+    """Carry out an approved (``processing``) refund at the provider.
+
+    Safe to run again for the same refund: the provider is first asked for a
+    refund already carrying this refund's id as reference, and only if there
+    is none is a new one requested. A definite refusal marks it ``failed``;
+    an unknown outcome (timeout, network error, 5xx) leaves it ``processing``
+    with the error noted, for reconciliation to resume."""
+    with system_scope(db):
+        refund = db.scalar(select(SaasRefund).where(SaasRefund.id == refund_id)
+                           .with_for_update())
+        if refund is None:
+            raise HTTPException(404, detail="Refund not found")
+        if refund.status != "processing":
+            return refund
+        payment = db.get(SaasPayment, refund.payment_id)
+        order = db.get(SaasOrder, payment.order_id)
+        reference = str(refund.id)
+        try:
+            provider = get_provider(get_settings(), order.provider)
+            found = provider.find_refund(payment.provider_payment_id, reference)
+            if found is not None and found.status == "failed":
+                raise ProviderError("the provider reports this refund as failed",
+                                    definitive=True)
+            provider_refund_id = (found.provider_refund_id if found is not None else
+                                  provider.refund(payment.provider_payment_id,
+                                                  refund.amount_paise, {"refund": reference}))
+        except ProviderError as exc:
+            if exc.definitive:
+                refund.status = "failed"
+                refund.error = str(exc)[:300]
+            else:
+                refund.error = f"outcome unknown, re-check before retrying: {exc}"[:300]
+            db.flush()
+            return refund
+        refund.provider_refund_id = provider_refund_id[:64]
+        refund.status, refund.error = "processed", None
+        db.flush()
+        _issue_credit_note(db, order, refund)
+    return refund
+
+
+def _issue_credit_note(db: Session, order: SaasOrder, refund: SaasRefund) -> None:
     original = db.scalar(select(SaasInvoice).where(SaasInvoice.order_id == order.id,
                                                    SaasInvoice.kind == "invoice"))
     taxable, tax = split_inclusive(refund.amount_paise, order.gst_rate_bp)
     settings = get_settings()
+    buyer = _buyer(db, order.organization_id)
     db.add(SaasInvoice(
         organization_id=order.organization_id,
         number=_next_number(db, "saas_credit_note_number_seq", "BNS-CN"), kind="credit_note",
         order_id=order.id, refund_id=refund.id,
         related_invoice_id=original.id if original else None, seller=_seller(settings),
-        buyer=_buyer(db, order.organization_id),
+        buyer=buyer,
         lines=[{"description": f"Refund — {order.description}"
                                + (f" (invoice {original.number})" if original else ""),
                 "sac": "998314", "quantity": 1, "amount_paise": taxable}],
         subtotal_paise=taxable,
         tax_breakdown=_tax_breakdown(tax, order.gst_rate_bp, settings.saas_seller_state,
-                                     _buyer(db, order.organization_id).get("state")),
+                                     buyer.get("state")),
         tax_paise=tax, total_paise=refund.amount_paise, currency=order.currency))
     db.flush()
-    return refund
 
 
 # --- lifecycle ------------------------------------------------------------------------
@@ -554,7 +622,8 @@ def reconciliation(db: Session, check_provider: bool = False) -> list[dict]:
                 SaasInvoice.order_id == order.id, SaasInvoice.kind == "invoice")) is None:
             issue("paid_order_without_invoice", order=order.id)
         if check_provider and order.provider == "razorpay" and order.status in ("created",
-                                                                               "failed"):
+                                                                               "failed",
+                                                                               "expired"):
             try:
                 remote = get_provider(get_settings(), "razorpay").fetch_order_status(
                     order.provider_order_id)
@@ -570,4 +639,7 @@ def reconciliation(db: Session, check_provider: bool = False) -> list[dict]:
         issue(f"webhook_{ev.outcome}", event=ev.event_id, detail=ev.detail)
     for r in db.scalars(select(SaasRefund).where(SaasRefund.status == "failed")).all():
         issue("refund_failed", refund=r.id, error=r.error or "")
+    for r in db.scalars(select(SaasRefund).where(SaasRefund.status == "processing")).all():
+        # approved but not confirmed by the provider: resume it from the console
+        issue("refund_processing", refund=r.id, error=r.error or "")
     return issues

@@ -205,6 +205,10 @@ def test_forged_checkout_signature_is_rejected(client, priced):
     sig = _sim().sign_checkout("order_SIMother", "pay_FAKE123")
     assert client.post(f"{API}/saas/orders/{order['id']}/verify", headers=h, json={
         "provider_payment_id": "pay_FAKE123", "signature": sig}).status_code == 400
+    # M8.1: the attempt is audited although the request itself is rolled back
+    (n,) = _sql("SELECT count(*) FROM audit_events WHERE action = "
+                "'saas.payment.signature_invalid' AND resource_id = %s", (order["id"],))[0]
+    assert n == 2
 
 
 def test_webhook_signature_replay_and_amount_mismatch(client, priced):
@@ -316,7 +320,7 @@ def test_refund_needs_vendor_approval_and_issues_credit_note(client, priced):
     assert notes[0]["total_paise"] == 58941
     assert notes[0]["subtotal_paise"] + notes[0]["tax_paise"] == 58941
     # four-eyes is also a database rule
-    with pytest.raises(psycopg2.Error, match="four_eyes|already"):
+    with pytest.raises(psycopg2.Error, match="four_eyes|already|cannot move"):
         _sql("UPDATE saas_refunds SET decided_by = requested_by WHERE id = %s",
              (refund["id"],))
 
@@ -410,6 +414,8 @@ def test_reconciliation_reports_inconsistencies(client, priced):
 class FakeRazorpay:
     def __init__(self):
         self.calls = []
+        self.refunds = []            # refunds the fake "provider" has carried out
+        self.refund_mode = "ok"      # ok | lost_response | refused
 
     def __call__(self, method, url, headers, body):
         self.calls.append((method, url, headers, json.loads(body) if body else None))
@@ -417,8 +423,18 @@ class FakeRazorpay:
             data = json.loads(body)
             return 200, json.dumps({"id": "order_TEST" + uuid.uuid4().hex[:10],
                                     "amount": data["amount"], "status": "created"}).encode()
+        if method == "GET" and "/refunds" in url:
+            return 200, json.dumps({"items": self.refunds}).encode()
         if "/refund" in url:
-            return 200, json.dumps({"id": "rfnd_TEST123", "status": "processed"}).encode()
+            if self.refund_mode == "refused":
+                return 400, b'{"error":{"description":"refund amount too high"}}'
+            data = json.loads(body)
+            item = {"id": "rfnd_TEST" + uuid.uuid4().hex[:10], "status": "processed",
+                    "notes": data["notes"], "receipt": data.get("receipt")}
+            self.refunds.append(item)
+            if self.refund_mode == "lost_response":
+                raise TimeoutError("read timed out")  # the provider DID refund
+            return 200, json.dumps(item).encode()
         if method == "GET" and "/orders/" in url:
             return 200, json.dumps({"status": "paid"}).encode()
         return 500, b"{}"
@@ -473,7 +489,7 @@ def test_razorpay_sandbox_adapter_end_to_end(client, priced, razorpay):
         "payment_id": payment["id"], "amount_paise": 1000, "reason": "sandbox refund"}).json()
     done = client.post(f"{API}/platform/billing/refunds/{ref['id']}/decide", headers=priced,
                        json={"approve": True}).json()
-    assert done["provider_refund_id"] == "rfnd_TEST123"
+    assert done["provider_refund_id"] == fake.refunds[0]["id"]
     assert any(c[1].endswith(f"/payments/{pid}/refund") and c[3]["amount"] == 1000
                for c in fake.calls)
 
@@ -489,3 +505,181 @@ def test_provider_outage_is_reported_not_swallowed(client, priced, razorpay):
     r = _order(client, h)
     assert r.status_code == 503 and "unavailable" in r.json()["detail"]
     assert client.get(f"{API}/saas/orders", headers=h).json() == []
+
+
+# --- M8.1 corrections ---------------------------------------------------------------------
+def _expire(order_id: str) -> None:
+    _sql("UPDATE saas_orders SET created_at = now() - interval '25 hours' WHERE id = %s",
+         (order_id,))
+
+
+def test_late_payment_on_expired_order_is_fulfilled(client, priced):
+    """H1: money captured after the order expired must not be stranded."""
+    org, h = _tenant(client)
+    order = _order(client, h).json()["order"]
+    _expire(order["id"])
+    assert client.post(f"{API}/platform/billing/lifecycle", headers=priced).json()[
+        "orders_expired"] >= 1
+    assert client.get(f"{API}/saas/orders", headers=h).json()[0]["status"] == "expired"
+    pid = "pay_SIMlate" + uuid.uuid4().hex[:8]
+    r = _webhook(client, _captured(order, pid))
+    assert r.status_code == 200 and r.json()["detail"] == "processed", r.text
+    (o,) = client.get(f"{API}/saas/orders", headers=h).json()
+    assert o["status"] == "paid"
+    assert client.get(f"{API}/subscription", headers=h).json()["status"] == "active"
+    assert [i["kind"] for i in client.get(f"{API}/saas/invoices", headers=h).json()] == [
+        "invoice"]
+    (n,) = _sql("SELECT count(*) FROM audit_events WHERE action = 'saas.payment.late' "
+                "AND resource_id = %s", (order["id"],))[0]
+    assert n == 1
+    # a replay of the same capture changes nothing
+    assert _webhook(client, _captured(order, pid)).json()["detail"] == "duplicate"
+
+
+def test_late_checkout_on_cancelled_order_is_fulfilled(client, priced):
+    _, h = _tenant(client)
+    order = _order(client, h).json()["order"]
+    _sql("UPDATE saas_orders SET status = 'cancelled' WHERE id = %s", (order["id"],))
+    pid = "pay_SIMlate" + uuid.uuid4().hex[:8]
+    r = client.post(f"{API}/saas/orders/{order['id']}/verify", headers=h, json={
+        "provider_payment_id": pid,
+        "signature": _sim().sign_checkout(order["provider_order_id"], pid)})
+    assert r.status_code == 200 and r.json()["outcome"] == "processed", r.text
+    assert r.json()["order"]["status"] == "paid"
+    # paid is still final: nothing moves an order out of it
+    with pytest.raises(psycopg2.Error, match="cannot move"):
+        _sql("UPDATE saas_orders SET status = 'expired' WHERE id = %s", (order["id"],))
+
+
+def test_reconciliation_checks_expired_orders_with_the_provider(client, priced, razorpay):
+    _, h = _tenant(client)
+    order = _order(client, h).json()["order"]
+    _sql("UPDATE saas_orders SET status = 'expired' WHERE id = %s", (order["id"],))
+    issues = client.get(f"{API}/platform/billing/reconciliation?check_provider=true",
+                        headers=priced).json()["issues"]
+    assert {"kind": "provider_paid_but_local_not", "order": order["id"],
+            "local": "expired"} in issues
+
+
+def _rzp_paid_refund(client, priced, h, fake):
+    order = _order(client, h).json()["order"]
+    pid = "pay_TEST" + uuid.uuid4().hex[:10]
+    sig = hmac.new(b"test_secret_value", f"{order['provider_order_id']}|{pid}".encode(),
+                   hashlib.sha256).hexdigest()
+    assert client.post(f"{API}/saas/orders/{order['id']}/verify", headers=h, json={
+        "provider_payment_id": pid, "signature": sig}).json()["outcome"] == "processed"
+    (payment,) = client.get(f"{API}/saas/payments", headers=h).json()
+    return client.post(f"{API}/saas/refunds", headers=h, json={
+        "payment_id": payment["id"], "amount_paise": 5000, "reason": "M8.1 test"}).json()
+
+
+def test_refund_with_lost_provider_response_is_resumed_not_repeated(client, priced, razorpay):
+    """M2: the approval is committed as 'processing' before the provider call;
+    a lost response leaves it processing, and resuming finds the provider's
+    refund by reference instead of refunding a second time."""
+    _, fake = razorpay
+    _, h = _tenant(client)
+    ref = _rzp_paid_refund(client, priced, h, fake)
+    fake.refund_mode = "lost_response"
+    r = client.post(f"{API}/platform/billing/refunds/{ref['id']}/decide", headers=priced,
+                    json={"approve": True})
+    assert r.status_code == 200, r.text
+    out = r.json()
+    assert out["status"] == "processing" and "outcome unknown" in out["error"]
+    assert out["decided_by"] is not None
+    # the approval survived the provider failure, and nothing was credited yet
+    (status,) = _sql("SELECT status FROM saas_refunds WHERE id = %s", (ref["id"],))[0]
+    assert status == "processing"
+    assert not [i for i in client.get(f"{API}/saas/invoices", headers=h).json()
+                if i["kind"] == "credit_note"]
+    issues = client.get(f"{API}/platform/billing/reconciliation", headers=priced).json()
+    assert ref["id"] in {i.get("refund") for i in issues["issues"]
+                         if i["kind"] == "refund_processing"}
+    # deciding again is refused; resuming is the only way forward
+    assert client.post(f"{API}/platform/billing/refunds/{ref['id']}/decide", headers=priced,
+                       json={"approve": True}).status_code == 409
+    assert client.post(f"{API}/platform/billing/refunds/{ref['id']}/resume",
+                       headers=h).status_code == 403
+    fake.refund_mode = "ok"
+    done = client.post(f"{API}/platform/billing/refunds/{ref['id']}/resume", headers=priced)
+    assert done.status_code == 200, done.text
+    assert done.json()["status"] == "processed"
+    assert done.json()["provider_refund_id"] == fake.refunds[0]["id"]
+    posts = [c for c in fake.calls if c[0] == "POST" and c[1].endswith("/refund")]
+    assert len(posts) == 1 and posts[0][3]["notes"] == {"refund": ref["id"]}
+    assert len(fake.refunds) == 1
+    notes = [i for i in client.get(f"{API}/saas/invoices", headers=h).json()
+             if i["kind"] == "credit_note"]
+    assert len(notes) == 1 and notes[0]["total_paise"] == 5000
+    assert client.post(f"{API}/platform/billing/refunds/{ref['id']}/resume",
+                       headers=priced).status_code == 409
+
+
+def test_refund_refused_by_provider_is_failed(client, priced, razorpay):
+    _, fake = razorpay
+    _, h = _tenant(client)
+    ref = _rzp_paid_refund(client, priced, h, fake)
+    fake.refund_mode = "refused"
+    out = client.post(f"{API}/platform/billing/refunds/{ref['id']}/decide", headers=priced,
+                      json={"approve": True}).json()
+    assert out["status"] == "failed" and "HTTP 400" in out["error"]
+    # failed is final in the database too
+    with pytest.raises(psycopg2.Error, match="cannot move"):
+        _sql("UPDATE saas_refunds SET status = 'processing' WHERE id = %s", (ref["id"],))
+
+
+def test_refund_state_machine_in_the_database(client, priced):
+    _, h = _tenant(client)
+    order = _order(client, h).json()["order"]
+    _pay(client, h, order["id"])
+    (payment,) = client.get(f"{API}/saas/payments", headers=h).json()
+    ref = client.post(f"{API}/saas/refunds", headers=h, json={
+        "payment_id": payment["id"], "amount_paise": 100, "reason": "state machine"}).json()
+    with pytest.raises(psycopg2.Error, match="cannot move"):
+        _sql("UPDATE saas_refunds SET status = 'processed' WHERE id = %s", (ref["id"],))
+    _sql("UPDATE saas_refunds SET status = 'processing' WHERE id = %s", (ref["id"],))
+    with pytest.raises(psycopg2.Error, match="cannot move"):
+        _sql("UPDATE saas_refunds SET status = 'requested' WHERE id = %s", (ref["id"],))
+    # a processing refund still counts against what can be refunded
+    assert client.post(f"{API}/saas/refunds", headers=h, json={
+        "payment_id": payment["id"], "amount_paise": payment["amount_paise"],
+        "reason": "would exceed"}).status_code == 422
+
+
+def test_append_only_tables_have_no_update_or_delete_grant(client):
+    rows = _sql("SELECT table_name, privilege_type FROM information_schema.role_table_grants "
+                "WHERE grantee = 'hms_app' AND table_name IN ('saas_payments', "
+                "'saas_invoices', 'saas_webhook_events', 'saas_orders', 'saas_refunds')")
+    granted = {(t, p) for t, p in rows}
+    for t in ("saas_payments", "saas_invoices", "saas_webhook_events"):
+        assert (t, "UPDATE") not in granted and (t, "DELETE") not in granted
+    assert ("saas_orders", "DELETE") not in granted and ("saas_orders", "UPDATE") in granted
+
+
+def test_system_scope_restores_the_callers_scope_and_survives_aborts(client):
+    from sqlalchemy import text
+    from sqlalchemy.exc import ProgrammingError
+
+    from app.db import SessionLocal
+    from app.saas_billing.service import system_scope
+
+    def admin(db):
+        return db.execute(text("SELECT current_setting('app.platform_admin', true)")).scalar()
+
+    db = SessionLocal()
+    try:
+        db.execute(text("SELECT set_config('app.platform_admin', 'true', true)"))
+        with system_scope(db, uuid.uuid4()):
+            assert admin(db) == "true"
+        assert admin(db) == "true"            # the console's scope is kept
+        db.execute(text("SELECT set_config('app.platform_admin', '', true)"))
+        with system_scope(db):
+            pass
+        assert admin(db) == ""                # and nothing is left open
+        # an error inside the block surfaces as itself, not as "transaction aborted"
+        with pytest.raises(ProgrammingError, match="no_such_table"):
+            with system_scope(db):
+                db.execute(text("SELECT * FROM no_such_table"))
+    finally:
+        db.rollback()
+        db.close()
