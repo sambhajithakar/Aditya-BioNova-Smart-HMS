@@ -150,3 +150,47 @@ test("reception checks a patient in by typing the QR code", async ({ page, reque
   await expect(page.getByTestId("checkin-verified")).toContainText("1");
   await expect(page.getByTestId("checkin-confirm")).toHaveCount(0);
 });
+
+test("print paper picker shows the saved printer profile's paper (M8.1 W1)", async ({ page, request }) => {
+  const c = await registerClinic(request, "pap");
+  const h = auth(c.token);
+  const p = await request.post(`${API}/api/v1/patients`, {
+    data: {
+      full_name: "Synthetic Paper Patient",
+      gender: "male",
+      date_of_birth: "1980-01-01",
+      phone: "9876500911",
+      allow_duplicates: true,
+    },
+    headers: h,
+  });
+  expect(p.status(), await p.text()).toBe(201);
+  const inv = await request.post(`${API}/api/v1/billing/invoices`, {
+    data: {
+      patient_id: (await p.json()).id,
+      branch_id: c.branchId,
+      discount: 0,
+      items: [{ item_type: "consultation", description: "OPD consultation", quantity: 1, unit_price: 200, tax_rate: 0 }],
+    },
+    headers: h,
+  });
+  expect(inv.status(), await inv.text()).toBe(201);
+  const invoiceId = (await inv.json()).id as string;
+  expect((await request.post(`${API}/api/v1/billing/invoices/${invoiceId}/issue`, { headers: h })).status()).toBe(200);
+  const prof = await request.post(`${API}/api/v1/setup/printers`, {
+    data: { name: "Front desk A5", kind: "a5", default_for: ["receipt"] },
+    headers: h,
+  });
+  expect(prof.status(), await prof.text()).toBe(201);
+
+  await signIn(page, c.email, c.password);
+  await page.goto(`/print/rx/${invoiceId}?type=receipt`);
+  // without ?paper= the profile decides, and the picker says so
+  await expect(page.getByTestId("paper-a5")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("paper-a4")).toHaveAttribute("aria-pressed", "false");
+  // an explicit choice overrides the profile for this print
+  await page.getByTestId("paper-a4").click();
+  await expect(page).toHaveURL(/paper=a4/);
+  await expect(page.getByTestId("paper-a4")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("paper-a5")).toHaveAttribute("aria-pressed", "false");
+});

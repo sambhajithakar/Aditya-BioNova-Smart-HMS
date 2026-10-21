@@ -35,7 +35,15 @@ import {
 import { onAuthFailure } from "@/lib/session";
 import { itemDrugName } from "@/lib/print";
 import { OrgSettingsOut, PrinterDefaults, pageCss as profilePageCss, pageGeometry } from "@/lib/setup";
-import { PAPER_LABEL, Paper, pageCss as paperPageCss, papersFor, parsePaper, useRollLength } from "@/lib/print-paper";
+import {
+  PAPER_LABEL,
+  Paper,
+  effectivePaper,
+  pageCss as paperPageCss,
+  papersFor,
+  parsePaper,
+  useRollLength,
+} from "@/lib/print-paper";
 
 type Label = { en: string; mr: string; hi: string };
 
@@ -83,7 +91,7 @@ function tri(l: Label) {
 }
 
 /** A4 / A5 (and 80 mm roll for receipts): pure print CSS, see lib/print-paper.ts. */
-function PaperPicker({ paper, isReceipt }: { paper: Paper; isReceipt: boolean }) {
+function PaperPicker({ paper, isReceipt }: { paper: Paper | null; isReceipt: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const search = useSearchParams();
@@ -122,8 +130,6 @@ function PrintView() {
   const search = useSearchParams();
   const router = useRouter();
   const type = search.get("type") === "receipt" ? "receipt" : "rx";
-  const paper = parsePaper(search.get("paper"), type === "receipt");
-  const sheetClass = `print-sheet paper-${paper}`;
 
   const [rx, setRx] = useState<PrescriptionDetail | null>(null);
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -135,9 +141,22 @@ function PrintView() {
   const [error, setError] = useState<string | null>(null);
   const [printDefaults, setPrintDefaults] = useState<PrinterDefaults | null>(null);
   const [template, setTemplate] = useState<OrgSettingsOut["settings"] | null>(null);
-  const roll = useRollLength(paper, receipt);
   // An explicit ?paper= choice (picker) wins over the saved printer profile.
   const explicitPaper = search.get("paper") !== null;
+  const doc = type === "receipt" ? "receipt" : "prescription";
+  const profile = printDefaults?.[doc] ?? null;
+  const fallbackKind = template?.prescription.paper_size === "A5" && doc === "prescription" ? "a5" : "a4";
+  // what the picker highlights must be what will print (M8.1): the profile's
+  // paper when no ?paper= was chosen
+  const shownPaper = effectivePaper({
+    param: search.get("paper"),
+    isReceipt: type === "receipt",
+    profileKind: profile?.kind ?? null,
+    templatePaper: template?.prescription.paper_size ?? null,
+  });
+  const paper: Paper = explicitPaper ? parsePaper(search.get("paper"), type === "receipt") : shownPaper ?? "a4";
+  const sheetClass = `print-sheet paper-${paper}`;
+  const roll = useRollLength(paper, receipt);
 
   useEffect(() => onAuthFailure(() => router.replace("/login")), [router]);
 
@@ -209,9 +228,6 @@ function PrintView() {
     void load();
   }, [params.id, type]);
 
-  const doc = type === "receipt" ? "receipt" : "prescription";
-  const profile = printDefaults?.[doc] ?? null;
-  const fallbackKind = template?.prescription.paper_size === "A5" && doc === "prescription" ? "a5" : "a4";
   const sheetCss =
     PRINT_CSS +
     (!explicitPaper && (profile || template)
@@ -308,7 +324,7 @@ function PrintView() {
         <footer className="print-foot">
           <span>{tri(L.signature)}</span>
         </footer>
-        <PaperPicker paper={paper} isReceipt />
+        <PaperPicker paper={shownPaper} isReceipt />
         <button
           type="button"
           className="no-print"
@@ -452,7 +468,7 @@ function PrintView() {
         </div>
       </footer>
 
-      <PaperPicker paper={paper} isReceipt={false} />
+      <PaperPicker paper={shownPaper} isReceipt={false} />
       <button
         type="button"
         className="no-print"

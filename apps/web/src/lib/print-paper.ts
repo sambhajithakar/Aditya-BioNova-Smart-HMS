@@ -29,6 +29,30 @@ export function papersFor(isReceipt: boolean): Paper[] {
   return isReceipt ? PAPERS : ["a4", "a5"];
 }
 
+/**
+ * The paper the page will actually print on, for the picker to highlight
+ * (M8.1). An explicit `?paper=` wins; otherwise the saved printer profile's
+ * kind, then the prescription template's paper size. null when the profile
+ * uses a size the picker does not offer (58 mm roll, or a thermal roll for a
+ * prescription): no button is shown as selected rather than a wrong one.
+ */
+export function effectivePaper(opts: {
+  param: string | null;
+  isReceipt: boolean;
+  profileKind?: string | null;
+  templatePaper?: string | null;
+}): Paper | null {
+  const { param, isReceipt, profileKind, templatePaper } = opts;
+  if (param !== null) return parsePaper(param, isReceipt);
+  if (profileKind) {
+    if (profileKind === "a4" || profileKind === "a5") return profileKind;
+    if (profileKind === "thermal_80mm" && isReceipt) return "80mm";
+    return null;
+  }
+  if (!isReceipt && templatePaper === "A5") return "a5";
+  return "a4";
+}
+
 /** Print CSS for a paper (appended after the base print sheet CSS). */
 /** Page length for an 80 mm roll from the rendered sheet height (CSS px). */
 export function rollLengthMm(sheetHeightPx: number): number {

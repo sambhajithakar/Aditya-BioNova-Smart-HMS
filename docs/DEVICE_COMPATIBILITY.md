@@ -146,6 +146,10 @@ Per-profile checks in `device.spec.ts`:
 
 * A paper picker (screen only) sits on `/print/rx/[id]` (A4 / A5) and on
   receipts (`?type=receipt`, A4 / A5 / 80 mm); `?paper=` in the URL selects it.
+  - Without `?paper=`, the clinic's saved printer profile for the document
+    decides the page size, and since M8.1 the picker highlights that paper.
+  - For a profile size the picker does not offer (58 mm roll), no button is
+    highlighted.
 * `size: 80mm auto` is **not valid CSS**: Chromium silently printed Letter. The
   roll length is therefore measured from the rendered receipt (+10 % +12 mm),
   re-measured on resize and `beforeprint`, with a 297 mm fallback.

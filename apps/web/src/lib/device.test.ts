@@ -29,7 +29,7 @@ import {
 import { BOTTOM_SLOTS, pickBottomNav } from "./device-nav";
 import { NAV } from "./nav";
 import { consumePatientSearch, debounce, onPatientSearch, requestPatientSearch } from "./quick-search";
-import { pageCss, papersFor, parsePaper, rollLengthMm } from "./print-paper";
+import { effectivePaper, pageCss, papersFor, parsePaper, rollLengthMm } from "./print-paper";
 import { cachesToClear, swUrl } from "./pwa";
 import { dictionaries } from "./i18n";
 import { deviceDictionaries } from "./i18n-device";
@@ -266,6 +266,21 @@ describe("print paper sizes", () => {
     expect(parsePaper("letter", true)).toBe("a4");
     expect(papersFor(false)).toEqual(["a4", "a5"]);
     expect(papersFor(true)).toEqual(["a4", "a5", "80mm"]);
+  });
+  it("the picker highlights the paper that will print (M8.1 W1)", () => {
+    // no ?paper=: the saved printer profile decides
+    expect(effectivePaper({ param: null, isReceipt: false, profileKind: "a5" })).toBe("a5");
+    expect(effectivePaper({ param: null, isReceipt: true, profileKind: "thermal_80mm" })).toBe("80mm");
+    // sizes the picker does not offer: nothing highlighted, never a wrong one
+    expect(effectivePaper({ param: null, isReceipt: true, profileKind: "thermal_58mm" })).toBeNull();
+    expect(effectivePaper({ param: null, isReceipt: false, profileKind: "thermal_80mm" })).toBeNull();
+    // no profile: the prescription template's paper size, else A4
+    expect(effectivePaper({ param: null, isReceipt: false, templatePaper: "A5" })).toBe("a5");
+    expect(effectivePaper({ param: null, isReceipt: true, templatePaper: "A5" })).toBe("a4");
+    expect(effectivePaper({ param: null, isReceipt: false })).toBe("a4");
+    // an explicit choice always wins
+    expect(effectivePaper({ param: "a4", isReceipt: false, profileKind: "a5" })).toBe("a4");
+    expect(effectivePaper({ param: "80mm", isReceipt: true, profileKind: "a4" })).toBe("80mm");
   });
   it("emits the matching @page size", () => {
     expect(pageCss("a4")).toMatch(/@page \{ size: A4;/);
