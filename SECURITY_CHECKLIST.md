@@ -56,6 +56,11 @@ review, DPDP/ABDM/CDSCO legal assessment and clinical safety review are
 - ✅ PHI reads audited: every successful GET on patient/clinical/financial
   resources writes `phi.read` (path only — never query strings), fail-closed
   (no audit row → 500, no data) (H18, M7.0, tested)
+  - Extended in M8.1 (tested) to these routes:
+    - Clinical Scribe
+    - follow-ups
+    - a patient's message history and consents
+    - the comms delivery log
 - ✅ `insert_audit_event` tenancy guard fixed (an empty org context no longer
   bypasses it — migration 0009, raw-SQL proof)
 - ✅ Platform (vendor) console: only `is_superadmin` users, MFA-enrolled

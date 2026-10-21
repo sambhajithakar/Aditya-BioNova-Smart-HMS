@@ -63,10 +63,13 @@ _REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{1,64}$")
 
 # GET endpoints that disclose patient health information. A successful read
 # is audited as ``phi.read`` (path only — query strings may hold names or
-# phone numbers and are never logged).
+# phone numbers and are never logged). M8.1 added the Clinical Scribe
+# (consultation transcripts and drafts), follow-ups, a patient's message
+# history and consents, and the delivery log (who was told what, and when).
 _PHI_PATH_RE = re.compile(
     r"^/api/v1/(patients|encounters|prescriptions|lab|ipd|opd|appointments"
-    r"|billing/invoices|billing/payments|pharmacy/dispenses)(/|$)"
+    r"|billing/invoices|billing/payments|pharmacy/dispenses"
+    r"|ai/scribe|follow-ups|comms/patients|comms/delivery-log)(/|$)"
 )
 _UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 

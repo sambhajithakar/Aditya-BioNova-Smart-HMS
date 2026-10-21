@@ -8,6 +8,7 @@ from __future__ import annotations
 import itertools
 import json
 import time
+import uuid
 
 import psycopg2
 import pytest
@@ -545,6 +546,30 @@ def test_phi_reads_are_audited_without_query_strings(client):
     assert any(r[1] == "patients" and r[2] == p["id"] for r in reads)
     for r in reads:
         assert "Readpatient" not in json.dumps(r[4])
+
+
+def test_phi_reads_on_m7_modules_are_audited(client):
+    """M8.1 (M3): scribe, follow-ups and patient messaging disclose PHI too."""
+    org = _fresh_org(client)
+    h = _auth(org)
+    p = client.post("/api/v1/patients", json={
+        "full_name": "Audit Commspatient", "phone": "9876500002", "gender": "male",
+        "date_of_birth": "1985-01-01", "allow_duplicates": True}, headers=h).json()
+    paths = {f"/api/v1/comms/patients/{p['id']}": "comms/patients",
+             "/api/v1/comms/delivery-log": "comms/delivery-log",
+             "/api/v1/follow-ups": "follow-ups",
+             f"/api/v1/ai/scribe/sessions?encounter_id={uuid.uuid4()}": "ai/scribe"}
+    ok = {}
+    for path, kind in paths.items():
+        ok[kind] = client.get(path, headers=h).status_code
+    reads = {r[1] for r in _audit_actions(org["organization"]["id"]) if r[0] == "phi.read"}
+    for kind, code in ok.items():
+        assert (kind in reads) == (200 <= code < 300), (kind, code)
+    assert {"comms/patients", "follow-ups"} <= reads
+    # metadata settings are not PHI and stay unaudited
+    client.get("/api/v1/comms/settings", headers=h)
+    assert "comms/settings" not in {
+        r[1] for r in _audit_actions(org["organization"]["id"]) if r[0] == "phi.read"}
 
 
 def test_forwarded_for_ignored_from_untrusted_peer(client):
