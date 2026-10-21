@@ -16,6 +16,7 @@ void main() {
     expect(packages.where((p) => p == 'Google ML Kit (barcode scanning)'),
         hasLength(1));
     expect(packages.where((p) => p == 'Material Icons font'), hasLength(1));
+    expect(packages.where((p) => p.startsWith('RxAndroidBle')), hasLength(1));
     final text = entries
         .expand((e) => e.paragraphs)
         .map((p) => p.text)

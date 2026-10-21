@@ -27,7 +27,7 @@ import 'data/draft_book.dart';
 import 'data/rx_drafts.dart';
 import 'data/stock_counts.dart';
 import 'devices/device_book.dart';
-import 'devices/simulator.dart';
+import 'devices/ble_transport.dart';
 import 'devices/transport.dart';
 import 'pdf/pdf_output.dart';
 import 'scan/checkin.dart';
@@ -56,10 +56,7 @@ class AppGraph {
     NetworkMonitor? network,
     DeviceTransport? deviceTransport,
   })  : store = store ?? MemoryLocalStore(),
-        deviceTransport = deviceTransport ??
-            (kDeviceSimulator
-                ? SimulatedDeviceTransport()
-                : const UnavailableDeviceTransport()),
+        deviceTransport = deviceTransport ?? defaultDeviceTransport(),
         session = Session(tokenStore ?? MemoryTokenStore()),
         network = network ?? NetworkMonitor(),
         scanner = scanner ?? const CameraCodeScanner(),

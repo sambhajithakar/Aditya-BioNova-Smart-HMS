@@ -122,6 +122,12 @@ No GPL or AGPL licence is present. Direct dev tools:
 | **mobile_scanner** (new, M8) | 7.4.2 | BSD-3-Clause | QR check-in / medicine barcode scanner |
 | ↳ Google ML Kit barcode scanning (Android native, pulled by mobile_scanner) | 17.3.0 | Google ML Kit Terms of Service (free, proprietary; on-device, no data sent) | ✅ commercial use permitted; keep attribution; re-check terms before release |
 | **pdf** (new, M8) | 3.13.1 | Apache-2.0 | Rx draft / signed Rx / receipt PDFs |
+| **flutter_reactive_ble** (M8.2) | 5.6.0 | BSD-3-Clause (© 2019 Signify Holding; LICENSE read) | Bluetooth LE BP monitor / pulse oximeter capture (read-only) |
+| ↳ reactive_ble_mobile / reactive_ble_platform_interface | 5.6.0 / 5.6.0 | BSD-3-Clause | plugin implementation |
+| ↳ functional_data / protobuf / fixnum | 1.2.0 / 6.1.0 / 1.1.1 | MIT / BSD-3-Clause / BSD-3-Clause | transitive |
+| ↳ RxAndroidBle (Android native) | 1.16.0 | Apache-2.0 | listed on the in-app licence screen |
+| ↳ RxJava 2 / RxKotlin / RxAndroid (Android native) | 2.x / 2.4.0 / 2.1.1 | Apache-2.0 | listed on the in-app licence screen |
+| ↳ protobuf-javalite (Android native) | 3.25.3 | BSD-3-Clause | listed on the in-app licence screen |
 | **printing** (new, M8) | 5.15.1 | Apache-2.0 | Android share / print sheet |
 | ↳ pdf_widget_wrapper / barcode | 1.0.4 / 2.2.9 | Apache-2.0 | transitive |
 | ↳ archive / image / bidi / xml / petitparser / posix | 4.5.2 / 4.12.0 / 2.0.13 / 7.0.1 / 7.0.2 / 6.5.2 | MIT | transitive |
